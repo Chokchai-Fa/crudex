@@ -6,7 +6,7 @@ workers_dev = true
 
 [vars]
 DAILY_RUN_LIMIT = "60"
-DAILY_RUN_LIMIT_OVERRIDES = { "2026-11-21" = 150 }
+DAILY_RUN_LIMIT_OVERRIDES = { "2026-11-21" = 300 }
 IDLE_STOP_MINUTES = "10"
 
 [assets]

@@ -1,4 +1,4 @@
-import type { GuestSignIn } from '@repo/shared';
+import { sampleClassM21, type GuestSignIn } from '@repo/shared';
 import type { Db } from '../db/client';
 import {
   classAssignments,
@@ -8,6 +8,7 @@ import {
   schoolSessions,
   schools,
 } from '../db/schema/schools';
+import { sampleHistoryInserts } from './sample-class.repository';
 
 export async function createGuestSchool(
   db: Db,
@@ -23,7 +24,8 @@ export async function createGuestSchool(
     role,
     displayName: role === 'teacher' ? 'ครูทดลอง' : 'ผู้อำนวยการทดลอง',
   };
-  const students = ['นักเรียนตัวอย่าง ก', 'นักเรียนตัวอย่าง ข'].map((displayName) => ({
+  // The demo story room: ม.2/1 with the same sample students and past scores the runtime uses.
+  const students = sampleClassM21.studentNames.map((displayName) => ({
     ownerId: crypto.randomUUID(),
     id: crypto.randomUUID(),
     role: 'student' as const,
@@ -33,7 +35,7 @@ export async function createGuestSchool(
   // Neon executes the batch as one transaction, including the session that unlocks it.
   await db.batch([
     db.insert(schools).values({ id: schoolId, name: 'โรงเรียนทดลอง' }),
-    db.insert(schoolClasses).values({ id: classId, schoolId, name: 'ป.4/1' }),
+    db.insert(schoolClasses).values({ id: classId, schoolId, name: sampleClassM21.label }),
     db
       .insert(schoolAccounts)
       .values(people.map((p) => ({ id: p.ownerId, displayName: p.displayName }))),
@@ -47,6 +49,12 @@ export async function createGuestSchool(
           .filter((p) => p.role !== 'principal')
           .map((p) => ({ schoolId, classId, membershipId: p.id })),
       ),
+    ...sampleHistoryInserts(
+      db,
+      schoolId,
+      classId,
+      students.map((s) => s.id),
+    ),
     db.insert(schoolSessions).values({ digest, membershipId: guest.id, expiresAt }),
-  ]);
+  ] as unknown as Parameters<Db['batch']>[0]);
 }
