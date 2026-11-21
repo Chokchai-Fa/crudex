@@ -10,11 +10,15 @@ credit card**.
 
 ---
 
+## Documentation hosting
+
+GitHub Pages serves the Docusaurus build at [Crudex documentation](https://chokchai-fa.github.io/crudex/). The public repository uses the GitHub Actions publishing source in **Settings → Pages**. The Check documentation workflow builds open PRs with the dedicated lockfile in `docs/site`. Deploy documentation runs when a matching PR closes against `main`, verifies that it merged, and builds and publishes the merged revision. The publish job uses the built-in Pages and OIDC permissions. Documentation requests consume no Worker CPU, database connections or model quota.
+
 ## School API rollout
 
 The application Worker uses the `SCHOOL_GATEWAY` service binding to call the `SchoolDispatch` entrypoint on `crudex-agent`. For first rollout, release the gateway revision exporting that entrypoint before releasing the application Worker. The application release runs additive migrations before shipping the Worker. Its queue consumes one message per batch. A five-minute cron recovers run dispatch and enqueues due school report drafts alongside the existing daily Redis keepalive.
 
-[Worker bindings](../apps/api/wrangler.toml) · [Database migrations and schema](../docs/DATABASE.md) · [API contract](../docs/API.md)
+[Worker bindings](../apps/api/wrangler.toml) · [Database migrations and schema](../docs/site/docs/reference/database.md) · [API contract](../docs/site/docs/integrations/school-api.md)
 
 ## 0. Overview — who creates what
 

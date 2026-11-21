@@ -13,12 +13,12 @@
 
 ## Remaining integration and release work
 
-1. Consume the [API guide](docs/API.md) and [OpenAPI specification](docs/openapi.yaml) in the separate frontend PR. Verify sign-in, reconnect, worksheet navigation, quiz submission and role-specific states against a local application Worker.
+1. Consume the [API guide](docs/site/docs/integrations/school-api.md) and [OpenAPI specification](docs/site/static/openapi.yaml) in the separate frontend PR. Verify sign-in, reconnect, worksheet navigation, quiz submission and role-specific states against a local application Worker.
 2. Qualify the separately deployed gateway and application revisions together. Exercise gateway boot, disconnect, failure, sandbox replacement, scoped callbacks and saved-artifact retrieval. Verify the demo morning-brief alarm against its last valid result.
 3. Enable external Forms or family report delivery only when provider credentials, recipient authorization, confirmed publication or delivery, and handling for uncertain results are available.
 4. Run the checks below before deployment. Release the gateway revision with the named entrypoint before shipping the application binding. Agent changes deploy on qualifying merged PRs or manual workflow dispatch.
 
-[School architecture](docs/ARCHITECTURE.md) · [Cloud components](docs/CLOUD-ARCHITECTURE.md) · [Database schema](docs/DATABASE.md)
+[School architecture](docs/site/docs/architecture/run-lifecycle.md) · [Cloud components](docs/site/docs/architecture/cloud-services.md) · [Database schema](docs/site/docs/reference/database.md)
 
 ## Local verification sequence
 

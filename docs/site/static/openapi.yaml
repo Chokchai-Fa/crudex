@@ -2,9 +2,7 @@ openapi: 3.1.0
 info:
   title: Crudex school API
   version: 1.0.0
-  description:
-    Application Worker contract. Sessions are scoped to one active membership. The separate
-    passcode demo gateway is documented in agent-gateway.md.
+  description: Application Worker contract. Sessions are scoped to one active membership. Use the application Worker origin for API requests.
 servers:
   - url: /api
 security:

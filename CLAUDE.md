@@ -22,12 +22,14 @@ a queue job), that runs through every layer: `packages/shared/src/notes.schema.t
 `db/schema/notes.ts`, and `features/notes/` on the web. Copy its shape for new features, then
 delete it. Rename the project once with `scripts/init-template.sh` (see `README.md`).
 
-When the app has a spec, put it in `docs/` (e.g. `docs/PRODUCT.md`: flow, data model, API,
+When the app has a spec, put it in `docs/` (e.g. `docs/site/docs/product/workflows.md`: flow, data model, API,
 responsive layouts) and a step-by-step plan in `PLAN.md`, and keep both updated.
+
+Use the [Docusaurus authoring skill](skills/write-docusaurus-docs/SKILL.md) when editing the published handbook.
 
 ## School backend
 
-The application Worker authenticates school memberships, stores business records in Neon and dispatches queued AI runs through the agent gateway’s private service binding. The separate gateway owns sandbox lifecycle and the OpenCode runtime. Notes remain a small layering example. Consult the [school API](docs/API.md), [database schema](docs/DATABASE.md) and [cloud architecture](docs/CLOUD-ARCHITECTURE.md) for the implemented school workflows.
+The application Worker authenticates school memberships, stores business records in Neon and dispatches queued AI runs through the agent gateway’s private service binding. The separate gateway owns sandbox lifecycle and the OpenCode runtime. Notes remain a small layering example. Consult the [school API](docs/site/docs/integrations/school-api.md), [database schema](docs/site/docs/reference/database.md) and [cloud architecture](docs/site/docs/architecture/cloud-services.md) for the implemented school workflows.
 
 ## Service stack (free tier, no credit card — checked Nov 2026)
 
@@ -326,7 +328,7 @@ Rules:
 
 - Change detection uses `dorny/paths-filter`: any `apps/**`, `packages/**`, or lockfile change
   deploys the app (web + api ship together); infra changes also redeploy it (bindings may have
-  changed); docs-only changes skip all.
+  changed). Published handbook changes run the separate Documentation workflow.
 - Shared setup (pnpm + Node from `.nvmrc` + cached install) is the composite action
   `.github/actions/setup` — reuse it instead of repeating steps.
 - All Terraform jobs share the `terraform-prod` concurrency group; deploys share `deploy-main`
