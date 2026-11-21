@@ -1,16 +1,17 @@
+import '../features/school/school-flow.css';
 import { createRootRoute, Link, redirect, Outlet, useRouterState } from '@tanstack/react-router';
-import { sessionRole } from '@/features/workspace/demo-session';
+
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 
 export const Route = createRootRoute({
-  beforeLoad: async ({ location }) => {
+  beforeLoad: ({ location }) => {
     const path = location.pathname.toLowerCase().replace(/\/+$/, '');
-    const teacherPages = ['/teacher', '/gradebook', '/reports', '/memory', '/notes'];
-    const required =
-      path === '/principal' ? 'principal' : teacherPages.includes(path) ? 'teacher' : null;
-    if (required && (await sessionRole()) !== required)
-      throw redirect({ to: '/sign-in', replace: true });
+    if (
+      ['/gradebook', '/principal', '/reports', '/memory', '/notes'].includes(path) ||
+      path.startsWith('/student/')
+    )
+      throw redirect({ to: '/school', replace: true });
   },
   component: RootLayout,
   notFoundComponent: () => (
@@ -40,12 +41,12 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
-  const page = useRouterState({ select: (state) => state.matches.at(-1)?.routeId });
-  if (page === '/' || page === '/sign-in' || page === '/teacher' || page === '/gradebook')
-    return <Outlet />;
-  return (
+  const path = useRouterState({ select: (state) => state.location.pathname });
+  return path === '/school' || path.startsWith('/play/') ? (
     <AppShell>
       <Outlet />
     </AppShell>
+  ) : (
+    <Outlet />
   );
 }

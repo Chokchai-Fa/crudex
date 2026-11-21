@@ -68,7 +68,7 @@ function SchoolPlay() {
   const session = useSchoolSession();
   const logout = useSchoolLogout();
   return (
-    <section className="mx-auto max-w-xl space-y-5 rounded-2xl border bg-card p-5">
+    <section className="school-flow mx-auto max-w-xl space-y-5 rounded-2xl border bg-card p-5">
       <Link to="/school" className="text-sm text-primary underline">
         กลับพื้นที่โรงเรียน
       </Link>

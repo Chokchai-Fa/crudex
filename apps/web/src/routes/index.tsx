@@ -23,31 +23,12 @@ function Landing() {
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild>
-              <Link to="/sign-in">เข้าสู่ระบบด้วยบัญชีเดโม</Link>
+              <Link to="/school">เข้าสู่พื้นที่โรงเรียน</Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link to="/school">พื้นที่โรงเรียน</Link>
-            </Button>
-            <details className="text-sm">
-              <summary className="cursor-pointer py-3 text-primary underline">ดูวิธีใช้</summary>
-              <p className="max-w-sm py-2">
-                เลือกบัญชีครู แล้วพิมพ์ “ทำใบงานเศษส่วน” เมื่อได้ชุดแล้ว ลองถาม “อธิบายข้อ 3”
-                หรือเปิดควิซได้เลย
-              </p>
-            </details>
           </div>
-          <p className="text-sm text-muted-foreground">
-            ทดลองฟรีด้วยข้อมูลตัวอย่าง ไม่ต้องสมัครสมาชิก
-          </p>
         </div>
-        <div className="space-y-4 rounded-3xl bg-muted p-5 sm:p-8">
-          <img src="/agents/jaew.svg" alt="" width="64" height="64" />
-          <p className="ms-auto w-fit rounded-2xl rounded-tr-sm bg-accent p-3 text-accent-foreground">
-            ช่วยเตรียมใบงานเศษส่วน ป.5 ให้หน่อย
-          </p>
-          <p className="w-fit rounded-2xl rounded-tl-sm border bg-card p-3">
-            ได้ค่ะครู ลองตรวจใบงาน A4 และเปิดฟอร์มตัวอย่างได้เลย
-          </p>
+        <div className="grid place-items-center">
+          <img src="/team/secretary.svg" alt="เลขาครู" width="144" height="144" />
         </div>
       </section>
     </main>

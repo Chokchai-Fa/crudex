@@ -1,18 +1,13 @@
 import { Link } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
-import type { CreateRun, SchoolActor } from '@repo/shared';
+import { useState } from 'react';
+import type { SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { useRunEvents } from './api/run-events';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  useCreateSchoolRun,
-  useSchoolGradebook,
-  useSchoolRuns,
-  useSchoolWorksheet,
-} from './api/school';
 
-const statusLabels = {
+import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
+
+export const statusLabels = {
   queued: 'รอคิว',
   running: 'กำลังทำงาน',
   succeeded: 'เสร็จแล้ว',
@@ -21,7 +16,7 @@ const statusLabels = {
   cancelled: 'ยกเลิกแล้ว',
 };
 const toolStatuses = { started: 'เริ่ม', success: 'เสร็จแล้ว', failed: 'ไม่สำเร็จ' };
-function RunDetails({ id }: { id: string }) {
+export function RunDetails({ id }: { id: string }) {
   const { events, error } = useRunEvents(id);
   const text = events.flatMap((event) => (event.type === 'delta' ? [event.text] : [])).join('');
   const steps = events.flatMap((event) => {
@@ -59,7 +54,7 @@ function RunDetails({ id }: { id: string }) {
     </div>
   );
 }
-function Worksheet({ membershipId, id }: { membershipId: string; id: string }) {
+export function Worksheet({ membershipId, id }: { membershipId: string; id: string }) {
   const sheet = useSchoolWorksheet(membershipId, id);
   if (sheet.error) return <p role="alert">{sheet.error.message}</p>;
   if (!sheet.data) return <p role="status">กำลังเปิดใบงาน…</p>;
@@ -87,121 +82,38 @@ function Worksheet({ membershipId, id }: { membershipId: string; id: string }) {
   );
 }
 
-function ClassWork({ membershipId, classId }: { membershipId: string; classId: string }) {
+export function SchoolGradebook({
+  membershipId,
+  classId,
+}: {
+  membershipId: string;
+  classId: string;
+}) {
   const grades = useSchoolGradebook(membershipId, classId);
-  const history = useSchoolRuns(membershipId);
-  const create = useCreateSchoolRun(membershipId);
-  const [text, setText] = useState('');
-  const [sheet, setSheet] = useState('');
-  const [expanded, setExpanded] = useState('');
-  const retry = useRef<CreateRun | null>(null);
-  async function submit() {
-    const prompt = text.trim();
-    if (!prompt || create.isPending) return;
-    if (retry.current?.prompt !== prompt)
-      retry.current = { classId, prompt, clientRequestId: crypto.randomUUID() };
-    try {
-      const run = await create.mutateAsync(retry.current);
-      setExpanded(run.id);
-      retry.current = null;
-      setText('');
-    } catch {
-      /* The error is shown next to the form. */
-    }
-  }
   return (
-    <>
-      <section className="space-y-4 rounded-2xl border bg-card p-5">
-        <h2 className="text-xl font-bold">งานของน้องแจ๋ว</h2>
-        {import.meta.env.VITE_SCHOOL_GATEWAY_FIXTURE === 'true' && (
-          <p className="text-sm text-muted-foreground">
-            เซิร์ฟเวอร์ทดสอบในเครื่องใช้ผู้ช่วยจำลองที่ส่งใบงานเศษส่วนตัวอย่าง
-          </p>
-        )}
-        <form
-          className="space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <label htmlFor="school-prompt">คำขอของครู</label>
-          <Textarea
-            id="school-prompt"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            maxLength={4000}
-            disabled={create.isPending}
-          />
-          <Button disabled={create.isPending || !text.trim()}>ส่งคำขอ</Button>
-        </form>
-        {create.error && <p role="alert">{create.error.message}</p>}
-        {history.error ? (
-          <p role="alert">{history.error.message}</p>
-        ) : (
-          <ul aria-live="polite" className="space-y-3">
-            {history.data?.runs
-              .filter((r) => r.classId === classId)
-              .map((r) => (
-                <li className="border-t pt-3" key={r.id}>
-                  <p className="whitespace-pre-wrap break-words">{r.prompt}</p>
-                  <small>{statusLabels[r.status]}</small>
-                  <div>
-                    <button
-                      className="min-h-11 text-sm font-medium text-primary"
-                      aria-expanded={expanded === r.id}
-                      onClick={() => setExpanded(expanded === r.id ? '' : r.id)}
-                    >
-                      {expanded === r.id ? 'ย่อรายละเอียดงาน' : 'ดูรายละเอียดงาน'}
-                    </button>
-                    {expanded === r.id && <RunDetails key={r.id} id={r.id} />}
-                  </div>
-                  {r.worksheetIds.map((id, i) => (
-                    <Button key={id} variant="link" onClick={() => setSheet(id)}>
-                      เปิดใบงาน {i + 1}
-                    </Button>
-                  ))}
-                </li>
-              ))}
+    <section className="space-y-2 rounded-2xl border bg-card p-5">
+      <h2 className="text-xl font-bold">สมุดคะแนนจากโรงเรียน</h2>
+      {grades.error ? (
+        <p role="alert">{grades.error.message}</p>
+      ) : grades.data ? (
+        <>
+          {grades.data.students.length === 0 && <p>ยังไม่มีนักเรียนในห้องนี้</p>}
+          <ul>
+            {grades.data.students.map((s) => (
+              <li className="flex flex-wrap justify-between gap-2 border-b py-2" key={s.id}>
+                <span>{s.name}</span>
+                <span>{s.score === null ? 'ยังไม่มีคะแนน' : s.score + ' / ' + s.maxScore}</span>
+              </li>
+            ))}
           </ul>
-        )}
-        {sheet && (
-          <>
-            <Worksheet id={sheet} membershipId={membershipId} />
-            <Button variant="outline" onClick={() => setSheet('')}>
-              ปิดใบงาน
-            </Button>
-          </>
-        )}
-      </section>
-      <section className="space-y-2 rounded-2xl border bg-card p-5">
-        <h2 className="text-xl font-bold">สมุดคะแนนจากโรงเรียน</h2>
-        {grades.error ? (
-          <p role="alert">{grades.error.message}</p>
-        ) : grades.data ? (
-          <>
-            {grades.data.students.length === 0 && <p>ยังไม่มีนักเรียนในห้องนี้</p>}
-            <ul>
-              {grades.data.students.map((s) => (
-                <li className="flex flex-wrap justify-between gap-2 border-b py-2" key={s.id}>
-                  <span>{s.name}</span>
-                  <span>{s.score === null ? 'ยังไม่มีคะแนน' : s.score + ' / ' + s.maxScore}</span>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p role="status">กำลังอ่านคะแนน…</p>
-        )}
-        <Button
-          variant="outline"
-          disabled={grades.isFetching}
-          onClick={() => void grades.refetch()}
-        >
-          อ่านคะแนนอีกครั้ง
-        </Button>
-      </section>
-    </>
+        </>
+      ) : (
+        <p role="status">กำลังอ่านคะแนน…</p>
+      )}
+      <Button variant="outline" disabled={grades.isFetching} onClick={() => void grades.refetch()}>
+        อ่านคะแนนอีกครั้ง
+      </Button>
+    </section>
   );
 }
 export function SchoolClassroom({ actor }: { actor: SchoolActor }) {
@@ -220,7 +132,10 @@ export function SchoolClassroom({ actor }: { actor: SchoolActor }) {
           ))}
         </NativeSelect>
       </label>
-      <ClassWork key={id} membershipId={actor.membershipId} classId={id} />
+      <Link className="text-primary underline" to="/teacher" search={{ roomId: id }}>
+        เปิดแชตเลขาครู
+      </Link>
+      <SchoolGradebook key={id} membershipId={actor.membershipId} classId={id} />
     </>
   );
 }

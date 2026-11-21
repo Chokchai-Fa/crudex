@@ -36,7 +36,7 @@ function School() {
   const logout = useSchoolLogout();
   const me = session.data;
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="school-flow mx-auto max-w-2xl space-y-5">
       <Link to="/" className="text-sm text-primary underline">
         กลับหน้าแรก
       </Link>
