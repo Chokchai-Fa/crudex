@@ -28,13 +28,18 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
-  const standalone = useRouterState({
-    select: (state) =>
-      state.matches.some(({ routeId }) => routeId === '/' || routeId === '/teacher'),
-  });
-  return standalone ? (
-    <Outlet />
-  ) : (
+  const page = useRouterState({ select: (state) => state.matches.at(-1)?.routeId });
+  if (page === '/' || page === '/teacher') return <Outlet />;
+  if (page === '/memory' || page === '/notes') {
+    return (
+      <main className="teacher-chat min-h-dvh bg-muted px-4 py-5 sm:px-6 sm:py-10">
+        <div className="mx-auto max-w-2xl">
+          <Outlet />
+        </div>
+      </main>
+    );
+  }
+  return (
     <AppShell>
       <Outlet />
     </AppShell>

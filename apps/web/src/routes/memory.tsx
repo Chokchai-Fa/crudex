@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
+import { ArrowLeft, Star } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { flushSync } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { rooms } from '@/features/workspace/fraction-set';
@@ -56,26 +58,33 @@ function RoomMemory({ room }: { room: string }) {
   }
 
   return (
-    <section className="teacher-chat mx-auto max-w-2xl space-y-4 rounded-3xl bg-muted p-4 sm:p-6">
+    <section className="space-y-5">
       <Button asChild variant="link" className="px-0">
         <Link
           to="/teacher"
           onClick={() => sessionStorage.setItem('crudex.demo.teacher.room', room)}
         >
-          กลับหน้าครู · {room}
+          <ArrowLeft aria-hidden="true" /> กลับหน้าครู · {room}
         </Link>
       </Button>
-      <header className="flex items-center gap-3">
-        <img src="/agents/jaew.svg" alt="" width="44" height="44" />
-        <div>
+      <header className="flex items-start gap-3">
+        <img
+          src="/agents/jaew.svg"
+          alt=""
+          width="48"
+          height="48"
+          className="shrink-0 rounded-2xl bg-card p-1"
+        />
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold">ความจำของห้อง {room}</h1>
-          <p className="mt-1 text-base leading-relaxed">
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             <span className="block">เก็บเฉพาะห้องนี้ในแท็บนี้</span>
             <span className="block">ใบงานตัวอย่างยังเป็นชุดเดิม</span>
           </p>
         </div>
+        <ThemeToggle />
       </header>
-      <div className="space-y-4 rounded-2xl border bg-card p-4 sm:p-6">
+      <div className="space-y-5 rounded-3xl border bg-card p-5 shadow-sm sm:p-7">
         <h2
           className="rounded text-lg font-semibold focus-visible:outline-2"
           ref={focusTarget}
@@ -88,7 +97,10 @@ function RoomMemory({ room }: { room: string }) {
         </h2>
         {action === 'view' && (
           <>
-            <p>{saved || 'ยังไม่มีรูปแบบใบงานที่ครูยืนยันให้จำ'}</p>
+            <p className="flex items-center gap-3 rounded-2xl bg-muted p-4">
+              <Star aria-hidden="true" className="size-5 shrink-0 text-primary" />
+              {saved || 'ยังไม่มีรูปแบบใบงานที่ครูยืนยันให้จำ'}
+            </p>
             <div className="flex flex-wrap gap-2">
               <Button
                 ref={editButton}
@@ -114,7 +126,7 @@ function RoomMemory({ room }: { room: string }) {
               {formats.map((format) => (
                 <label
                   key={format}
-                  className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 has-[:checked]:border-primary"
+                  className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 has-[:checked]:border-primary has-[:checked]:bg-muted"
                 >
                   <input
                     type="radio"
