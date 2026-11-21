@@ -1,7 +1,7 @@
 // Real-opencode e2e for the five teacher agents with a scripted model (no key, no network).
 // Usage: node e2e/run.mjs   (OPENCODE_BIN=... to choose the binary; E2E_DEBUG=1 for raw output)
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,8 +43,42 @@ writeFileSync(
   }),
 );
 
+// Same shape the bundle embeds: directory id, frontmatter name/description, markdown body.
+const skills = readdirSync(join(pkg, 'skills'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => {
+    const raw = readFileSync(join(pkg, 'skills', entry.name, 'SKILL.md'), 'utf8');
+    const [, front, body] = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(raw);
+    const field = (key) => new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(front)[1].trim();
+    return {
+      id: entry.name,
+      name: field('name'),
+      description: field('description'),
+      content: body.trim(),
+    };
+  });
+writeFileSync(join(root, 'skills.json'), JSON.stringify(skills));
+
+const bridgeLog = join(root, 'bridge.log');
+writeFileSync(bridgeLog, '');
+const bridgeCalls = {
+  get length() {
+    return this.all.length;
+  },
+  get all() {
+    return readFileSync(bridgeLog, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+  },
+  0: undefined,
+};
+Object.defineProperty(bridgeCalls, 0, { get: () => bridgeCalls.all[0] });
+
 const env = {
   ...process.env,
+  E2E_SKILLS_FILE: join(root, 'skills.json'),
+  SCHOOL_BOT_APPS_SCRIPT_URL: 'http://127.0.0.1:4793/exec',
   PWD: root,
   MOCK_KEY: 'x',
   MOCK_PORT: String(PORT.mock),
@@ -56,8 +90,12 @@ const env = {
   XDG_CACHE_HOME: join(root, 'xdg/cache'),
 };
 const spawned = [];
-const start = (cmd, args) => {
-  const child = spawn(cmd, args, { env, cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+const start = (cmd, args, extra = {}) => {
+  const child = spawn(cmd, args, {
+    env: { ...env, ...extra },
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   for (const s of [child.stdout, child.stderr])
     s.on('data', (d) => debug && process.stderr.write(d));
   spawned.push(child);
@@ -105,6 +143,7 @@ const api = (path) =>
   fetch(`http://127.0.0.1:${PORT.serve}${path}`, { headers: auth }).then((r) => r.json());
 
 start('node', [join(here, 'mock-model.mjs')]);
+start('node', [join(here, 'bridge.mjs')], { BRIDGE_LOG: bridgeLog });
 start(OC, ['serve', '--hostname', '127.0.0.1', '--port', String(PORT.serve)]);
 for (let i = 0; i < 60; i++) {
   if (
@@ -167,6 +206,23 @@ const expected = {
     'send_email',
   ],
   nun: ['get_scores', 'memory_search', 'calc'],
+  rungchao: [
+    'get_school_summary',
+    'read_budget',
+    'list_pending_approvals',
+    'teacher_activity',
+    'memory_search',
+    'publish_brief',
+  ],
+  lekha_por: [
+    'list_pending_approvals',
+    'get_approval',
+    'decide_approval',
+    'get_school_summary',
+    'read_budget',
+    'memory_search',
+    'memory_save',
+  ],
 };
 console.log('# every agent answers and is offered exactly its own tools');
 for (const [agent, want] of Object.entries(expected)) {
@@ -238,14 +294,152 @@ ev = run(['--agent', 'jum', `CALL save_assessment ${JSON.stringify(broken)}`]);
 check(
   'jum save_assessment refuses a wrong key',
   tool(ev)?.state?.status === 'error' &&
-    /invalid_assessment|wrong_key/.test(tool(ev)?.state?.error ?? ''),
+    !(tool(ev)?.state?.output ?? '').includes('docs.google.com') &&
+    bridgeCalls.length === 0,
   JSON.stringify(tool(ev)?.state).slice(0, 200),
 );
 ev = run(['--agent', 'jum', `CALL save_assessment ${JSON.stringify(sample)}`]);
+const saved = tool(ev)?.state?.output ?? '';
 check(
-  'jum save_assessment returns a form link for a verified set',
-  (tool(ev)?.state?.output ?? '').includes('formUrl'),
-  JSON.stringify(tool(ev)?.state).slice(0, 200),
+  'jum save_assessment posts the verified set to the bridge and returns its Google Form link with the published order',
+  saved.includes('docs.google.com/forms/d/form_e2e_1') &&
+    saved.includes('apps-script') &&
+    bridgeCalls.length === 1 &&
+    bridgeCalls[0].questions.length === 10 &&
+    saved.includes('"answer":"') &&
+    bridgeCalls[0].questions[0].choices[bridgeCalls[0].questions[0].answerIndex] === '3/4',
+  String(tool(ev)?.state?.error ?? '') + ' | bridge calls ' + bridgeCalls.length,
+);
+
+console.log('# skills');
+const skillAsk = (agent, id) => run(['--agent', agent, `CALL skill ${JSON.stringify({ id })}`]);
+ev = skillAsk('jum', 'worksheet');
+const loaded = tool(ev)?.state?.output ?? '';
+check(
+  'jum can load its bound skill and receives the skill text',
+  tool(ev)?.state?.status === 'completed' &&
+    loaded.includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 40)),
+  JSON.stringify(tool(ev)?.state).slice(0, 300),
+);
+ev = skillAsk('nun', 'worksheet');
+check(
+  'nun cannot load a skill it is not bound to',
+  tool(ev)?.state?.status === 'error' ||
+    !(tool(ev)?.state?.output ?? '').includes(
+      skills.find((x) => x.id === 'worksheet').content.slice(0, 40),
+    ),
+  JSON.stringify(tool(ev)?.state).slice(0, 300),
+);
+ev = skillAsk('jaew', 'worksheet');
+check(
+  'jaew has no skills',
+  tool(ev)?.state?.status === 'error' || !(tool(ev)?.state?.output ?? '').includes('worksheet'),
+  JSON.stringify(tool(ev)?.state).slice(0, 300),
+);
+
+console.log('# principal agents');
+ev = run(['--agent', 'rungchao', 'CALL get_school_summary {}']);
+const summaryOut = tool(ev)?.state?.output ?? '';
+check(
+  'rungchao reads the school summary with no student-level data',
+  summaryOut.includes('ป.6/1') && !/นักเรียนตัวอย่าง|studentId|displayName/.test(summaryOut),
+  summaryOut.slice(0, 200),
+);
+ev = run(['--agent', 'rungchao', 'CALL get_scores {}']);
+check(
+  'rungchao is not offered per-student scores',
+  /NOT_OFFERED get_scores/.test(text(ev)),
+  text(ev),
+);
+ev = run(['--agent', 'rungchao', 'FORCE decide_approval {"approvalId":"x","decision":"approve"}']);
+check(
+  'rungchao cannot decide approvals',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run(['--agent', 'lekha_por', 'CALL decide_approval {"approvalId":"x","decision":"approve"}']);
+check(
+  'decide_approval asks the principal and is rejected when nobody can answer',
+  tool(ev)?.state?.status === 'error' && /cannot ask/.test(tool(ev)?.state?.error ?? ''),
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run([
+  '--auto',
+  '--agent',
+  'lekha_por',
+  'CALL decide_approval {"approvalId":"x","decision":"return"}',
+]);
+check(
+  'a return without a reason is refused by the tool',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run([
+  '--auto',
+  '--agent',
+  'lekha_por',
+  'FORCE subagent {"agent":"jum","description":"x","prompt":"x"}',
+]);
+check(
+  'lekha_por cannot start a teacher agent',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run(['--agent', 'lekha_por', 'FORCE send_email {"to":"a","subject":"s","body":"b"}']);
+check(
+  'lekha_por cannot send email',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+
+console.log('# approval line: porn -> principal');
+ev = run([
+  '--auto',
+  '--agent',
+  'porn',
+  'CALL fill_claim_form {"budgetCode":"M-01","purpose":"กระดาษ","items":[{"name":"A4","qty":10,"unitPrice":120}]}',
+]);
+const claimOut = JSON.parse((tool(ev)?.state?.output ?? '{}').split('\n')[0]);
+check(
+  'porn fills a claim with code-computed totals',
+  claimOut.total === 1200 && claimOut.remainingAfter === 2400,
+  JSON.stringify(claimOut).slice(0, 160),
+);
+check(
+  'publish_brief rejects an 8-line brief',
+  (() => {
+    const evb = run([
+      '--agent',
+      'rungchao',
+      `CALL publish_brief ${JSON.stringify({ text: Array(8).fill('บรรทัด').join('\n') })}`,
+    ]);
+    return (
+      tool(evb)?.state?.status === 'error' &&
+      /brief_rejected|too_many_lines/.test(JSON.stringify(tool(evb)?.state))
+    );
+  })(),
+);
+check(
+  'publish_brief rejects a student name',
+  (() => {
+    const evb = run([
+      '--agent',
+      'rungchao',
+      'CALL publish_brief {"text":"นักเรียนตัวอย่าง 07 ต้องติว"}',
+    ]);
+    return tool(evb)?.state?.status === 'error';
+  })(),
+);
+check(
+  'publish_brief accepts a clean brief',
+  (() => {
+    const evb = run([
+      '--agent',
+      'rungchao',
+      `CALL publish_brief ${JSON.stringify({ text: 'สรุปเช้า (ตัวอย่าง)\nป.6/1 ต่ำกว่าเกณฑ์' })}`,
+    ]);
+    return tool(evb)?.state?.status === 'completed';
+  })(),
 );
 
 console.log('# secretary delegates');
@@ -297,6 +491,14 @@ check(
   JSON.stringify(d.msgs).includes('check_assessment') &&
     JSON.stringify(d.msgs).includes('\\"ok\\":true'),
   JSON.stringify(d.msgs).slice(0, 200),
+);
+const childSkill = await delegate('jum', `CALL skill ${JSON.stringify({ id: 'worksheet' })}`);
+check(
+  'the jum child session loads the worksheet skill (bound skills reach delegated sessions)',
+  JSON.stringify(childSkill.msgs).includes(
+    skills.find((x) => x.id === 'worksheet').content.slice(0, 20),
+  ),
+  JSON.stringify(childSkill.msgs).slice(0, 300),
 );
 for (const worker of ['jeng', 'porn', 'nun']) {
   d = await delegate(worker, 'hello');

@@ -1,3 +1,9 @@
+import { fractionAdditionForm } from './fraction_addition_form';
+import { decideApproval } from './decide_approval';
+import { getApproval } from './get_approval';
+import { getSchoolSummary } from './get_school_summary';
+import { listPendingApprovals } from './list_pending_approvals';
+import { teacherActivity } from './teacher_activity';
 import { calc } from './calc';
 import { checkAssessmentTool } from './check_assessment';
 import { curriculumLookup } from './curriculum_lookup';
@@ -9,6 +15,7 @@ import { makeSlides } from './make_slides';
 import { memorySave } from './memory_save';
 import { memorySearch } from './memory_search';
 import { oldExamSearch } from './old_exam_search';
+import { publishBrief } from './publish_brief';
 import { readBudget } from './read_budget';
 import { restrictedProbe } from './restricted-probe';
 import { saveAssessment } from './save_assessment';
@@ -29,6 +36,7 @@ export const tools = [
   oldExamSearch,
   checkAssessmentTool,
   saveAssessment,
+  fractionAdditionForm,
   makeFile,
   searchProj14,
   makeSlides,
@@ -40,4 +48,10 @@ export const tools = [
   submitForApproval,
   sendEmail,
   getScores,
+  getSchoolSummary,
+  teacherActivity,
+  listPendingApprovals,
+  getApproval,
+  decideApproval,
+  publishBrief,
 ];

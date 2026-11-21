@@ -1,14 +1,9 @@
-import type { ToolDefinition } from './types';
+import { z } from 'zod';
+import { nonBlank, validatedTool } from './validated';
 
-export const makeSheet: ToolDefinition = {
+export const makeSheet = validatedTool(z.strictObject({ title: nonBlank, topic: nonBlank }), {
   name: 'make_sheet',
   description: 'สร้างชีตสรุป/ชีตเรียน (ตัวจำลอง: คืนรหัสไฟล์ตัวอย่าง ยังไม่ได้สร้างไฟล์จริง)',
-  input: {
-    type: 'object',
-    properties: { title: { type: 'string' }, topic: { type: 'string' } },
-    required: ['title', 'topic'],
-    additionalProperties: false,
-  },
   gate: 'allow',
   execute: (input) => ({
     mode: 'mock',
@@ -16,4 +11,4 @@ export const makeSheet: ToolDefinition = {
     note: 'ตัวอย่าง: ยังไม่ได้สร้างไฟล์จริง',
     request: input,
   }),
-};
+});

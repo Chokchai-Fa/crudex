@@ -9,3 +9,6 @@ apps/api/drizzle
 *.md
 .github
 infra
+
+# Keep the generated Paper design references in their exported form.
+docs/design/paper-export/

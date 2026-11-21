@@ -1,0 +1,42 @@
+import { activities, schoolClasses } from '../data/school';
+import type { ToolDefinition } from './types';
+
+const THRESHOLD_RATIO = 0.5;
+
+export function schoolSummary() {
+  const classes = schoolClasses.map((c) => ({
+    ...c,
+    belowThreshold: c.mean < c.maxScore * THRESHOLD_RATIO,
+  }));
+  const budget = activities.reduce((sum, a) => sum + a.budget, 0);
+  const spent = activities.reduce((sum, a) => sum + a.spent, 0);
+  return {
+    mode: 'mock',
+    label: 'ตัวอย่าง',
+    thresholdRatio: THRESHOLD_RATIO,
+    classes,
+    lowestClass: [...classes].sort((a, b) => a.mean / a.maxScore - b.mean / b.maxScore)[0]?.label,
+    budget: {
+      total: budget,
+      spent,
+      spentPercent: Math.round((spent / budget) * 1000) / 10,
+      nearLimit: activities
+        .filter((a) => a.spent / a.budget >= 0.9)
+        .map((a) => ({
+          code: a.code,
+          name: a.name,
+          remaining: a.budget - a.spent,
+          spentPercent: Math.round((a.spent / a.budget) * 1000) / 10,
+        })),
+    },
+  };
+}
+
+export const getSchoolSummary: ToolDefinition = {
+  name: 'get_school_summary',
+  description:
+    'สรุปข้อมูลโรงเรียนระดับห้องและระดับกิจกรรม (ตัวจำลอง: ข้อมูลตัวอย่าง) คืนค่าเฉลี่ยรายห้อง ห้องที่ต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบกำหนด) และงบรวมกับกิจกรรมที่ใกล้เต็ม ไม่มีข้อมูลรายคน ตัวเลขคำนวณโดยระบบ',
+  input: { type: 'object', properties: {}, additionalProperties: false },
+  gate: 'allow',
+  execute: () => schoolSummary(),
+};

@@ -1,17 +1,11 @@
-import type { ToolDefinition } from './types';
+import { z } from 'zod';
+import { nonBlank, validatedTool } from './validated';
 
-export const searchProj14: ToolDefinition = {
+export const searchProj14 = validatedTool(z.strictObject({ topic: nonBlank }), {
   name: 'search_proj14',
   description: 'ค้นสื่อ/คลิปตามหัวข้อ Project 14 (ตัวจำลอง: ข้อมูลตัวอย่าง ไม่มีลิงก์จริง)',
-  input: {
-    type: 'object',
-    properties: { topic: { type: 'string' } },
-    required: ['topic'],
-    additionalProperties: false,
-  },
   gate: 'allow',
-  execute: (input) => {
-    const { topic } = input as { topic: string };
+  execute: ({ topic }) => {
     return {
       mode: 'mock',
       topic,
@@ -24,4 +18,4 @@ export const searchProj14: ToolDefinition = {
       ],
     };
   },
-};
+});
