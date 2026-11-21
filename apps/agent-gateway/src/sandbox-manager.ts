@@ -84,15 +84,9 @@ export class SandboxManager extends DurableObject<Env> {
       ) {
         return Response.json({ error: 'invalid_session' }, { status: 401 });
       }
-      const admitted = await this.ctx.storage.transaction(async (txn) => {
-        const usage = await txn.get<DailyUsage>('usage');
-        const now = Date.now();
-        const limit = dailyRunLimit(now, config.DAILY_RUN_LIMIT, config.DAILY_RUN_LIMIT_OVERRIDES);
-        const next = consumeRun(usage, now, limit);
-        if (next) await txn.put('usage', next);
-        return next !== null;
-      });
-      if (!admitted) return Response.json({ error: 'daily_limit' }, { status: 429 });
+      // School turns were already admitted against the shared cap on `main` by SchoolDispatch.
+      if (url.pathname === '/api/chat' && !(await this.admitRun()))
+        return Response.json({ error: 'daily_limit' }, { status: 429 });
       const owner =
         url.pathname === '/school/chat' ? request.headers.get('x-school-owner') : undefined;
       if (owner === null) return new Response(null, { status: 403 });
@@ -102,6 +96,19 @@ export class SandboxManager extends DurableObject<Env> {
       return this.proxy(request, config, '/agents');
     }
     return Response.json({ error: 'not_found' }, { status: 404 });
+  }
+
+  /** Consumes one run from the daily cap. Every caller uses the `main` instance so the cap is shared. */
+  async admitRun() {
+    const config = envSchema.parse(this.env);
+    return this.ctx.storage.transaction(async (txn) => {
+      const usage = await txn.get<DailyUsage>('usage');
+      const now = Date.now();
+      const limit = dailyRunLimit(now, config.DAILY_RUN_LIMIT, config.DAILY_RUN_LIMIT_OVERRIDES);
+      const next = consumeRun(usage, now, limit);
+      if (next) await txn.put('usage', next);
+      return next !== null;
+    });
   }
 
   private async serveArchive(request: Request) {

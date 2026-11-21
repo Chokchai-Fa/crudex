@@ -94,7 +94,7 @@ flowchart TD
     Gateway --> Archive[Gateway static assets]
 ```
 
-The shared sandbox manager rotates the sandbox when the owner changes. The morning-brief object maintains the demo schedule and accepted result. School principal brief data comes from school-scoped API queries.
+Each teacher has their own sandbox manager instance and sandbox; the shared daily run cap stays on the `main` instance. The morning-brief object maintains the demo schedule and accepted result. School principal brief data comes from school-scoped API queries.
 
 ## Vercel Sandbox, OpenCode and OpenAI
 

@@ -7,7 +7,8 @@ workers_dev = true
 [vars]
 DAILY_RUN_LIMIT = "60"
 DAILY_RUN_LIMIT_OVERRIDES = { "2026-11-21" = 300 }
-IDLE_STOP_MINUTES = "10"
+# Each teacher has a sandbox; stop idle ones quickly to stay inside the Vercel Hobby allowance.
+IDLE_STOP_MINUTES = "5"
 # Rollback switch: "vercel" sends every school turn to the Vercel sandbox as before.
 # "openai" answers chat/memory turns and the agents in OPENAI_AGENTS from OpenAI in this Worker.
 AGENT_BACKEND = "vercel"

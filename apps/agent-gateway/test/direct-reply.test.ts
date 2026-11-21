@@ -40,17 +40,23 @@ function setup(backend = { AGENT_BACKEND: 'openai', OPENAI_AGENTS: 'nun' }) {
   const sandbox = vi.fn<(url: URL, init: RequestInit) => Promise<Response>>(
     async () => new Response('sandbox'),
   );
+  const names: string[] = [];
   const env = {
     OPENAI_API_KEY: 'synthetic',
     ...backend,
-    SANDBOX: { getByName: () => ({ fetch: sandbox }) },
+    SANDBOX: {
+      getByName: (name: string) => {
+        names.push(name);
+        return { fetch: sandbox, admitRun: async () => true };
+      },
+    },
   } as unknown as Env;
   const gateway = new SchoolDispatch({} as ExecutionContext, env);
   const post = (payload: ReturnType<typeof turn>) =>
     gateway.fetch(
       new Request('https://agent.test/dispatch', { method: 'POST', body: JSON.stringify(payload) }),
     );
-  return { sandbox, post, gateway };
+  return { sandbox, post, gateway, names };
 }
 
 const label = (route: string) =>
@@ -286,4 +292,19 @@ it('falls back to the sandbox when OpenAI refuses a ported agent', async () => {
   openai(() => new Response(null, { status: 503 }));
   expect(await (await post(turn('nun'))).text()).toBe('sandbox');
   expect(sandbox).toHaveBeenCalledOnce();
+});
+
+it('gives each teacher their own sandbox and admits the turn on the shared cap', async () => {
+  const { sandbox, post, names } = setup({ AGENT_BACKEND: 'vercel', OPENAI_AGENTS: '' });
+  const a = turn('jum');
+  const b = turn('jum');
+  await post(a);
+  await post(b);
+  expect(sandbox).toHaveBeenCalledTimes(2);
+  expect(names).toEqual([
+    'main',
+    `school:${a.scope.schoolId}/${a.scope.ownerId}`,
+    'main',
+    `school:${b.scope.schoolId}/${b.scope.ownerId}`,
+  ]);
 });

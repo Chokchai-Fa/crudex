@@ -10,6 +10,7 @@ import {
 import { directReply } from './direct-reply';
 import { kahootInstanceName, parseKahootState } from './kahoot-state';
 import { openaiReply, usesOpenAI } from './openai-backend';
+import { sandboxInstanceName } from './sandbox';
 
 // Only the gateway can attach the teacher's connection state to a signed turn.
 const incomingDispatchSchema = dispatchSchema.extend({
@@ -88,7 +89,10 @@ export class SchoolDispatch extends WorkerEntrypoint<Env> implements SchoolKahoo
         : undefined;
     const url = new URL('/school/chat', request.url);
     url.searchParams.set('role', scope.role);
-    return this.env.SANDBOX.getByName('main').fetch(url, {
+    if (!(await this.env.SANDBOX.getByName('main').admitRun()))
+      return Response.json({ error: 'daily_limit' }, { status: 429 });
+    // Each teacher has their own sandbox, so one teacher's turn never reboots another's.
+    return this.env.SANDBOX.getByName(sandboxInstanceName(schoolOwner(scope))).fetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
