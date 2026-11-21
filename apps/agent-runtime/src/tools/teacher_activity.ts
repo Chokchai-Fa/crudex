@@ -54,8 +54,16 @@ export function teacherActivitySummary(now = Date.now()) {
   for (const entry of entries) {
     byAction.set(entry.action, (byAction.get(entry.action) ?? 0) + entry.count);
   }
+  // One brief item in the design's words: "ครูใช้ crudex เมื่อวาน N คน ทำสื่อ M ชุด".
+  const made = entries.filter((e) => e.date === 'เมื่อวาน' && e.action !== submittedAction);
+  const teachers = new Set(made.map((e) => e.teacher)).size;
+  const items = made.reduce((sum, e) => sum + e.count, 0);
+  const briefLine = items
+    ? `ครูใช้ crudex เมื่อวาน ${teachers} คน ทำสื่อ ${items} ชุด`
+    : 'เมื่อวานยังไม่มีครูทำสื่อใน crudex';
   return {
     mode: live ? 'live' : 'sample',
+    briefLine,
     label: live ? 'งานจริงในระบบ เมื่อวานและวันนี้ (เวลาไทย)' : 'ตัวอย่าง',
     entries,
     pendingApprovals: approvals.filter((a) => a.status === 'pending').length,
@@ -66,7 +74,7 @@ export function teacherActivitySummary(now = Date.now()) {
 export const teacherActivity: ToolDefinition = {
   name: 'teacher_activity',
   description:
-    'งานที่ครูทำในระบบเมื่อวานและวันนี้ (เวลาไทย) เช่น Form ใบงาน สไลด์ที่สร้าง และเอกสารที่ส่งเข้ากล่องอนุมัติ นับจากข้อมูลจริงในระบบ ถ้ายังไม่มีงานจริงจะใช้ข้อมูลตัวอย่างและ mode เป็น sample คืนจำนวนต่อครูและต่อประเภทงาน ไม่มีข้อมูลนักเรียน',
+    'งานที่ครูทำในระบบเมื่อวานและวันนี้ (เวลาไทย) เช่น Form ใบงาน สไลด์ที่สร้าง และเอกสารที่ส่งเข้ากล่องอนุมัติ นับจากข้อมูลจริงในระบบ ถ้ายังไม่มีงานจริงจะใช้ข้อมูลตัวอย่างและ mode เป็น sample คืนจำนวนต่อครูและต่อประเภทงาน และ briefLine (ข้องานครูในสรุปเช้า ให้ใช้ตรงตัว) ไม่มีข้อมูลนักเรียน',
   input: { type: 'object', properties: {}, additionalProperties: false },
   gate: 'allow',
   execute: () => teacherActivitySummary(),

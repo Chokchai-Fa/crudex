@@ -96,25 +96,47 @@ describe('one demo story: ม.2/1 on the teacher side is the principal headline'
 describe('the brief never calls a room at or above 50% below the bar', () => {
   it('code writes line 2 as a topic problem for ม.2/1', () => {
     expect(schoolSummary().briefClassLine).toBe(
-      'ห้องที่ต้องดู: ม.2/1 เฉลี่ย 3.5/6 (58%) แต่หัวข้อการนำความรู้เกี่ยวกับทฤษฎีบทพีทาโกรัสและบทกลับไปใช้ในชีวิตจริงถูกแค่ 37.5% ต่ำกว่าเกณฑ์ 50%',
+      'ม.2/1 เฉลี่ย 3.5/6 (58%) แต่หัวข้อการนำพีทาโกรัสไปใช้ในชีวิตจริงถูกแค่ 37.5% ต่ำกว่าเกณฑ์ 50%',
     );
   });
 
   it('publish_brief rejects calling ม.2/1 below the bar and accepts the code line', async () => {
     const reject = [
-      'ผลเรียนต่ำกว่าเกณฑ์: ม.2/1 ค่าเฉลี่ย 3.5/6',
-      'ม.2/1 ต่ำกว่าเกณฑ์ เฉลี่ย 3.5/6',
-      'ห้องต่ำกว่าเกณฑ์: ม.2/1 เพราะหัวข้อพีทาโกรัส',
+      '1. ผลเรียนต่ำกว่าเกณฑ์: ม.2/1 ค่าเฉลี่ย 3.5/6',
+      '1. ม.2/1 ต่ำกว่าเกณฑ์ เฉลี่ย 3.5/6',
+      '1. ห้องต่ำกว่าเกณฑ์: ม.2/1 เพราะหัวข้อพีทาโกรัส',
     ];
     for (const line of reject) {
       await expect(
-        call('publish_brief', { text: 'วันที่ 21 พฤศจิกายน 2569\n' + line }),
+        call('publish_brief', { text: 'สรุปเช้าวันเสาร์\n' + line }),
       ).rejects.toMatchObject({
         code: 'brief_rejected',
         message: expect.stringContaining('room_not_below (บรรทัด 2)'),
       });
     }
-    const text = 'วันที่ 21 พฤศจิกายน 2569\n' + schoolSummary().briefClassLine;
+    const text = 'สรุปเช้าวันเสาร์\n1. ' + schoolSummary().briefClassLine;
     expect(await call('publish_brief', { text })).toMatchObject({ lines: 2 });
+  });
+});
+
+describe('brief follows the 09-principal-brief design', () => {
+  const summaryAt = schoolSummary(new Date('2026-11-21T00:00:00Z'));
+  it('code gives the title, the teacher line and the room line', () => {
+    expect(summaryAt.briefTitle).toBe('สรุปเช้าวันเสาร์');
+    expect(teacherActivitySummary(Date.parse('2026-11-21T07:00:00Z')).briefLine).toBe(
+      'ครูใช้ crudex เมื่อวาน 1 คน ทำสื่อ 3 ชุด',
+    );
+  });
+
+  it('rejects a brief without the title or with unnumbered items', async () => {
+    for (const text of [
+      'วันที่ 21 พฤศจิกายน 2569\n1. งบใช้ไป 73.4%',
+      'สรุปเช้าวันเสาร์\nงบใช้ไป 73.4%',
+      'สรุปเช้าวันเสาร์\n1. งบใช้ไป 73.4%\n3. เอกสารรออนุมัติ 1 รายการ',
+    ]) {
+      await expect(call('publish_brief', { text })).rejects.toMatchObject({
+        message: expect.stringContaining('format'),
+      });
+    }
   });
 });
