@@ -1059,3 +1059,12 @@
   font-size: 13px;
   color: var(--subtle-foreground);
 }
+.school-workspace .output-card .form-fallback {
+  flex: 1 0 100%;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.school-workspace .output-card a.form-fallback {
+  color: var(--primary);
+  text-decoration: underline;
+}

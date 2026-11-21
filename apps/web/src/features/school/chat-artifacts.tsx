@@ -10,12 +10,15 @@ export function ChatArtifacts({
   roomId,
   open,
   toggle,
+  googleFormUrl,
 }: {
   id: string;
   membershipId: string;
   roomId: string;
   open: boolean;
   toggle: () => void;
+  /** Google Form link from the agent's reply; preferred over the in-app /play page. */
+  googleFormUrl?: string;
 }) {
   const sheet = useSchoolWorksheet(membershipId, id);
   const grades = useSchoolGradebook(membershipId, roomId);
@@ -25,6 +28,10 @@ export function ChatArtifacts({
   if (!sheet.data) return <p role="status">กำลังอ่านใบงาน…</p>;
   const { title, questions, formUrl } = sheet.data;
   const token = formUrl.split('/').pop();
+  // The API adds these once Google Form links are stored; older worksheets fall back to /play.
+  const stored = sheet.data as { googleFormUrl?: string; googleFormReason?: string };
+  const googleForm = googleFormUrl ?? stored.googleFormUrl;
+  const formReason = stored.googleFormReason;
   const scored = grades.data?.students.filter((s) => s.score !== null).length;
   return (
     <div className="m-done chat-artifacts space-y-3">
@@ -45,27 +52,60 @@ export function ChatArtifacts({
             <span>{title}</span>
           </div>
           <h3>แบบฝึกของห้อง</h3>
-          {token && (
+          {googleForm ? (
             <>
               <Button asChild variant="outline">
-                <Link to="/play/$token" params={{ token }}>
+                <a href={googleForm} target="_blank" rel="noreferrer">
                   เปิดฟอร์ม
-                </Link>
+                </a>
               </Button>
               <Button
                 variant="outline"
                 onClick={async () => {
                   try {
-                    await navigator.clipboard.writeText(new URL(formUrl, location.origin).href);
-                    setCopyMessage('คัดลอกลิงก์แล้ว');
+                    await navigator.clipboard.writeText(googleForm);
+                    setCopyMessage('คัดลอกลิงก์ Google Form แล้ว');
                   } catch {
-                    setCopyMessage('คัดลอกไม่ได้ กรุณาใช้เมนูคัดลอกลิงก์จากปุ่มเปิดฟอร์ม');
+                    setCopyMessage('คัดลอกไม่ได้ กรุณาเปิดฟอร์มแล้วคัดลอกลิงก์จากแถบที่อยู่');
                   }
                 }}
               >
                 คัดลอกลิงก์
               </Button>
+              {token && (
+                <Link className="form-fallback" to="/play/$token" params={{ token }}>
+                  เปิดแบบฝึกในระบบ
+                </Link>
+              )}
             </>
+          ) : (
+            token && (
+              <>
+                <p className="form-fallback">
+                  {formReason
+                    ? 'สร้าง Google Form ไม่สำเร็จ (' + formReason + ') ใช้แบบฝึกในระบบแทน'
+                    : 'ยังไม่มีลิงก์ Google Form ในคำตอบนี้ ใช้แบบฝึกในระบบแทน'}
+                </p>
+                <Button asChild variant="outline">
+                  <Link to="/play/$token" params={{ token }}>
+                    เปิดแบบฝึกในระบบ
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(new URL(formUrl, location.origin).href);
+                      setCopyMessage('คัดลอกลิงก์แล้ว');
+                    } catch {
+                      setCopyMessage('คัดลอกไม่ได้ กรุณาใช้เมนูคัดลอกลิงก์จากปุ่มเปิดแบบฝึก');
+                    }
+                  }}
+                >
+                  คัดลอกลิงก์
+                </Button>
+              </>
+            )
           )}
           {copyMessage && <p role="status">{copyMessage}</p>}
         </article>
