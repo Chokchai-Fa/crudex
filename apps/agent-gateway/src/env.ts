@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const envSchema = z.object({
   PASSCODE: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
+  SCHOOL_BOT_APPS_SCRIPT_URL: z.url().optional(),
   VERCEL_TOKEN: z.string().min(1),
   VERCEL_TEAM_ID: z.string().min(1),
   VERCEL_PROJECT_ID: z.string().min(1),

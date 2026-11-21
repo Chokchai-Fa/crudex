@@ -67,6 +67,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           AGENT_PASSCODE: ${{ secrets.AGENT_PASSCODE }}
           AGENT_OPENAI_API_KEY: ${{ secrets.AGENT_OPENAI_API_KEY }}
+          AGENT_APPS_SCRIPT_URL: ${{ secrets.AGENT_APPS_SCRIPT_URL }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           test -n "$AGENT_PASSCODE"
@@ -80,7 +81,9 @@ jobs:
             VERCEL_TOKEN: env.VERCEL_TOKEN,
             VERCEL_TEAM_ID: env.VERCEL_TEAM_ID,
             VERCEL_PROJECT_ID: env.VERCEL_PROJECT_ID
-          }' > "$secret_file"
+          } + (if (env.AGENT_APPS_SCRIPT_URL // "") != "" then
+            {SCHOOL_BOT_APPS_SCRIPT_URL: env.AGENT_APPS_SCRIPT_URL}
+          else {} end)' > "$secret_file"
           pnpm exec wrangler deploy --config wrangler.toml --var "RUNTIME_REVISION:$GITHUB_SHA" --secrets-file "$secret_file"
 
       - name: Smoke test the deployed Worker
