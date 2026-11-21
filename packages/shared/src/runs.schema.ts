@@ -9,6 +9,16 @@ export const agentIdSchema = z.enum([
   'rungchao',
   'lekha_por',
 ]);
+export const recipientAgentSchema = z.enum(['jum', 'jeng', 'porn', 'nun']);
+export type RecipientAgent = z.infer<typeof recipientAgentSchema>;
+export type Handoff = {
+  parentRunId: string;
+  handoffId: string;
+  agentId: RecipientAgent;
+  status: 'started' | 'success' | 'failed' | 'returned';
+  prompt: string;
+  createdAt: string;
+};
 export const createRunSchema = z.strictObject({
   clientRequestId: z.uuid(),
   prompt: z.string().max(4000).trim().min(1),

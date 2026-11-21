@@ -102,6 +102,23 @@ try {
   assert(childEvents.includes(JSON.stringify(parentReply.headers.get('x-run-id'))));
   assert(!childEvents.includes('ses_private_fixture'));
   await call('/api/runs/' + childId + '/events', { session: colleague, status: 404 });
+  const parentId = parentReply.headers.get('x-run-id');
+  const feed = async (agent) => {
+    const result = await (
+      await call('/api/agents/' + agent + '/handoffs?classId=' + classId, { session: teacher })
+    ).json();
+    return result.handoffs.filter((h) => h.parentRunId === parentId);
+  };
+  const jeng = await feed('jeng');
+  assert.equal(jeng.length, 1);
+  assert.equal(jeng[0].status, 'returned');
+  assert(!JSON.stringify(jeng).includes('private-fixture'));
+  assert.deepEqual(
+    (await feed('nun')).map((h) => h.status),
+    ['started'],
+  );
+  assert.deepEqual(await feed('jum'), []);
+  await call('/api/agents/jeng/handoffs?classId=' + classId, { session: colleague, status: 403 });
   const submit = { clientRequestId: randomUUID(), prompt: 'ช่วยสร้างแบบฝึกหัดเศษส่วน', classId };
   const postRun = async () =>
     (

@@ -1,5 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { dispatchRun, replay, reserveRun, startRun } from '../src/services/runs.service';
+import {
+  handoffFeed,
+  dispatchRun,
+  replay,
+  reserveRun,
+  startRun,
+} from '../src/services/runs.service';
 import * as repo from '../src/repositories/runs.repository';
 import { loadSchoolActor } from '../src/services/identity.service';
 import { makeFakeDeps, makeFakeSchoolGateway } from './support/fake-deps';
@@ -193,3 +199,39 @@ it.each(['created', 'connect_required', 'failed'])(
     expect(repo.append).not.toHaveBeenCalled();
   },
 );
+
+it('restricts the recipient feed to the teacher’s assigned room', async () => {
+  const { deps } = consumer('');
+  const classId = crypto.randomUUID();
+  await expect(handoffFeed(deps, a, 'jum', classId)).rejects.toMatchObject({ code: 'forbidden' });
+  const teacher = { ...a, classes: [{ id: classId, name: 'sample' }] };
+  await expect(
+    handoffFeed(deps, { ...teacher, role: 'principal' }, 'jum', classId),
+  ).rejects.toMatchObject({ code: 'forbidden' });
+  expect(repo.recipientHandoffs).not.toHaveBeenCalled();
+  vi.mocked(repo.recipientHandoffs).mockResolvedValue([]);
+  expect(await handoffFeed(deps, teacher, 'jum', classId)).toEqual({ handoffs: [] });
+  expect(repo.recipientHandoffs).toHaveBeenCalledExactlyOnceWith(deps.db, teacher, classId, 'jum');
+});
+
+it('makes a named return visible while Jaew continues working', async () => {
+  const returned = {
+    type: 'tool',
+    name: 'subagent_return',
+    id: 'delegation:2',
+    agentId: 'jum',
+    status: 'success',
+  };
+  const frames = [returned, { type: 'delta', text: 'continuing' }, { type: 'done', elapsedMs: 1 }];
+  const { deps } = consumer(frames.map((e) => 'data: ' + JSON.stringify(e) + '\n\n').join(''));
+  let flushed = false;
+  await dispatchRun(deps, r.id, async (event) => {
+    if (event.type === 'delta')
+      flushed = vi
+        .mocked(repo.append)
+        .mock.calls.some(([, , , bodies]) =>
+          bodies.some((body) => body.type === 'tool' && body.name === 'subagent_return'),
+        );
+  });
+  expect(flushed).toBe(true);
+});

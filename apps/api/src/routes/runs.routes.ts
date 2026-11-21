@@ -1,5 +1,6 @@
 import {
   agentIdSchema,
+  recipientAgentSchema,
   createRunSchema,
   runEventBatchMediaType,
   runEventPageSize,
@@ -14,6 +15,7 @@ import { actorMiddleware } from '../middleware/actor';
 import {
   cancelRun,
   dispatchRun,
+  handoffFeed,
   reserveRun,
   replay,
   runHistory,
@@ -57,6 +59,21 @@ export const runRoutes = new Hono<AppEnv>()
         });
       });
     },
+  )
+  .get(
+    '/agents/:id/handoffs',
+    actorMiddleware,
+    validate('param', z.object({ id: recipientAgentSchema })),
+    validate('query', z.strictObject({ classId: z.uuid() })),
+    async (c) =>
+      c.json(
+        await handoffFeed(
+          c.var.deps,
+          c.var.actor,
+          c.req.valid('param').id,
+          c.req.valid('query').classId,
+        ),
+      ),
   )
   .get('/agents/:id/history', actorMiddleware, validate('param', agentParam), async (c) =>
     c.json(await runHistory(c.var.deps, c.var.actor, c.req.valid('param').id)),
