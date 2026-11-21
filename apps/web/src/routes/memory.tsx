@@ -31,13 +31,16 @@ function RoomMemory({ room }: { room: string }) {
   const focusTarget = useRef<HTMLHeadingElement>(null);
   const editButton = useRef<HTMLButtonElement>(null);
 
+  const removeButton = useRef<HTMLButtonElement>(null);
+
   function go(next: Action, message = '') {
     flushSync(() => {
       setNotice(message);
       setAction(next);
     });
-    if (next === 'view') editButton.current?.focus();
-    else focusTarget.current?.focus();
+    if (next !== 'view') focusTarget.current?.focus();
+    else if (action === 'remove' && removeButton.current) removeButton.current.focus();
+    else editButton.current?.focus();
   }
 
   function save(value: string) {
@@ -66,8 +69,9 @@ function RoomMemory({ room }: { room: string }) {
         <img src="/agents/jaew.svg" alt="" width="44" height="44" />
         <div>
           <h1 className="text-2xl font-semibold">ความจำของห้อง {room}</h1>
-          <p className="text-sm text-muted-foreground">
-            เดโมเก็บความชอบเฉพาะห้องนี้ในแท็บนี้ ใบงานตัวอย่างยังเป็นชุดเดิม
+          <p className="mt-1 text-base leading-relaxed">
+            <span className="block">เก็บเฉพาะห้องนี้ในแท็บนี้</span>
+            <span className="block">ใบงานตัวอย่างยังเป็นชุดเดิม</span>
           </p>
         </div>
       </header>
@@ -96,7 +100,7 @@ function RoomMemory({ room }: { room: string }) {
                 {saved ? 'แก้ไขรูปแบบใบงาน' : 'เสนอความชอบให้เลขาจำ'}
               </Button>
               {saved && (
-                <Button variant="outline" onClick={() => go('remove')}>
+                <Button ref={removeButton} variant="outline" onClick={() => go('remove')}>
                   ลบความชอบ
                 </Button>
               )}
