@@ -186,6 +186,7 @@ const expected = {
     'old_exam_search',
     'check_assessment',
     'save_assessment',
+    'fraction_addition_form',
     'make_file',
   ],
   jeng: [
@@ -440,6 +441,58 @@ check(
     ]);
     return tool(evb)?.state?.status === 'completed';
   })(),
+);
+
+console.log('# access matrix: ask gates, delegation and the principal team');
+const asked = [
+  ['porn', 'submit_for_approval', '{"claimId":"claim-x"}'],
+  ['porn', 'send_email', '{"to":"a@b.c","subject":"s","body":"b"}'],
+  ['lekha_por', 'decide_approval', '{"approvalId":"x","decision":"approve"}'],
+];
+for (const [agent, name, args] of asked) {
+  const evAsk = run(['--agent', agent, `CALL ${name} ${args}`]);
+  check(
+    `${agent} ${name} is a human-confirm gate and is rejected when nobody can press confirm`,
+    tool(evAsk)?.state?.status === 'error' && /cannot ask/.test(tool(evAsk)?.state?.error ?? ''),
+    JSON.stringify(tool(evAsk)?.state),
+  );
+}
+for (const agent of ['jum', 'jeng', 'porn', 'nun', 'rungchao', 'lekha_por']) {
+  const evSub = run([
+    '--auto',
+    '--agent',
+    agent,
+    'FORCE subagent {"agent":"jum","description":"x","prompt":"x"}',
+  ]);
+  check(
+    `${agent} cannot delegate (only jaew can)`,
+    tool(evSub)?.state?.status === 'error',
+    JSON.stringify(tool(evSub)?.state),
+  );
+}
+for (const agent of ['rungchao', 'lekha_por']) {
+  for (const name of ['get_scores', 'get_class_scores', 'save_assessment', 'send_email']) {
+    const evNo = run(['--auto', '--agent', agent, `FORCE ${name} {}`]);
+    check(
+      `${agent} cannot call ${name}`,
+      tool(evNo)?.state?.status === 'error',
+      JSON.stringify(tool(evNo)?.state),
+    );
+  }
+}
+const principalOut = [
+  run(['--agent', 'lekha_por', 'CALL list_pending_approvals {}']),
+  run(['--agent', 'lekha_por', 'CALL get_school_summary {}']),
+  run(['--agent', 'rungchao', 'CALL teacher_activity {}']),
+  run(['--agent', 'rungchao', 'CALL read_budget {}']),
+]
+  .map((evs) => tool(evs)?.state?.output ?? '')
+  .join('\n');
+check(
+  'the principal team sees no student-level data through any tool',
+  principalOut.length > 100 &&
+    !/นักเรียนตัวอย่าง|studentId|displayName|"s-\d\d"/.test(principalOut),
+  principalOut.slice(0, 200),
 );
 
 console.log('# secretary delegates');
