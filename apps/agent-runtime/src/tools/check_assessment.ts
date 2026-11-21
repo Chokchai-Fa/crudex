@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { indicators } from '../data/indicators';
+import { curriculumIndicators as indicators } from '../data/curriculum';
 import { checkAssessment } from '../lib/fractions';
 import { recordCheckResult } from './check-failures';
 import { nonBlank, validatedTool } from './validated';
