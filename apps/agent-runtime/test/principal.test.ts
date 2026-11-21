@@ -55,10 +55,10 @@ describe('principal agents', () => {
   });
 
   it('use the display names the principal chose', () => {
-    expect(rungchao?.name).toBe('ลุงนิต');
-    expect(lekha?.name).toBe('น้องดรีม');
-    expect(rungchao?.instructions).toContain('คุณคือลุงนิต');
-    expect(lekha?.instructions).toContain('คุณคือน้องดรีม');
+    expect(rungchao?.name).toBe('รุ่งเช้า');
+    expect(lekha?.name).toBe('ลุงนิต');
+    expect(rungchao?.instructions).toContain('คุณคือรุ่งเช้า');
+    expect(lekha?.instructions).toContain('คุณคือลุงนิต');
   });
 
   it('bind exactly the tools in the spec', () => {
