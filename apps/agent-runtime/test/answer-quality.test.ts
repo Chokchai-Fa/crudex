@@ -68,6 +68,7 @@ describe('morning brief stays within 7 lines', () => {
       expect(t, id).toContain('ห้ามมีประโยคเปิด');
       expect(t, id).toContain('ไม่เกิน 7 บรรทัดนับรวมชื่อ');
     }
+    expect(byId['rungchao']?.instructions).toContain('ส่วนสรุปเช้า (brief) ไม่มีคำเปิดหรือคำปิด');
     expect(byId['jum']?.instructions).not.toContain('ไม่เกิน 7 บรรทัดนับรวมชื่อ');
   });
 });
