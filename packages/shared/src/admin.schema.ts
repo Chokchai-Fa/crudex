@@ -19,6 +19,8 @@ export const adminCommandSchema = z.discriminatedUnion('action', [
     ]),
   }),
   z.strictObject({ action: z.literal('invite'), schoolId: z.uuid(), membershipId: z.uuid() }),
+  // Adds the 8 sample (ตัวอย่าง) students and 3 past ม.2/1 scores to an existing class with no assessments.
+  z.strictObject({ action: z.literal('seedSampleClass'), schoolId: z.uuid(), classId: z.uuid() }),
 ]);
 export type AdminCommand = z.infer<typeof adminCommandSchema>;
 const option = z.object({ id: z.uuid(), name: z.string() });
@@ -30,6 +32,7 @@ export const adminDirectorySchema = z.object({
 });
 export type AdminDirectory = z.infer<typeof adminDirectorySchema>;
 export const adminResultSchema = z.union([
+  z.object({ id: z.uuid(), seeded: z.boolean() }),
   z.object({ id: z.uuid() }),
   z.object({ credential: z.string().regex(/^[0-9a-f]{64}$/), expiresAt: z.iso.datetime() }),
 ]);

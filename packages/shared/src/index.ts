@@ -15,3 +15,4 @@ export {
 } from './school-dispatch.schema';
 export * from './admin.schema';
 export * from './morning-brief.schema';
+export * from './sample-class';

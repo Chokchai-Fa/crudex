@@ -161,3 +161,26 @@ describe('school app shares the same sample flagged rooms', () => {
     }
   });
 });
+
+describe('school backend seeds the same ม.2/1 sample history', () => {
+  it('packages/shared sampleClassM21 equals the runtime rows', async () => {
+    const { sampleClassM21 } = await import('../../../packages/shared/src/sample-class');
+    const { pastAssessments } = await import('../src/data/class-score-history');
+    const runtime = pastAssessments['class-m2-1'] ?? [];
+    expect(
+      sampleClassM21.assessments.map(({ date, title, questionTopics, results }) => ({
+        date,
+        title,
+        questionTopics,
+        results,
+      })),
+    ).toEqual(
+      runtime.map(({ date, assessment, questionTopics, results }) => ({
+        date,
+        title: assessment.title,
+        questionTopics: [...questionTopics],
+        results: [...results],
+      })),
+    );
+  });
+});
