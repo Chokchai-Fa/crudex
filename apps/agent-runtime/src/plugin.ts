@@ -4,6 +4,7 @@ import { agents } from './agents';
 import { jeng } from './agents/jeng';
 import { kahootMcpServer, type KahootMcpConfig } from './kahoot-config';
 import { KahootDrafts, kahootTool } from './kahoot-draft';
+import { kahootEditorTool, kahootEditorUrl, kahootReceipt } from './kahoot-handoff';
 import { decide, permissionsFor } from './permissions';
 import { activityActions } from './tools/teacher_activity';
 import { recordActivity } from './state';
@@ -19,7 +20,7 @@ export interface EmbeddedSkill {
 interface RegistrationContext {
   mcp?: Pick<Plugin.Context['mcp'], 'transform'>;
   agent: Pick<Plugin.Context['agent'], 'transform'>;
-  tool: Pick<Plugin.Context['tool'], 'transform'>;
+  tool: Pick<Plugin.Context['tool'], 'transform'> & Partial<Pick<Plugin.Context['tool'], 'hook'>>;
   skill: Pick<Plugin.Context['skill'], 'transform'>;
   permission: Pick<Plugin.Context['permission'], 'hook' | 'assert'>;
 }
@@ -75,6 +76,23 @@ export function createRuntimePlugin(
     async setup(ctx: RegistrationContext) {
       if (kahoot) {
         if (!ctx.mcp) throw new Error('MCP registration unavailable');
+        await ctx.tool.hook?.('execute.after', (event) => {
+          if (event.agent !== jeng.id || event.status !== 'completed') return;
+          const { result } = event;
+          if (event.tool === kahootTool) {
+            const receipt = kahootReceipt(result.output);
+            if (receipt)
+              event.result = {
+                ...result,
+                metadata: { ...result.metadata, crudexKahoot: { kahoot: receipt } },
+              };
+          }
+          if (event.tool === kahootEditorTool) {
+            const url = kahootEditorUrl(result.output);
+            if (url)
+              event.result = { ...result, metadata: { ...result.metadata, crudexKahoot: { url } } };
+          }
+        });
         await ctx.mcp.transform((editor) => {
           // OpenCode normalizes MCP names before joining them, so overlapping prefixes can impersonate a tool.
           for (const [server] of editor.list()) {
