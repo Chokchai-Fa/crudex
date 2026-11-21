@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { indicators } from '../data/indicators';
 import { checkAssessment } from '../lib/fractions';
+import { recordCheckResult } from './check-failures';
 import { nonBlank, validatedTool } from './validated';
 
 export const assessmentSchema = z.strictObject({
@@ -63,5 +64,9 @@ export const checkAssessmentTool = validatedTool(assessmentSchema, {
   description:
     'ตรวจชุดข้อสอบด้วยโค้ด: คำนวณเศษส่วนจริง ตรวจเฉลย ตัวเลือกที่ค่าเท่ากันหลังย่อ และจำนวนข้อ (expectedCount = จำนวนที่ครูขอ) การหารเขียน (4/7)/(2/7) ถ้า ok เป็น false ให้แก้ตาม errors แล้วเรียกใหม่',
   gate: 'allow',
-  execute: (input) => runCheck(input).result,
+  execute: (input, context) => {
+    const { result } = runCheck(input);
+    recordCheckResult(context.sessionID, result.ok);
+    return result;
+  },
 });

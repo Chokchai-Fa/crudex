@@ -1,6 +1,28 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { runCheck } from '../src/tools/check_assessment';
+import { resetCheckFailuresForTests } from '../src/tools/check-failures';
+import { checkAssessmentTool, runCheck } from '../src/tools/check_assessment';
 import { additionWorksheet, fractionAdditionForm } from '../src/tools/fraction_addition_form';
+
+const context = { count: 1, signal: new AbortController().signal };
+const assessment = additionWorksheet(1);
+
+async function check(ok: boolean, sessionID?: string) {
+  expect(
+    await checkAssessmentTool.execute(
+      { ...assessment, expectedCount: ok ? 1 : 2 },
+      { ...context, sessionID },
+    ),
+  ).toMatchObject({ ok });
+}
+
+async function expectRefused(sessionID?: string) {
+  await expect(
+    fractionAdditionForm.execute({ count: 10 }, { ...context, sessionID }),
+  ).rejects.toMatchObject({
+    code: 'fallback_not_allowed',
+    message: expect.stringContaining('ให้เขียนโจทย์เองและเรียก check_assessment ตรวจก่อน'),
+  });
+}
 
 it('generates thirty distinct grade-5 addition questions with four distinct numerical choices', () => {
   const assessment = additionWorksheet(30);
@@ -11,10 +33,35 @@ it('generates thirty distinct grade-5 addition questions with four distinct nume
 });
 
 afterEach(() => {
+  resetCheckFailuresForTests();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
-it('publishes once and renders the exact published choices and keys', async () => {
+
+it('refuses the fallback with zero or one failed checks', async () => {
+  await expectRefused();
+  await check(false);
+  await expectRefused();
+});
+
+it('resets the failure streak after a successful check', async () => {
+  await check(false);
+  await check(true);
+  await check(false);
+  await expectRefused();
+});
+
+it('keeps failure streaks separate by session', async () => {
+  await check(false, 'first');
+  await check(false, 'second');
+  await expectRefused('first');
+  await expectRefused('second');
+  await check(false, 'first');
+  await expectRefused('second');
+  await expectRefused();
+});
+
+it('publishes after two failed checks, renders the published choices and keys, and resets the streak', async () => {
   vi.stubEnv('SCHOOL_BOT_APPS_SCRIPT_URL', 'https://example.invalid/bridge');
   const url = 'https://docs.google.com/forms/d/e/sample/viewform';
   const fetch = vi.fn(async (_endpoint: string, init: RequestInit) => {
@@ -22,10 +69,13 @@ it('publishes once and renders the exact published choices and keys', async () =
     return Response.json({ ok: true, formId: 'sample', url });
   });
   vi.stubGlobal('fetch', fetch);
-  const result = (await fractionAdditionForm.execute(
-    { count: 10 },
-    { count: 1, signal: new AbortController().signal },
-  )) as { worksheet: string; formUrl: string; bridgeElapsedMs: number };
+  await check(false);
+  await check(false);
+  const result = (await fractionAdditionForm.execute({ count: 10 }, context)) as {
+    worksheet: string;
+    formUrl: string;
+    bridgeElapsedMs: number;
+  };
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(result.formUrl).toBe(url);
   expect(result.bridgeElapsedMs).toBeGreaterThanOrEqual(0);
@@ -42,4 +92,5 @@ it('publishes once and renders the exact published choices and keys', async () =
   expect(result.worksheet).toContain(
     'เฉลย: ' + sent.map((q, i) => `${i + 1}. ${'กขคง'[q.answerIndex]}`).join('   '),
   );
+  await expectRefused();
 });
