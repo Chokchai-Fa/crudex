@@ -1,4 +1,4 @@
-import type { SchoolScope } from '../school';
+import type { SchoolScope } from '../../../../packages/shared/src/school-dispatch.schema';
 import type { Plugin } from '@opencode/plugin';
 
 type ToolEditor = Parameters<Parameters<Plugin.Context['tool']['transform']>[0]>[0];

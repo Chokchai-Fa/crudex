@@ -9,6 +9,7 @@ import {
 } from '../../../packages/shared/src/school-dispatch.schema';
 import { directReply } from './direct-reply';
 import { kahootInstanceName, parseKahootState } from './kahoot-state';
+import { openaiReply, usesOpenAI } from './openai-backend';
 
 // Only the gateway can attach the teacher's connection state to a signed turn.
 const incomingDispatchSchema = dispatchSchema.extend({
@@ -68,9 +69,13 @@ export class SchoolDispatch extends WorkerEntrypoint<Env> implements SchoolKahoo
       scope.agentId !== body.data.agentId
     )
       return new Response(null, { status: 403 });
-    // Chat and memory turns answer without waiting for a sandbox.
-    const direct = await directReply(this.env.OPENAI_API_KEY, body.data);
-    if (direct) return direct;
+    // With AGENT_BACKEND = "openai", chat and memory turns and ported agents skip the sandbox.
+    if (usesOpenAI(this.env)) {
+      const key = this.env.OPENAI_API_KEY;
+      const reply =
+        (await directReply(key, body.data)) ?? (await openaiReply(key, this.env, body.data));
+      if (reply) return reply;
+    }
     const kahootConnected =
       scope.role === 'teacher' && (scope.agentId === 'jaew' || scope.agentId === 'jeng')
         ? await this.kahootStatus({
