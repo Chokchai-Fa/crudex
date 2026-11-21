@@ -47,6 +47,7 @@ export const publishBrief: ToolDefinition = {
     return {
       mode: 'mock',
       briefId: brief.id,
+      text: brief.text,
       lines: brief.text.split(/\n/).filter((l) => l.trim()).length,
     };
   },

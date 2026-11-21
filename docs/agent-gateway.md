@@ -23,6 +23,7 @@ Use `fetch` to send the POST request and decode `response.body` as a UTF-8 strea
 | --- | --- |
 | `session` | Store `sessionId` for the selected assistant. |
 | `delta` | Append `text` to the current message. This includes results Jum sends back to Jaew. |
+| `principal_brief` | Display the validated morning brief in `text`. The `briefId` identifies the published result. |
 | `tool` | Track the tool call by `id` and `name`. Its `status` is `started`, `success`, or `failed`. |
 | `done` | Finish the turn. `elapsedMs` gives its duration in milliseconds. |
 | `error` | Finish the turn and read the error `code`. |

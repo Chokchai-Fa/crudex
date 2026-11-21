@@ -351,6 +351,7 @@
         toolEvents.replaceChildren();
         get('empty-events').hidden = false;
         let finished = false;
+        let publishedBrief = false;
         try {
           const response = await api('/api/chat?role=' + role.value, {
             method: 'POST',
@@ -375,7 +376,11 @@
                   break;
                 case 'delta':
                   feedback.textContent = 'Receiving answer…';
-                  answer.append(item.text);
+                  if (!publishedBrief) answer.append(item.text);
+                  break;
+                case 'principal_brief':
+                  publishedBrief = true;
+                  answer.textContent = item.text;
                   break;
                 case 'tool': {
                   get('empty-events').hidden = true;

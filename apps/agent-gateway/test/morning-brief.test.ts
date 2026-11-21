@@ -11,7 +11,10 @@ vi.mock('cloudflare:workers', () => ({
 }));
 
 const frame = (data: object) => 'data: ' + JSON.stringify(data) + '\n\n';
-const response = (text: string) => frame({ type: 'delta', text }) + frame({ type: 'done' });
+const response = (text: string) =>
+  frame({ type: 'principal_brief', briefId: 'brief-example', text }) +
+  frame({ type: 'delta', text: 'ส่งสรุปแล้วครับ' }) +
+  frame({ type: 'done' });
 
 afterEach(() => vi.useRealTimers());
 
@@ -22,7 +25,8 @@ it('accepts complete brief and rejects overlong, incomplete and identifying outp
     response('นักเรียนตัวอย่าง 01'),
     response('s-01 คะแนน 8'),
     response('ด.ช.สมชาย'),
-    frame({ type: 'delta', text: 'ยังตอบอยู่' }),
+    frame({ type: 'delta', text: 'ส่งสรุปแล้วครับ' }) + frame({ type: 'done' }),
+    frame({ type: 'principal_brief', briefId: 'brief-example', text: 'ยังตอบอยู่' }),
   ])
     expect(() => readBrief(stream)).toThrow();
 });
