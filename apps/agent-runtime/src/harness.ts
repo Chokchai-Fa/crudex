@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { OpenCode } from '@opencode/sdk';
+import { resolveToolOwner } from './demo-session';
 import skills from 'virtual:crudex-skills';
 import { createRuntimePlugin } from './plugin';
 import { tools } from './tools';
@@ -19,9 +20,11 @@ export async function createHarness(dataDir: string) {
     },
     skills,
     process.env.KAHOOT_MCP_ENABLED === 'true',
+    (sessionId, agent, signal) =>
+      resolveToolOwner((id) => host.session.get({ sessionID: id }, { signal }), sessionId, agent),
   );
 
-  const host = await OpenCode.create({
+  const host: Host = await OpenCode.create({
     database: { path: join(dataDir, 'opencode.sqlite') },
     plugins: [plugin],
   });

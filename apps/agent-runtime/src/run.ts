@@ -1,4 +1,5 @@
 import type { AgentDefinition } from './agents/types';
+import { isOwnedRoot } from './demo-session';
 import type { Host } from './harness';
 
 export type RunEvent =
@@ -18,6 +19,7 @@ export type RunEvent =
 interface Turn {
   agent: AgentDefinition;
   directory: string;
+  loginId: string;
   text: string;
   sessionId?: string;
   signal: AbortSignal;
@@ -65,12 +67,21 @@ export function createTurnRunner(host: Host) {
 
     try {
       const existing = turn.sessionId && (await findSession(host, turn.sessionId, signal));
+      if (
+        existing &&
+        existing.metadata?.crudexLoginId &&
+        !isOwnedRoot(existing, turn.agent.id, turn.loginId)
+      ) {
+        yield { type: 'error', code: 'session_unavailable' };
+        return;
+      }
       const session =
-        existing && existing.agent === turn.agent.id && !existing.parentID
+        existing && isOwnedRoot(existing, turn.agent.id, turn.loginId)
           ? existing
           : await host.session.create(
               {
                 title: turn.agent.name,
+                metadata: { crudexLoginId: turn.loginId },
                 agent: turn.agent.id,
                 model: { providerID: 'openai', id: turn.agent.model },
                 location: { directory: turn.directory },
@@ -113,11 +124,7 @@ export function createTurnRunner(host: Host) {
         const root = source === sessionID;
         if (!root && !children.has(source)) {
           if (!turn.agent.subagents.length) continue;
-          if (
-            !delegated.has(source) &&
-            (await findSession(host, source, signal))?.parentID !== sessionID
-          )
-            continue;
+          if ((await findSession(host, source, signal))?.parentID !== sessionID) continue;
           children.set(source, { text: '' });
         }
         const child = children.get(source);
@@ -144,8 +151,10 @@ export function createTurnRunner(host: Host) {
               let bridgeElapsedMs: number | undefined;
               if (event.type === 'session.tool.success') {
                 const childId = event.data.metadata?.sessionID;
-                if (root && name === 'subagent' && typeof childId === 'string')
-                  delegated.add(childId);
+                if (root && name === 'subagent' && typeof childId === 'string') {
+                  const childSession = await findSession(host, childId, signal);
+                  if (childSession?.parentID === sessionID) delegated.add(childId);
+                }
                 if (root && turn.agent.id === 'rungchao' && name === 'publish_brief') {
                   for (const part of event.data.content) {
                     if (part.type !== 'text') continue;

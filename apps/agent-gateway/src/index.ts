@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { clearSessionCookie, hasSession, sessionCookie, validPasscode } from './gate';
+import {
+  clearSessionCookie,
+  loginIdHeader,
+  readSession,
+  sessionCookie,
+  validPasscode,
+} from './gate';
 import { archivePath } from './sandbox';
 
 export { MorningBrief } from './morning-brief';
@@ -112,7 +118,8 @@ export default {
     }
     if (route === 'POST /logout') return redirect('/login', clearSessionCookie());
 
-    if (!(await hasSession(request.headers.get('cookie'), passcode.data))) {
+    const session = await readSession(request.headers.get('cookie'), passcode.data);
+    if (!session) {
       if (route === 'GET /') return redirect('/login');
       return Response.json({ error: 'unauthorized' }, { status: 401 });
     }
@@ -121,15 +128,20 @@ export default {
       const asset = await env.ASSETS.fetch(new Request(url.origin + '/'));
       const headers = new Headers(asset.headers);
       for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
+      if (session.upgrade) headers.set('set-cookie', session.upgrade);
       return new Response(asset.body, { status: asset.status, headers });
     }
-    if (route === 'GET /api/brief' || route === 'POST /api/brief/run') {
-      return env.BRIEFS.getByName('principal').fetch(request);
-    }
-    if (apiRoutes.has(route)) {
-      const result = await sandbox().fetch(request);
+    const brief = route === 'GET /api/brief' || route === 'POST /api/brief/run';
+    if (brief || apiRoutes.has(route)) {
+      // Rebuild internal headers after authentication; client claims never reach the runtime.
+      const internalHeaders = new Headers({ [loginIdHeader]: session.loginId });
+      const contentType = request.headers.get('content-type');
+      if (contentType) internalHeaders.set('content-type', contentType);
+      const target = brief ? env.BRIEFS.getByName('principal') : sandbox();
+      const result = await target.fetch(new Request(request, { headers: internalHeaders }));
       const headers = new Headers(result.headers);
       headers.set('cache-control', 'no-store, no-transform');
+      if (session.upgrade) headers.set('set-cookie', session.upgrade);
       return new Response(result.body, { status: result.status, headers });
     }
     return Response.json({ error: 'not_found' }, { status: 404 });

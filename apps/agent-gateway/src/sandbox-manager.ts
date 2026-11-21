@@ -1,3 +1,4 @@
+import { loginIdHeader, validLoginId } from './gate';
 import { DurableObject } from 'cloudflare:workers';
 import { consumeRun, countToday, type DailyUsage } from './daily-cap';
 import { envSchema, type AgentConfig } from './env';
@@ -62,6 +63,13 @@ export class SandboxManager extends DurableObject<Env> {
     }
 
     if (request.method === 'POST' && url.pathname === '/api/chat') {
+      const loginId = request.headers.get(loginIdHeader);
+      if (
+        !validLoginId(loginId) &&
+        !(loginId === 'scheduled' && url.searchParams.get('role') === 'principal')
+      ) {
+        return Response.json({ error: 'invalid_session' }, { status: 401 });
+      }
       const admitted = await this.ctx.storage.transaction(async (txn) => {
         const usage = await txn.get<DailyUsage>('usage');
         const next = consumeRun(usage, Date.now(), config.DAILY_RUN_LIMIT);
@@ -106,7 +114,10 @@ export class SandboxManager extends DurableObject<Env> {
       const sandbox = await this.acquire(new URL(request.url).origin, config);
       acquired = true;
       const headers = new Headers({ [upstreamHeader]: sandbox.token });
-      if (path === '/chat') headers.set('content-type', 'application/json');
+      if (path === '/chat') {
+        headers.set('content-type', 'application/json');
+        headers.set(loginIdHeader, request.headers.get(loginIdHeader)!);
+      }
 
       const url = new URL(path, sandbox.url);
       const role = new URL(request.url).searchParams.get('role');

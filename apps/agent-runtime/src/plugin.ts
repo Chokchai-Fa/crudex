@@ -34,6 +34,11 @@ export function createRuntimePlugin(
   increment: (name: string) => number,
   skills: readonly EmbeddedSkill[],
   kahootEnabled = false,
+  toolOwner?: (
+    sessionId: string,
+    agent: string,
+    signal: AbortSignal,
+  ) => Promise<{ ownerId: string; classId?: string }>,
 ) {
   const drafts = new KahootDrafts();
   const rulesByAgent = new Map(
@@ -112,6 +117,7 @@ export function createRuntimePlugin(
                 resources: ['*'],
               });
               const result = await tool.execute(input, {
+                ...(await toolOwner?.(call.sessionID, call.agent, call.signal)),
                 count: increment(tool.name),
                 agent: call.agent,
                 sessionID: call.sessionID,
