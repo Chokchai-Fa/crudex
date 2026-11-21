@@ -466,7 +466,8 @@
   .team-row {
     padding: 6px;
   }
-  .team-row img {
+  .team-row img,
+  .school-team .team-row > .mascot {
     width: 28px;
   }
   .team-row small {
@@ -670,7 +671,7 @@
   text-align: center;
   color: var(--foreground);
 }
-.chat-empty img {
+.chat-empty .mascot {
   margin-bottom: 8px;
 }
 .teacher-bubble {
@@ -691,7 +692,7 @@
   align-items: flex-end;
   gap: 10px;
 }
-.school-conversation li > .flex.items-start > img {
+.school-conversation li > .flex.items-start > .mascot {
   width: 32px;
   height: 32px;
 }
@@ -794,7 +795,7 @@
   padding: 14px 16px;
   border-radius: 20px;
 }
-.school-team .team-row > img {
+.school-team .team-row > .mascot {
   width: 52px;
   height: 52px;
 }
@@ -912,4 +913,149 @@
 }
 .school-conversation .chat-response .school-answer > * + * {
   margin-top: 0.35em;
+}
+
+/* Right activity panel: collapsible on desktop, hidden by default (data-activity on <main>). */
+@media (min-width: 1024px) {
+  .school-workspace[data-activity='closed'] {
+    grid-template-columns: minmax(240px, 316px) minmax(0, 1fr);
+  }
+  .school-workspace[data-activity='closed'] > .school-activity {
+    display: none;
+  }
+  .school-workspace[data-activity='closed'] .school-conversation > [role='region'] > ol,
+  .school-workspace[data-activity='closed'] .chat-toolbar {
+    max-width: 56rem;
+  }
+}
+
+/* Mascots are inline SVG; on hover the pupils glance aside and come back (no layout shift). */
+.mascot {
+  display: inline-block;
+  flex: none;
+  width: var(--mascot-size, 40px);
+  height: var(--mascot-size, 40px);
+}
+.mascot > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mascot :is(.pupils, circle[fill='#111114']),
+.mascot[data-mascot='envelope'] path[fill='#111114'] {
+  transform-box: view-box;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .team-row:hover .mascot :is(.pupils, circle[fill='#111114']),
+  .team-row:hover .mascot[data-mascot='envelope'] path[fill='#111114'],
+  .team-row:focus-visible .mascot :is(.pupils, circle[fill='#111114']),
+  .school-conversation > header > .mascot:hover :is(.pupils, circle[fill='#111114']),
+  .school-conversation > header > .mascot[data-mascot='envelope']:hover path[fill='#111114'] {
+    animation: mascot-glance 600ms ease;
+  }
+}
+@keyframes mascot-glance {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  35%,
+  55% {
+    transform: translate(2px, -0.5px);
+  }
+  75% {
+    transform: translate(-1px, 0);
+  }
+}
+.run-failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.run-failed [data-slot='button'] {
+  min-height: 36px;
+}
+@media (max-width: 1023px) {
+  .school-team .team-row > .mascot {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* Instant acknowledgement bubble with typing dots */
+.run-ack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.typing-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--subtle-foreground);
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .typing-dots i {
+    animation: typing-dot 1s ease-in-out infinite;
+  }
+  .typing-dots i:nth-child(2) {
+    animation-delay: 150ms;
+  }
+  .typing-dots i:nth-child(3) {
+    animation-delay: 300ms;
+  }
+}
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+/* Preset cards in an empty chat */
+.preset-cards {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 26rem);
+  margin-top: 14px;
+}
+.preset-cards button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  text-align: start;
+  cursor: pointer;
+  box-shadow: var(--elev-card);
+}
+.preset-cards button:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+.preset-cards button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.preset-cards strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.preset-cards small {
+  font-size: 13px;
+  color: var(--subtle-foreground);
 }

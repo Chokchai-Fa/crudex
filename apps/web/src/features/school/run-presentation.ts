@@ -92,5 +92,5 @@ export function presentRun(status: RunStatus, events: RunEvent[], complete: bool
   if (phase === 'cancelled') notice = 'ยกเลิกงานแล้ว';
   if (phase === 'interrupted') notice = 'การตอบหยุดลงก่อนเสร็จ';
   if (phase === 'failed') notice = failureMessages.get(errorCode) ?? 'ผู้ช่วยทำงานนี้ไม่สำเร็จ';
-  return { answer, activity, notice, lastProposalId, final };
+  return { answer, activity, notice, lastProposalId, final, phase };
 }
