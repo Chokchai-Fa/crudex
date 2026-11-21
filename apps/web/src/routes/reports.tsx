@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { classroomResults } from '@/features/workspace/demo-gradebook';
-import { rooms } from '@/features/workspace/fraction-set';
+import { exercises, rooms } from '@/features/workspace/fraction-set';
 
 export const Route = createFileRoute('/reports')({
   validateSearch: (search) => ({
@@ -20,6 +20,8 @@ function ReportDraft({ room }: { room: string }) {
   const students = classroomResults(room);
   const [number, setNumber] = useState(1);
   const [review, setReview] = useState(false);
+  const returnToPreview = useRef(false);
+  const focusReceipt = useRef(false);
   const student = students.find((row) => row.number === number);
   const receiptKey = 'crudex.demo.report.' + room + '.' + number;
   const [receipt, setReceipt] = useState(() => sessionStorage.getItem(receiptKey));
@@ -33,6 +35,7 @@ function ReportDraft({ room }: { room: string }) {
   function confirm() {
     const time = new Date().toISOString();
     sessionStorage.setItem(receiptKey, time);
+    focusReceipt.current = true;
     setReceipt(time);
     setReview(false);
   }
@@ -67,15 +70,33 @@ function ReportDraft({ room }: { room: string }) {
             </select>
           </label>
           {receipt ? (
-            <p role="status">
+            <p
+              role="status"
+              tabIndex={-1}
+              ref={(node) => {
+                if (node && focusReceipt.current) {
+                  node.focus();
+                  focusReceipt.current = false;
+                }
+              }}
+            >
               ส่งจำลองแล้ว · {destination} · {new Date(receipt).toLocaleString('th-TH')}
             </p>
           ) : review ? (
             <article className="space-y-4 rounded-xl border p-5">
-              <h2 className="text-xl font-semibold">ตรวจร่างก่อนส่ง · 1 ครอบครัว</h2>
-              <p className="break-words">
-                ถึง ผู้ปกครองของ{student.name} · {destination}
-              </p>
+              <h2
+                tabIndex={-1}
+                ref={(node) => {
+                  node?.focus();
+                }}
+                className="text-xl font-semibold"
+              >
+                ตรวจร่างก่อนส่ง · 1 ครอบครัว
+              </h2>
+              <div className="rounded-lg bg-muted p-3">
+                <p>ถึง ผู้ปกครองของ{student.name}</p>
+                <p className="break-words text-sm">{destination}</p>
+              </div>
               <h3 className="font-semibold">ผลแบบฝึกบวกและลบเศษส่วน ห้อง {room}</h3>
               <p>เรียนผู้ปกครองของ{student.name}</p>
               <p>
@@ -84,17 +105,45 @@ function ReportDraft({ room }: { room: string }) {
                   : 'นักเรียนทำแบบฝึกได้ ' + student.score + ' จาก 10 คะแนน'}
               </p>
               {student.missed && student.missed.length > 0 && (
-                <p>ข้อที่แนะนำให้ทบทวนร่วมกัน ได้แก่ {student.missed.join(', ')}</p>
+                <div>
+                  <h4 className="font-semibold">ฝึกเพิ่มเติมที่บ้าน</h4>
+                  <p>
+                    ลองทำข้อ {student.missed[0]} ({exercises[(student.missed[0] ?? 1) - 1]?.[0]})
+                    ด้วยกัน ให้นักเรียนอธิบายวิธีทำตัวส่วนให้เท่ากันก่อนหาคำตอบ
+                  </p>
+                  <p className="mt-2 text-sm">ข้อที่ควรทบทวน · {student.missed.join(', ')}</p>
+                </div>
+              )}
+              {student.score === 10 && (
+                <p>
+                  นักเรียนตอบถูกครบทั้ง 10 ข้อ ลองให้เลือกข้อที่ชอบหนึ่งข้อแล้วอธิบายวิธีคิดให้ฟัง
+                </p>
               )}
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => setReview(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    returnToPreview.current = true;
+                    setReview(false);
+                  }}
+                >
                   ยกเลิก
                 </Button>
                 <Button onClick={confirm}>ยืนยันส่งจำลอง 1 ครอบครัว</Button>
               </div>
             </article>
           ) : (
-            <Button onClick={() => setReview(true)}>ตรวจรายงานก่อนส่ง</Button>
+            <Button
+              ref={(node) => {
+                if (node && returnToPreview.current) {
+                  node.focus();
+                  returnToPreview.current = false;
+                }
+              }}
+              onClick={() => setReview(true)}
+            >
+              ตรวจรายงานก่อนส่ง
+            </Button>
           )}
         </>
       ) : (
