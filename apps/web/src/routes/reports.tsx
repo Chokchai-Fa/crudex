@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { NativeSelect } from '@/components/ui/native-select';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { classroomResults } from '@/features/workspace/demo-gradebook';
 import { exercises, rooms } from '@/features/workspace/fraction-set';
@@ -45,18 +46,21 @@ function ReportDraft({ room }: { room: string }) {
       <Link
         to="/gradebook"
         search={{ room }}
-        className="inline-flex min-h-11 items-center text-blue-700 underline dark:text-blue-300"
+        className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline"
       >
         กลับสมุดคะแนน · {room}
       </Link>
-      <header className="space-y-2 rounded-2xl bg-blue-50 p-6 text-blue-950">
-        <p>ครูผู้สอน · ห้อง {room}</p>
+      <header className="space-y-2 rounded-2xl border bg-card p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">ครูผู้สอน · ห้อง {room}</p>
+          <ThemeToggle />
+        </div>
         <h1 className="text-2xl font-bold">รายงานผู้ปกครอง</h1>
         <p>ใช้ข้อมูลตัวอย่างและจำลองการส่งอีเมลในแท็บนี้</p>
       </header>
       {student ? (
         <>
-          <label className="block">
+          <label className="block rounded-2xl border bg-card p-5">
             เลือกครอบครัว
             <NativeSelect
               className="mt-2 w-full"
@@ -84,7 +88,7 @@ function ReportDraft({ room }: { room: string }) {
               ส่งจำลองแล้ว · {destination} · {new Date(receipt).toLocaleString('th-TH')}
             </p>
           ) : review ? (
-            <article className="space-y-4 rounded-xl border p-5">
+            <article className="space-y-4 rounded-2xl border bg-card p-5">
               <h2
                 tabIndex={-1}
                 ref={(node) => {

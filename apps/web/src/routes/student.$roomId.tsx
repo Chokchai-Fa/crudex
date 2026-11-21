@@ -1,5 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { exercises, rooms } from '@/features/workspace/fraction-set';
 
@@ -8,7 +9,16 @@ export const Route = createFileRoute('/student/$roomId')({ component: StudentPag
 function StudentPage() {
   const { roomId } = Route.useParams();
   const room = rooms.find((name) => name.replace('ป.', '').replace('/', '-') === roomId);
-  return room ? <Quiz key={room} room={room} /> : <h1>ไม่พบฟอร์มสำหรับห้องนี้</h1>;
+  return room ? (
+    <Quiz key={room} room={room} />
+  ) : (
+    <section className="mx-auto max-w-xl space-y-4 rounded-2xl border bg-card p-5">
+      <h1 className="text-2xl font-semibold">ไม่พบฟอร์มสำหรับห้องนี้</h1>
+      <Button asChild variant="outline">
+        <Link to="/">กลับไปเลือกบทบาท</Link>
+      </Button>
+    </section>
+  );
 }
 
 function Quiz({ room }: { room: string }) {
@@ -16,13 +26,16 @@ function Quiz({ room }: { room: string }) {
   const [missing, setMissing] = useState<string>();
   return (
     <section className="mx-auto max-w-xl space-y-5">
-      <header className="space-y-2 rounded-xl border-t-4 border-teal-600 bg-teal-50 p-6 text-teal-950 dark:bg-teal-950 dark:text-teal-50">
-        <p className="text-sm">ฟอร์มจำลอง · ห้อง {room}</p>
+      <header className="space-y-2 rounded-2xl border bg-card p-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">ฟอร์มจำลอง · ห้อง {room}</p>
+          <ThemeToggle />
+        </div>
         <h1 className="text-2xl font-semibold">บวกและลบเศษส่วน</h1>
         <p>คณิตศาสตร์ ป.5 · 10 ข้อ</p>
       </header>
       {score !== null ? (
-        <div role="status" className="space-y-2 rounded-lg border p-5">
+        <div role="status" className="space-y-2 rounded-2xl border bg-card p-5">
           <h2
             tabIndex={-1}
             ref={(node) => {
@@ -69,7 +82,7 @@ function Quiz({ room }: { room: string }) {
               aria-describedby={missing === 'name' ? 'missing-name' : undefined}
               pattern=".*\S.*"
               autoComplete="off"
-              className="mt-2 block w-full rounded-md border p-3"
+              className="mt-2 block w-full rounded-xl border bg-card p-3"
             />
             {missing === 'name' && (
               <span role="alert" id="missing-name">
@@ -84,18 +97,19 @@ function Quiz({ room }: { room: string }) {
             const choices = [answer, ...new Set(alternatives)].slice(0, 3);
             const ordered = choices.slice(i % 3).concat(choices.slice(0, i % 3));
             return (
-              <fieldset key={question} className="bg-card rounded-xl border p-4 shadow-sm">
+              <fieldset key={question} className="bg-card rounded-2xl border p-4 shadow-sm">
                 <legend className="px-1 font-medium">
                   ข้อ {i + 1} · {question} = ?
                 </legend>
                 {ordered.map((choice) => (
                   <label
                     key={choice}
-                    className="my-1 flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 has-checked:border-teal-600 has-checked:bg-teal-50 dark:has-checked:bg-teal-950"
+                    className="my-1 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 has-checked:border-primary has-checked:bg-accent"
                   >
                     <input
                       aria-describedby={missing === 'q' + i ? 'missing-question' : undefined}
                       required
+                      className="accent-primary"
                       type="radio"
                       name={'q' + i}
                       value={choice}
@@ -114,6 +128,9 @@ function Quiz({ room }: { room: string }) {
           <Button type="submit">ส่งคำตอบจำลอง</Button>
         </form>
       )}
+      <Link to="/" className="inline-flex min-h-11 items-center text-sm text-primary underline">
+        กลับไปเลือกบทบาท
+      </Link>
     </section>
   );
 }

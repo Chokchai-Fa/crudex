@@ -7,10 +7,10 @@ export const Route = createRootRoute({
   notFoundComponent: () => (
     <AppShell>
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold">Page not found</h1>
-        <p className="text-muted-foreground">This page doesn&apos;t exist.</p>
+        <h1 className="text-2xl font-semibold">ไม่พบหน้านี้</h1>
+        <p className="text-muted-foreground">ตรวจสอบลิงก์หรือกลับไปเลือกบทบาท</p>
         <Button asChild>
-          <Link to="/">Go home</Link>
+          <Link to="/">กลับไปเลือกบทบาท</Link>
         </Button>
       </div>
     </AppShell>
@@ -18,10 +18,13 @@ export const Route = createRootRoute({
   errorComponent: ({ error }) => (
     <AppShell>
       <div role="alert" className="flex flex-col items-center gap-2 py-16 text-center">
-        <h1 className="text-2xl font-semibold">Something went wrong</h1>
+        <h1 className="text-2xl font-semibold">เปิดหน้านี้ไม่สำเร็จ</h1>
         <p className="text-muted-foreground break-words">
-          {error instanceof Error ? error.message : 'Unexpected error'}
+          {error instanceof Error ? error.message : 'กรุณาลองใหม่อีกครั้ง'}
         </p>
+        <Button asChild>
+          <Link to="/">กลับไปเลือกบทบาท</Link>
+        </Button>
       </div>
     </AppShell>
   ),
@@ -29,16 +32,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const page = useRouterState({ select: (state) => state.matches.at(-1)?.routeId });
-  if (page === '/' || page === '/teacher') return <Outlet />;
-  if (page === '/memory' || page === '/notes') {
-    return (
-      <main className="teacher-chat min-h-dvh bg-muted px-4 py-5 sm:px-6 sm:py-10">
-        <div className="mx-auto max-w-2xl">
-          <Outlet />
-        </div>
-      </main>
-    );
-  }
+  if (page === '/' || page === '/teacher' || page === '/gradebook') return <Outlet />;
   return (
     <AppShell>
       <Outlet />

@@ -37,9 +37,7 @@ function RoleChooser() {
     setNotice('รีเซ็ตข้อมูลตัวอย่างในแท็บนี้แล้ว');
   }
   return (
-    <main
-      className="grid min-h-dvh place-items-center bg-[#f6f9fe] px-5 py-5 sm:py-10 text-[#15233b]"
-    >
+    <main className="grid min-h-dvh place-items-center bg-muted px-5 py-5 sm:py-10 text-foreground">
       <section className="w-full max-w-[700px]">
         <header className="mb-4 text-center sm:mb-7">
           <img
@@ -47,20 +45,20 @@ function RoleChooser() {
             width="216"
             height="47"
             alt="Crudex"
-            className="mx-auto mb-3 w-40 sm:mb-8 sm:w-[216px]"
+            className="mx-auto mb-3 w-40 rounded dark:bg-white dark:p-1 sm:mb-8 sm:w-[216px]"
           />
           <h1 className="text-3xl font-bold">เข้าใช้ในฐานะ</h1>
-          <p className="mt-1 text-[#506183]">เดโมใช้บัญชีตัวอย่าง ไม่ต้องใส่รหัสผ่าน</p>
+          <p className="mt-1 text-muted-foreground">เดโมใช้บัญชีตัวอย่าง ไม่ต้องใส่รหัสผ่าน</p>
         </header>
         <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
           {roles.map((role) => (
             <article
               key={role.path}
               className={
-                'flex flex-col rounded-[28px] border-2 bg-white p-4 sm:p-7 ' +
+                'flex flex-col rounded-[28px] border-2 bg-card p-4 sm:p-7 ' +
                 (role.path === '/teacher'
-                  ? 'border-[#326aff] shadow-lg shadow-blue-100'
-                  : 'border-[#e1e9f6]')
+                  ? 'border-primary shadow-lg shadow-primary/10'
+                  : 'border-border')
               }
             >
               <img
@@ -71,15 +69,17 @@ function RoleChooser() {
                 height="72"
               />
               <h2 className="mt-1 text-2xl sm:mt-4 font-bold">{role.name}</h2>
-              <p className="mt-1 grow sm:mt-3 leading-relaxed text-[#506183]">{role.description}</p>
-              <p className="my-2 sm:mb-3 sm:mt-4 text-sm text-[#586c8e]">{role.scope}</p>
+              <p className="mt-1 grow sm:mt-3 leading-relaxed text-muted-foreground">
+                {role.description}
+              </p>
+              <p className="my-2 sm:mb-3 sm:mt-4 text-sm text-muted-foreground">{role.scope}</p>
               <Link
                 to={role.path}
                 className={
                   'grid min-h-11 place-items-center rounded-full border-2 px-3 font-bold focus-visible:outline-2 focus-visible:outline-offset-4 ' +
                   (role.path === '/teacher'
-                    ? 'border-[#326aff] bg-[#326aff] text-white'
-                    : 'border-[#dbe4f2]')
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border')
                 }
               >
                 {role.action}
@@ -87,9 +87,9 @@ function RoleChooser() {
             </article>
           ))}
         </div>
-        <footer className="mt-5 flex flex-wrap items-center justify-center gap-x-4 text-center text-sm text-[#586c8e]">
+        <footer className="mt-5 flex flex-wrap items-center justify-center gap-x-4 text-center text-sm text-muted-foreground">
           <span>ผู้ปกครองไม่ต้องเข้าเว็บ · เดโมใช้ข้อมูลตัวอย่าง</span>
-          <button className="min-h-11 cursor-pointer font-bold text-[#235be2]" onClick={resetDemo}>
+          <button className="min-h-11 cursor-pointer font-bold text-primary" onClick={resetDemo}>
             รีเซ็ตข้อมูลตัวอย่าง
           </button>
         </footer>

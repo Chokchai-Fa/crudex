@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { NativeSelect } from '@/components/ui/native-select';
+import { RoomNavigation } from '@/features/workspace/room-navigation';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { exercises, rooms } from '@/features/workspace/fraction-set';
 import { classroomResults } from '@/features/workspace/demo-gradebook';
@@ -20,52 +21,45 @@ function Gradebook() {
   const rememberRoom = () => sessionStorage.setItem('crudex.demo.teacher.room', room);
 
   return (
-    <section className="gradebook mx-auto max-w-4xl space-y-3 rounded-3xl bg-muted p-3 sm:p-6">
-      <header className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <Button asChild variant="link" className="px-0">
-            <Link to="/teacher" onClick={rememberRoom}>
-              กลับหน้าครู
-            </Link>
-          </Button>
-          <label className="flex items-center gap-2 text-sm">
-            ห้องเรียน
-            <NativeSelect
-              value={room}
-
-              onChange={(e) => void navigate({ search: { room: e.target.value } })}
-            >
-              {rooms.map((value) => (
-                <option key={value}>{value}</option>
-              ))}
-            </NativeSelect>
-          </label>
-        </div>
-        <div className="flex items-center gap-3">
-          <img src="/agents/nun.svg" alt="" width="44" height="44" />
-          <div>
-            <h1 className="text-2xl font-semibold">สมุดคะแนน</h1>
-            {rows.length > 0 && <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>}
+    <main className="grid min-h-dvh content-start bg-muted lg:grid-cols-[minmax(12rem,22fr)_78fr] lg:content-stretch">
+      <RoomNavigation
+        gradebook
+        room={room}
+        onRoomChange={(value) => void navigate({ search: { room: value } })}
+      />
+      <div className="min-w-0">
+        <header className="space-y-2 border-y bg-card px-4 py-4 sm:px-6 lg:border-t-0">
+          <div className="flex items-center gap-3">
+            <img src="/agents/nun.svg" alt="" width="44" height="44" />
+            <div>
+              <h1 className="text-2xl font-semibold">สมุดคะแนน</h1>
+              {rows.length > 0 && <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>}
+            </div>
+            <div className="ms-auto">
+              <ThemeToggle />
+            </div>
           </div>
+          <p className="text-sm text-muted-foreground">
+            คะแนนตัวอย่าง · การส่งฟอร์มจำลองจะไม่เปลี่ยนยอด
+          </p>
+        </header>
+        <div className="mx-auto max-w-5xl space-y-4 p-3 sm:p-6">
+          {rows.length ? (
+            <RoomScores key={room} room={room} rows={rows} />
+          ) : (
+            <div className="space-y-3 rounded-2xl border bg-card p-5">
+              <h2 className="font-semibold">ยังไม่มีชุดคะแนนตัวอย่างสำหรับห้อง {room}</h2>
+              <p className="text-sm">ครูลองเตรียมใบงานเศษส่วน ป.5 ในห้องนี้ได้</p>
+              <Button asChild>
+                <Link to="/teacher" onClick={rememberRoom}>
+                  กลับไปเตรียมชุดตัวอย่าง
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          คะแนนตัวอย่าง · การส่งฟอร์มจำลองจะไม่เปลี่ยนยอด
-        </p>
-      </header>
-      {rows.length ? (
-        <RoomScores key={room} room={room} rows={rows} />
-      ) : (
-        <div className="space-y-3 rounded-2xl border bg-card p-5">
-          <h2 className="font-semibold">ยังไม่มีชุดคะแนนตัวอย่างสำหรับห้อง {room}</h2>
-          <p className="text-sm">ครูลองเตรียมใบงานเศษส่วน ป.5 ในห้องนี้ได้</p>
-          <Button asChild>
-            <Link to="/teacher" onClick={rememberRoom}>
-              กลับไปเตรียมชุดตัวอย่าง
-            </Link>
-          </Button>
-        </div>
-      )}
-    </section>
+      </div>
+    </main>
   );
 }
 
@@ -95,7 +89,7 @@ function RoomScores({ room, rows }: { room: string; rows: ReturnType<typeof clas
       <div className="grid grid-cols-2 gap-2 sm:gap-4">
         <div className="rounded-2xl border bg-card p-3 sm:p-5">
           <p className="text-sm">ส่งแล้ว · {room}</p>
-          <strong className="text-2xl tabular-nums sm:text-3xl">
+          <strong className="text-2xl text-primary tabular-nums sm:text-3xl">
             {submitted.length}/{rows.length}
           </strong>{' '}
           คน
@@ -164,7 +158,17 @@ function RoomScores({ room, rows }: { room: string; rows: ReturnType<typeof clas
                 </th>
                 <td className="p-2 tabular-nums">{row.score ?? '—'}</td>
                 <td className="p-2">
-                  {row.score === null ? 'ยังไม่ส่ง' : row.score < 5 ? 'ต้องติว' : 'ส่งแล้ว'}
+                  <span
+                    className={
+                      row.score === null
+                        ? 'text-muted-foreground'
+                        : row.score < 5
+                          ? 'rounded-full bg-amber-500/15 px-2 py-1 text-amber-900 dark:text-amber-200'
+                          : 'text-primary'
+                    }
+                  >
+                    {row.score === null ? 'ยังไม่ส่ง' : row.score < 5 ? 'ต้องติว' : 'ส่งแล้ว'}
+                  </span>
                 </td>
               </tr>
             ))}

@@ -58,7 +58,7 @@ function RoomMemory({ room }: { room: string }) {
   }
 
   return (
-    <section className="space-y-5">
+    <section className="mx-auto max-w-2xl space-y-5">
       <Button asChild variant="link" className="px-0">
         <Link
           to="/teacher"

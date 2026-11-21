@@ -13,7 +13,7 @@ function NotesDemo() {
   const [notes, setNotes] = useState<{ id: string; text: string }[]>([]);
   const [draft, setDraft] = useState('');
   return (
-    <section className="space-y-5">
+    <section className="mx-auto max-w-2xl space-y-5">
       <Button asChild variant="link" className="px-0">
         <Link to="/teacher">
           <ArrowLeft aria-hidden="true" />
