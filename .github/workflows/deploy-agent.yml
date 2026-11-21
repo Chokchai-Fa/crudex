@@ -81,7 +81,7 @@ jobs:
             VERCEL_TEAM_ID: env.VERCEL_TEAM_ID,
             VERCEL_PROJECT_ID: env.VERCEL_PROJECT_ID
           }' > "$secret_file"
-          pnpm exec wrangler deploy --config wrangler.toml --secrets-file "$secret_file"
+          pnpm exec wrangler deploy --config wrangler.toml --var "RUNTIME_REVISION:$GITHUB_SHA" --secrets-file "$secret_file"
 
       - name: Smoke test the deployed Worker
         env:

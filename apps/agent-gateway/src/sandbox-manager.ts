@@ -14,6 +14,7 @@ import {
 
 interface SandboxRecord {
   name: string;
+  revision?: string;
   startedAt: number;
   lastUsedAt: number;
 }
@@ -139,7 +140,12 @@ export class SandboxManager extends DurableObject<Env> {
   private async acquire(origin: string, config: AgentConfig): Promise<RunningSandbox> {
     if (this.transition) await this.transition;
     const current = this.sandbox;
-    if (!current || !('url' in current) || Date.now() >= current.startedAt + rotateAfter) {
+    if (
+      !current ||
+      !('url' in current) ||
+      current.revision !== config.RUNTIME_REVISION ||
+      Date.now() >= current.startedAt + rotateAfter
+    ) {
       await this.beginTransition(() => this.replace(origin, config));
       return this.acquire(origin, config);
     }
@@ -178,7 +184,12 @@ export class SandboxManager extends DurableObject<Env> {
     await this.retire(config);
     const sandbox = await createSandbox(config);
     const startedAt = sandbox.createdAt.getTime();
-    const record = { name: sandbox.name, startedAt, lastUsedAt: startedAt };
+    const record = {
+      name: sandbox.name,
+      revision: config.RUNTIME_REVISION,
+      startedAt,
+      lastUsedAt: startedAt,
+    };
     this.sandbox = record;
 
     try {
