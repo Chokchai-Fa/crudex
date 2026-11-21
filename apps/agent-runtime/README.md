@@ -63,8 +63,8 @@ The harness adds models from `openai-models.json` to the built-in OpenAI provide
 
 ## Gateway deployment
 
-`.github/workflows/deploy-agent.yml` builds the archive, deploys `crudex-agent`,
-and runs the Thai clock and restricted-tool smoke tests. Configure
+`.github/workflows/deploy-agent.yml` tests the agent packages, builds the archive and deploys
+`crudex-agent`. Configure
 `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE` and `AGENT_OPENAI_API_KEY`
 as GitHub Actions secrets. The workflow resolves the account, Worker subdomain,
 Hobby team and project. The Worker controls the daily Bangkok quota and idle
