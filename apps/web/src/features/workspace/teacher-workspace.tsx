@@ -13,6 +13,8 @@ import { FormCard } from './form-card';
 const roomKey = 'crudex.demo.teacher.room';
 const draftKey = (room: string) => 'crudex.demo.teacher.draft.' + room;
 
+const formFailureKey = (room: string) => 'crudex.demo.form-failed.' + room;
+
 export function TeacherWorkspace() {
   const [room, setRoom] = useState(() => {
     const saved = sessionStorage.getItem(roomKey);
@@ -22,9 +24,21 @@ export function TeacherWorkspace() {
 
   const draftInput = useRef<HTMLTextAreaElement>(null);
   const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [failedForms, setFailedForms] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      rooms.map((name) => [name, sessionStorage.getItem(formFailureKey(name)) === '1']),
+    ),
+  );
+  const formFailed = failedForms[room] ?? false;
   const [previewRoom, setPreviewRoom] = useState('');
   const worksheetKey = (name: string) => 'crudex.demo.worksheet.' + name;
   const request = sessionStorage.getItem(worksheetKey(room));
+
+  function updateFormFailure(name: string, failed: boolean) {
+    if (failed) sessionStorage.setItem(formFailureKey(name), '1');
+    else sessionStorage.removeItem(formFailureKey(name));
+    setFailedForms((current) => ({ ...current, [name]: failed }));
+  }
 
   async function prepareWorksheet() {
     const origin = room;
@@ -34,6 +48,7 @@ export function TeacherWorkspace() {
     setPreviewRoom('');
     await new Promise((resolve) => setTimeout(resolve, 800));
     sessionStorage.setItem(worksheetKey(origin), instruction);
+    updateFormFailure(origin, false);
     setPending((current) => ({ ...current, [origin]: false }));
   }
 
@@ -122,14 +137,17 @@ export function TeacherWorkspace() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold">น้องแจ๋ว</p>
                 <p className="mt-1 rounded-2xl rounded-tl-sm bg-muted p-3">
-                  เตรียมชุดเศษส่วนให้ห้อง {room} แล้วค่ะ ตรวจใบงาน A4 และฟอร์มจำลองได้ด้านล่าง
+                  ใบงานเศษส่วน ป.5 สำหรับห้อง {room} พร้อมแล้วค่ะ{' '}
+                  {formFailed
+                    ? 'ฟอร์มจำลองยังไม่พร้อม กด “ลองเตรียมฟอร์มอีกครั้ง” ที่การ์ดฟอร์มได้เลย'
+                    : 'เปิดตรวจใบงาน A4 หรือเปิดฟอร์มจำลองได้ด้านล่าง'}
                 </p>
                 <Button
                   variant="link"
                   className="lg:hidden"
                   onClick={() => draftInput.current?.focus()}
                 >
-                  พิมพ์คำสั่งต่อ
+                  กลับไปร่างคำสั่งตัวอย่าง
                 </Button>
               </div>
             </div>
@@ -148,7 +166,12 @@ export function TeacherWorkspace() {
                   {previewRoom === room ? 'ปิดตัวอย่าง' : 'ตรวจใบงาน'} · {room}
                 </Button>
               </article>
-              <FormCard key={room} room={room} />
+              <FormCard
+                key={room}
+                room={room}
+                failed={formFailed}
+                onFailureChange={(failed) => updateFormFailure(room, failed)}
+              />
             </div>
             {previewRoom === room && <Worksheet room={room} />}
           </div>
@@ -197,13 +220,22 @@ export function TeacherWorkspace() {
       </div>
       <aside className="space-y-2 rounded-2xl border bg-card p-4 print:hidden">
         <h2 className="font-semibold">สถานะงาน · {room}</h2>
-        <p className="text-sm text-muted-foreground">
-          {pending[room]
-            ? 'กำลังเตรียมชุดตัวอย่าง'
-            : request
-              ? 'เตรียมใบงานแล้ว'
-              : 'ยังไม่มีคำสั่งในห้องนี้'}
-        </p>
+        {request && !pending[room] ? (
+          <dl className="space-y-3 text-sm">
+            <div>
+              <dt className="text-muted-foreground">ใบงาน A4</dt>
+              <dd>พร้อมตรวจ</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">ฟอร์มจำลอง</dt>
+              <dd>{formFailed ? 'เตรียมไม่สำเร็จ · ลองใหม่ได้' : 'พร้อมเปิด'}</dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {pending[room] ? 'กำลังเตรียมชุดตัวอย่าง' : 'ยังไม่มีคำสั่งในห้องนี้'}
+          </p>
+        )}
       </aside>
     </section>
   );

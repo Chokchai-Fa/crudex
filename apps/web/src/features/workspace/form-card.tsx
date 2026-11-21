@@ -1,9 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
-export function FormCard({ room }: { room: string }) {
+type FormCardProps = {
+  room: string;
+  failed: boolean;
+  onFailureChange: (failed: boolean) => void;
+};
+
+export function FormCard({ room, failed, onFailureChange }: FormCardProps) {
   const [message, setMessage] = useState('');
-  const [failed, setFailed] = useState(false);
+  const retryButton = useRef<HTMLButtonElement>(null);
+  const formLink = useRef<HTMLAnchorElement>(null);
+  const restoreFocus = useRef(false);
+
+  useEffect(() => {
+    if (restoreFocus.current) {
+      (failed ? retryButton.current : formLink.current)?.focus();
+      restoreFocus.current = false;
+    }
+  }, [failed]);
+
   const url = new URL(
     '/student/' + room.replace('ป.', '').replace('/', '-'),
     window.location.origin,
@@ -26,9 +42,11 @@ export function FormCard({ room }: { room: string }) {
         <>
           <p role="status">จำลองการเตรียมฟอร์มไม่สำเร็จ</p>
           <Button
+            ref={retryButton}
             variant="outline"
             onClick={() => {
-              setFailed(false);
+              restoreFocus.current = true;
+              onFailureChange(false);
               setMessage('ฟอร์มจำลองพร้อมแล้ว');
             }}
           >
@@ -39,7 +57,7 @@ export function FormCard({ room }: { room: string }) {
         <>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-              <a href={url} target="_blank" rel="noreferrer">
+              <a ref={formLink} href={url} target="_blank" rel="noreferrer">
                 เปิดฟอร์ม
               </a>
             </Button>
@@ -64,7 +82,8 @@ export function FormCard({ room }: { room: string }) {
             <Button
               variant="outline"
               onClick={() => {
-                setFailed(true);
+                restoreFocus.current = true;
+                onFailureChange(true);
                 setMessage('');
               }}
             >
