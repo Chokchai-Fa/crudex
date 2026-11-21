@@ -25,6 +25,8 @@ Starting or rotating a sandbox can take a minute, and greetings or memory questi
 | `memory` | "Remember that class 5/2 struggles with denominators", "What did I ask you to remember?" | Gateway streams the reply and may call `memory_search` / `memory_save` | `gpt-5.4-mini` |
 | `task` | Worksheets, forms, Kahoot, slides, lesson prep, scores, documents, approvals | Sandbox runtime, unchanged | The agent's own model |
 
+For `task` turns the model depends on the agent doing the work, set by `model` in each [agent definition](https://github.com/Chokchai-Fa/crudex/tree/main/apps/agent-runtime/src/agents). Jeng (slides, Kahoot, activities) and Nun (score analysis) run on `gpt-5.4-mini` for speed. Jaew, Jum (worksheets, quizzes, exams), Porn and the principal agents run on `gpt-6.2-sol`. The `routes` table in the direct reply module sets the models for chat and memory turns.
+
 A direct reply uses Jaew's shared persona and the recent conversation that the run service already prepends to the prompt. Memory tools call the same `/api/internal/runs/{id}/tools/memory_*` callbacks as the runtime, using the attempt credential. Memories are still stored in Neon and still need the teacher's approval. Direct replies use the existing stream events (`delta`, `tool`, `done`, `error`), so the API and the web client handle them like any other run. Direct turns don't count against the sandbox's daily run cap.
 
 The turn goes to the sandbox if:
@@ -34,6 +36,26 @@ The turn goes to the sandbox if:
 - the agent isn't on the direct list
 
 A direct reply can't delegate work or create materials. When a teacher asks for that, the turn is labelled `task`. [Direct reply module](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/src/direct-reply.ts)
+
+## OpenAI backend and rollback
+
+Agents are moving from the Vercel sandbox to the OpenAI API, one at a time, to remove sandbox start-up time. A ported agent runs in the gateway Worker. The Worker sends the agent's instructions, with its skills appended, to OpenAI and streams the reply as run events. It runs tool calls between model rounds:
+
+- **School API tools** (`get_scores`, `memory_search`…) call the same `/api/internal/runs/{id}/tools/*` callbacks as the runtime, using the attempt credential.
+- **Pure tools** (`calc`) run inside the Worker from the runtime's own tool modules.
+
+The agent definitions, skills and tool descriptions are imported from `apps/agent-runtime`, so both backends see the same text. OpenAI's hosted shell is not used: the ported tools don't need a container, and starting one would add latency and container charges.
+
+Two vars in `apps/agent-gateway/wrangler.toml` control it:
+
+| Var | Values | Effect |
+|-----|--------|--------|
+| `AGENT_BACKEND` | `openai` (current) or `vercel` | `vercel` sends every school turn to the sandbox, including Jaew's chat and memory turns |
+| `OPENAI_AGENTS` | Comma-separated agent IDs (currently `nun`) | Agents that run on OpenAI. Unlisted agents, and agents not yet ported, use the sandbox |
+
+**To roll back**, set `AGENT_BACKEND = "vercel"`, or remove an agent from `OPENAI_AGENTS`, then redeploy the gateway with the `deploy-agent.yml` workflow. The sandbox, `SandboxManager` and runtime bundle stay deployed until every agent has moved. A turn also falls back to the sandbox automatically when OpenAI refuses its first request.
+
+Ported so far: **Nun**, when a teacher chats with Nun directly. Work that Jaew hands to Nun still runs in the sandbox until Jaew is ported. [OpenAI backend](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/src/openai-backend.ts)
 
 [Run service](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/src/services/runs.service.ts) · [Dispatch entrypoint](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/src/school-dispatch.ts) · [Runtime integration](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-runtime/src/school.ts)
 

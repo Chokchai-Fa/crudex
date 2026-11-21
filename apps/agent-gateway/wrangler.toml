@@ -8,6 +8,16 @@ workers_dev = true
 DAILY_RUN_LIMIT = "60"
 DAILY_RUN_LIMIT_OVERRIDES = { "2026-11-21" = 300 }
 IDLE_STOP_MINUTES = "10"
+# Rollback switch: "vercel" sends every school turn to the Vercel sandbox as before.
+# "openai" answers chat/memory turns and the agents in OPENAI_AGENTS from OpenAI in this Worker.
+AGENT_BACKEND = "openai"
+OPENAI_AGENTS = "nun"
+
+# Agent skills (SKILL.md) are imported as text by the OpenAI backend.
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true
 
 [assets]
 directory = "public"

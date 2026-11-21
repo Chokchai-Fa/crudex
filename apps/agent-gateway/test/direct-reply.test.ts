@@ -36,12 +36,13 @@ function turn(agentId = 'jaew') {
   };
 }
 
-function setup() {
+function setup(backend = { AGENT_BACKEND: 'openai', OPENAI_AGENTS: 'nun' }) {
   const sandbox = vi.fn<(url: URL, init: RequestInit) => Promise<Response>>(
     async () => new Response('sandbox'),
   );
   const env = {
     OPENAI_API_KEY: 'synthetic',
+    ...backend,
     SANDBOX: { getByName: () => ({ fetch: sandbox }) },
   } as unknown as Env;
   const gateway = new SchoolDispatch({} as ExecutionContext, env);
@@ -178,9 +179,12 @@ it.each([true, false, undefined])(
   async (connected) => {
     const { sandbox, post, gateway } = setup();
     const status = vi.spyOn(gateway, 'kahootStatus');
+    // RPC return types gain Disposable once runtime tool types are in the program.
+    type Status = Awaited<ReturnType<typeof gateway.kahootStatus>>;
     if (connected === undefined) status.mockRejectedValue(new Error('unavailable'));
-    else if (connected) status.mockResolvedValue({ connected: true, connectedAt: 1, expiresAt: 2 });
-    else status.mockResolvedValue({ connected: false });
+    else if (connected)
+      status.mockResolvedValue({ connected: true, connectedAt: 1, expiresAt: 2 } as Status);
+    else status.mockResolvedValue({ connected: false } as Status);
     const upstream = vi.stubGlobal('fetch', vi.fn()).mocked(fetch);
     const payload = { ...turn(), text: 'ช่วยทำ Kahoot เรื่องเศษส่วน' };
     expect(await (await post(payload)).text()).toBe('sandbox');
@@ -214,4 +218,72 @@ it('rejects connection flags supplied by the school app', async () => {
   Object.assign(payload.scope, { kahootConnected: true });
   expect((await post(payload)).status).toBe(400);
   expect(sandbox).not.toHaveBeenCalled();
+});
+
+it('sends every turn to the sandbox when AGENT_BACKEND is vercel', async () => {
+  for (const agentId of ['jaew', 'nun']) {
+    const { sandbox, post } = setup({ AGENT_BACKEND: 'vercel', OPENAI_AGENTS: 'nun' });
+    const { bodies } = openai();
+    expect(await (await post(turn(agentId))).text()).toBe('sandbox');
+    expect(sandbox).toHaveBeenCalledOnce();
+    expect(bodies).toEqual([]);
+  }
+});
+
+it('runs a ported agent on OpenAI with its model, skill and tools', async () => {
+  const { sandbox, post } = setup();
+  const payload = turn('nun');
+  const { bodies, callbacks } = openai(
+    () =>
+      stream({
+        tool_calls: [
+          { index: 0, id: 'call-1', function: { name: 'get_scores', arguments: '{}' } },
+          { index: 1, id: 'call-2', function: { name: 'calc', arguments: '{"expr":"1/2+1/3"}' } },
+        ],
+      }),
+    () => stream({ content: 'ห้องนี้ค่าเฉลี่ย 3.5/6 คะแนนค่ะ' }),
+  );
+  const out = await events(await post(payload));
+  expect(sandbox).not.toHaveBeenCalled();
+  expect(bodies[0]?.model).toBe('gpt-5.4-mini');
+  const system = (bodies[0]?.messages as { content: string }[])[0]?.content;
+  expect(system).toContain('คุณคือน้องนุ่น');
+  expect(system).toContain('# วิเคราะห์ข้อมูลนักเรียน');
+  expect(system).not.toMatch(/^---/m);
+  const names = (bodies[0]?.tools as { function: { name: string } }[]).map((t) => t.function.name);
+  expect(names).toEqual(['get_scores', 'memory_search', 'calc']);
+  expect(callbacks.map((c) => c.url)).toEqual([
+    `https://school.test/api/internal/runs/${payload.scope.runId}/tools/get_scores`,
+  ]);
+  const calc = (bodies[1]?.messages as { tool_call_id?: string; content: string }[]).find(
+    (m) => m.tool_call_id === 'call-2',
+  );
+  expect(JSON.parse(calc?.content ?? '')).toMatchObject({ exact: '5/6' });
+  expect(out.filter((e) => e.type === 'tool').map((e) => e.status)).toEqual([
+    'started',
+    'success',
+    'started',
+    'success',
+  ]);
+  expect(out.at(-1)?.type).toBe('done');
+});
+
+it('keeps agents that are unlisted or not ported on the sandbox', async () => {
+  for (const [agentId, list] of [
+    ['nun', ''],
+    ['jum', 'jum,nun'],
+  ] as const) {
+    const { sandbox, post } = setup({ AGENT_BACKEND: 'openai', OPENAI_AGENTS: list });
+    const { bodies } = openai();
+    expect(await (await post(turn(agentId))).text()).toBe('sandbox');
+    expect(sandbox).toHaveBeenCalledOnce();
+    expect(bodies).toEqual([]);
+  }
+});
+
+it('falls back to the sandbox when OpenAI refuses a ported agent', async () => {
+  const { sandbox, post } = setup();
+  openai(() => new Response(null, { status: 503 }));
+  expect(await (await post(turn('nun'))).text()).toBe('sandbox');
+  expect(sandbox).toHaveBeenCalledOnce();
 });

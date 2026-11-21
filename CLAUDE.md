@@ -90,6 +90,9 @@ One SQLite-backed Durable Object tracks the daily Bangkok run cap and sandbox
 lifecycle. The Worker serves the passcode-gated test page and proxies SSE to
 `apps/agent-runtime`, which runs OpenCode on Node 24 in a Vercel Hobby Sandbox.
 The runtime stores sessions in the sandbox's local SQLite database.
+Agents are migrating to the OpenAI API in the gateway Worker (`src/openai-backend.ts`).
+`AGENT_BACKEND` (`openai` | `vercel`, rollback switch) and `OPENAI_AGENTS` in
+`apps/agent-gateway/wrangler.toml` select which agents skip the sandbox.
 
 The `deploy-agent.yml` workflow runs when a PR with agent changes merges into `main` or by
 manual dispatch. It tests the agent packages, bundles the runtime and deploys the gateway using the existing
