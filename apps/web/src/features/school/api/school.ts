@@ -109,14 +109,16 @@ export function useCreateSchoolRun(membershipId: string) {
   });
 }
 
+export async function readSchoolWorksheet(id: string) {
+  const res = await api.assessments[':id'].$get({ param: { id } });
+  if (!res.ok) throw await toApiError(res, 'เปิดใบงานไม่สำเร็จ');
+  return res.json();
+}
+
 export function useSchoolWorksheet(membershipId: string, id: string) {
   return useQuery({
     queryKey: ['school-data', membershipId, 'worksheet', id],
-    queryFn: async () => {
-      const res = await api.assessments[':id'].$get({ param: { id } });
-      if (!res.ok) throw await toApiError(res, 'เปิดใบงานไม่สำเร็จ');
-      return res.json();
-    },
+    queryFn: () => readSchoolWorksheet(id),
   });
 }
 

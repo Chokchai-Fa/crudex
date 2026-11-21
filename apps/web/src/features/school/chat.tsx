@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 import type { CreateRun, SchoolActor } from '@repo/shared';
@@ -7,7 +7,14 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SchoolLogin } from './login';
 import { RunDetails, Worksheet, statusLabels, SchoolGradebook } from './classroom';
-import { useCreateSchoolRun, useSchoolRuns, useSchoolSession, useSchoolLogout } from './api/school';
+import {
+  readSchoolWorksheet,
+  useCreateSchoolRun,
+  useSchoolRuns,
+  useSchoolSession,
+  useSchoolLogout,
+} from './api/school';
+import { teacherMessage, referencesWorksheet, withWorksheet } from './worksheet-context';
 import '../workspace/chat-activity.css';
 
 export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
@@ -26,15 +33,22 @@ export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
 }
 
 function ClassSelector({ actor, initialRoom }: { actor: SchoolActor; initialRoom?: string }) {
-  const [selected, setSelected] = useState(initialRoom ?? '');
-  const room = actor.classes.find((c) => c.id === selected) ?? actor.classes[0];
+  const navigate = useNavigate();
+  const room = actor.classes.find((c) => c.id === initialRoom) ?? actor.classes[0];
   if (!room)
     return (
       <p>
         ยังไม่มีห้องเรียนที่ได้รับมอบหมาย · <Link to="/school">พื้นที่โรงเรียน</Link>
       </p>
     );
-  return <ChatRoom key={room.id} actor={actor} room={room} onRoom={setSelected} />;
+  return (
+    <ChatRoom
+      key={room.id}
+      actor={actor}
+      room={room}
+      onRoom={(roomId) => void navigate({ to: '/teacher', search: { roomId } })}
+    />
+  );
 }
 
 function ChatRoom({
@@ -55,6 +69,8 @@ function ChatRoom({
   const [grades, setGrades] = useState(false);
   const retry = useRef<CreateRun | null>(null);
   const busy = useRef(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
   const input = useRef<HTMLTextAreaElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLOListElement>(null);
@@ -82,18 +98,33 @@ function ChatRoom({
     if (localGatewayUnconfirmed || !prompt || busy.current) return;
     notePosition();
     busy.current = true;
-    if (retry.current?.prompt !== prompt)
-      retry.current = { prompt, classId: room.id, clientRequestId: crypto.randomUUID() };
+    setSending(true);
+    setSendError('');
     input.current?.focus({ preventScroll: true });
     try {
+      if (!retry.current || teacherMessage(retry.current.prompt) !== prompt) {
+        let message = prompt;
+        if (referencesWorksheet(prompt)) {
+          const current = await history.refetch({ throwOnError: true });
+          const roomRuns = current.data?.runs.filter((r) => r.classId === room.id) ?? [];
+          const latest = roomRuns.find((r) => r.worksheetIds.length)?.worksheetIds.at(-1);
+          const openSheet = roomRuns.some((r) => r.worksheetIds.includes(sheet))
+            ? sheet
+            : undefined;
+          const id = /เพิ่งสร้าง|ล่าสุด|เมื่อกี้/u.test(prompt) ? latest : (openSheet ?? latest);
+          if (id) message = withWorksheet(prompt, await readSchoolWorksheet(id));
+        }
+        retry.current = { prompt: message, classId: room.id, clientRequestId: crypto.randomUUID() };
+      }
       const run = await create.mutateAsync(retry.current);
       setExpanded(run.id);
       setDraft('');
       retry.current = null;
-    } catch {
-      /* Render the mutation error and retain the draft for retry. */
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : 'ส่งคำขอไม่สำเร็จ กรุณาลองอีกครั้ง');
     } finally {
       busy.current = false;
+      setSending(false);
     }
   }
   return (
@@ -103,7 +134,7 @@ function ChatRoom({
         <h1 className="font-bold">เลขาครู</h1>
         <label>
           ห้อง{' '}
-          <NativeSelect value={room.id} onChange={(e) => onRoom(e.target.value)}>
+          <NativeSelect disabled={sending} value={room.id} onChange={(e) => onRoom(e.target.value)}>
             {actor.classes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -144,7 +175,7 @@ function ChatRoom({
           {runs.map((run) => (
             <li key={run.id} className="space-y-2">
               <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
-                {run.prompt}
+                {teacherMessage(run.prompt)}
               </p>
               <div className="flex items-start gap-2">
                 <img src="/team/secretary.svg" alt="เลขาครู" width="32" height="32" />
@@ -184,8 +215,8 @@ function ChatRoom({
         }}
       >
         {localGatewayUnconfirmed && <p role="status">ยังไม่ได้เปิดใช้ runtime จริงในเครื่อง</p>}
-        {create.error && <p role="alert">{create.error.message}</p>}
-        {create.isPending && <p role="status">กำลังส่งคำขอ…</p>}
+        {sendError && <p role="alert">{sendError}</p>}
+        {sending && <p role="status">กำลังส่งคำขอ…</p>}
         <div className="compose-capsule">
           <textarea
             ref={input}
@@ -193,7 +224,7 @@ function ChatRoom({
             aria-label={'คุยกับเลขาครู · ' + room.name}
             placeholder="พิมพ์คุยกับเลขาครู…"
             maxLength={4000}
-            readOnly={create.isPending}
+            readOnly={sending}
 
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -207,7 +238,7 @@ function ChatRoom({
           <button
             className="submit-arrow"
             aria-label="ส่งข้อความ"
-            disabled={localGatewayUnconfirmed || !draft.trim() || create.isPending}
+            disabled={localGatewayUnconfirmed || !draft.trim() || sending}
           >
             <ArrowUp />
           </button>
