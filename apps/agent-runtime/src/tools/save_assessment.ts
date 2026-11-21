@@ -40,25 +40,6 @@ export function formQuestions(questions: Assessment['questions']) {
   });
 }
 
-export function formQuestions(questions: Assessment['questions']) {
-  const availableBySize = new Map<number, number[]>();
-  return questions.map(({ text, choices, correctChoiceId }) => {
-    const original = choices.findIndex((choice) => choice.id === correctChoiceId);
-    if (original < 0) throw new ToolError('invalid_assessment', 'ไม่พบตัวเลือกที่ถูก');
-
-    // Draw every position once before reusing one for questions of the same size.
-    let positions = availableBySize.get(choices.length);
-    if (!positions?.length) {
-      positions = choices.map((_, i) => i);
-      availableBySize.set(choices.length, positions);
-    }
-    const answerIndex = positions.splice(randomInt(positions.length), 1)[0]!;
-    const ordered = [...choices];
-    [ordered[original], ordered[answerIndex]] = [ordered[answerIndex]!, ordered[original]!];
-    return { text, choices: ordered.map((choice) => choice.text), answerIndex, points: 1 };
-  });
-}
-
 export const publisher = {
   async publish(assessment: Assessment, signal: AbortSignal): Promise<PublishedForm> {
     const endpoint = process.env.SCHOOL_BOT_APPS_SCRIPT_URL;

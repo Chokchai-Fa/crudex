@@ -153,3 +153,34 @@ describe('approval desk', () => {
     ).toEqual([]);
   });
 });
+
+describe('publish_brief', () => {
+  const brief = [
+    'สรุปเช้า (ตัวอย่าง)',
+    'ผลเรียน: ป.6/1 ต่ำกว่าเกณฑ์ ค่าเฉลี่ย 4.6/10',
+    'งบ: ใช้ไป 56% กิจกรรม A24 ใกล้เต็ม',
+    'เอกสารรออนุมัติ: 2 ฉบับ',
+    'งานครูเมื่อวาน: ใบงาน 2 ฉบับ',
+    'ต้องตัดสินใจ: อนุมัติเบิกค่ายคณิตศาสตร์',
+  ].join('\n');
+
+  it('is bound only to rungchao and accepts a clean brief of at most 7 lines', async () => {
+    expect(rungchao?.tools).toContain('publish_brief');
+    expect(lekha?.tools).not.toContain('publish_brief');
+    expect(await call('publish_brief', { text: brief })).toMatchObject({ lines: 6 });
+  });
+
+  it('rejects an 8-line brief and any student name, code or number', async () => {
+    await expect(
+      call('publish_brief', { text: Array(8).fill('บรรทัด').join('\n') }),
+    ).rejects.toMatchObject({ code: 'brief_rejected' });
+    for (const leak of ['นักเรียนตัวอย่าง 07 ต้องติว', 'รหัส s-07', 'เลขที่ 12 ขาดเรียน']) {
+      await expect(call('publish_brief', { text: leak })).rejects.toMatchObject({
+        code: 'brief_rejected',
+      });
+    }
+    await expect(call('publish_brief', { text: '   ' })).rejects.toMatchObject({
+      code: 'brief_rejected',
+    });
+  });
+});
