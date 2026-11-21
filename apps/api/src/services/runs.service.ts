@@ -20,8 +20,16 @@ function authorize(actor: SchoolActor, agentId: AgentId, classId?: string | null
     throw new ForbiddenError();
 }
 type Run = Awaited<ReturnType<typeof repo.accept>>;
-function dto({ id, agentId, classId, prompt, status, createdAt }: Run) {
-  return { id, agentId, classId, prompt, status, createdAt: createdAt.toISOString() };
+function dto({ id, requestId, agentId, classId, prompt, status, createdAt }: Run) {
+  return {
+    id,
+    clientRequestId: requestId,
+    agentId,
+    classId,
+    prompt,
+    status,
+    createdAt: createdAt.toISOString(),
+  };
 }
 export async function reserveRun(deps: Deps, a: SchoolActor, agent: AgentId, input: CreateRun) {
   authorize(a, agent, input.classId);
@@ -153,6 +161,7 @@ export async function dispatchRun(
   if (!run) return;
   let buffered: RunEvent[] = [];
   let lastFlush = Date.now();
+  let lastToolUpdate = -Infinity;
   async function flush() {
     if (!buffered.length) return;
     await repo.append(deps.db, id, attempt, buffered);
@@ -223,7 +232,20 @@ export async function dispatchRun(
       } else {
         buffered.push(e);
       }
-      if (Date.now() - lastFlush >= 10_000 || buffered.length >= 64) await flush();
+      const now = Date.now();
+      const toolUpdate =
+        e.type === 'tool' &&
+        ((e.name === 'subagent' && e.agentId) ||
+          (now - lastToolUpdate >= 2500 && e.status === 'started'));
+      if (
+        toolUpdate ||
+        e.type === 'approval' ||
+        now - lastFlush >= 10_000 ||
+        buffered.length >= 64
+      ) {
+        await flush();
+        if (toolUpdate) lastToolUpdate = now;
+      }
     }
   } catch {
     /* A disconnect after dispatch has an uncertain outcome. */

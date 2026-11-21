@@ -2,6 +2,7 @@ import { Link, Navigate, useNavigate } from '@tanstack/react-router';
 import { useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowUp,
+  LoaderCircle,
   BookOpenCheck,
   Menu,
   ListChecks,
@@ -9,10 +10,11 @@ import {
   PanelRightOpen,
 } from 'lucide-react';
 import type { AgentId, CreateRun, SchoolActor } from '@repo/shared';
+import { ApiError } from '@/lib/api-error';
 import { Button } from '@/components/ui/button';
 import { SchoolTeam, SchoolActivity, AssistantIcon } from './chat-panels';
 import { ChatArtifacts } from './chat-artifacts';
-import { RunDetails, statusLabels, SchoolGradebook } from './classroom';
+import { RunDetails, SchoolGradebook } from './classroom';
 import {
   readSchoolWorksheet,
   useCreateSchoolRun,
@@ -21,8 +23,13 @@ import {
   useSchoolAgents,
 } from './api/school';
 import { teacherMessage, referencesWorksheet, withWorksheet } from './worksheet-context';
-import { ackFor, isBackgroundRequest, presetsFor } from './presets';
+import { isBackgroundRequest, presetsFor } from './presets';
 import '../workspace/chat-activity.css';
+import './compose-activity.css';
+import { LatestMessageButton } from './latest-message-button';
+
+type SendSource = 'draft' | 'preset' | `retry:${string}`;
+type Attempt = { source: SendSource; text: string; request: CreateRun };
 
 const activityKey = 'crudex.teacher.activity-panel';
 
@@ -122,12 +129,10 @@ function ChatRoom({
 
   const [sheet, setSheet] = useState('');
   const [grades, setGrades] = useState(false);
-  const retry = useRef<CreateRun | null>(null);
+  const retry = useRef<Attempt | null>(null);
   const busy = useRef(false);
-  const [sending, setSending] = useState(false);
-  // Instant acknowledgement: shown from the moment of sending, then kept per run until real content.
-  const [pending, setPending] = useState<{ prompt: string; ack: string } | null>(null);
-  const acks = useRef(new Map<string, string>());
+  const [pending, setPending] = useState<Attempt | null>(null);
+  const sending = pending !== null;
   // Google Form links found in each run's reply (the worksheet API only has the in-app /play link).
   const [formUrls, setFormUrls] = useState<Record<string, string>>({});
   const formHandlers = useRef(new Map<string, (url: string) => void>());
@@ -147,8 +152,16 @@ function ChatRoom({
   const content = useRef<HTMLOListElement>(null);
   const following = useRef(true);
   const runs = (history.data?.runs ?? []).filter((r) => r.classId === room.id).reverse();
+  // Keep the teacher's bubble mounted when an optimistic message becomes a saved run.
+  const messages: { key: string; prompt: string; run?: (typeof runs)[number] }[] = runs.map(
+    (run) => ({ key: run.clientRequestId ?? run.id, prompt: run.prompt, run }),
+  );
+  if (pending && !messages.some(({ key }) => key === pending.request.clientRequestId))
+    messages.push({ key: pending.request.clientRequestId, prompt: pending.text });
   const currentTask =
-    runs.findLast((r) => r.status === 'running' || r.status === 'queued') ?? runs.at(-1);
+    runs.findLast(
+      (r) => r.agentId === agent && (r.status === 'running' || r.status === 'queued'),
+    ) ?? runs.findLast((r) => r.agentId === agent);
   function insertPrompt(text: string) {
     const next = draft ? draft + '\n' + text : text;
     if (next.length <= 4000) editDraft(next);
@@ -172,70 +185,53 @@ function ChatRoom({
   const localGatewayUnconfirmed =
     import.meta.env.MODE === 'school-local' &&
     import.meta.env.VITE_SCHOOL_GATEWAY_FIXTURE !== 'false';
-  async function resend(prompt: string) {
-    if (localGatewayUnconfirmed || busy.current) return;
-    notePosition();
-    busy.current = true;
-    setSending(true);
-    setSendError('');
-    const ack = ackFor(agent, teacherMessage(prompt));
-    setPending({ prompt: teacherMessage(prompt), ack });
-    try {
-      const run = await create.mutateAsync({
-        background:
-          presets.find((p) => p.text === teacherMessage(prompt))?.background ??
-          isBackgroundRequest(teacherMessage(prompt)),
-        prompt,
-        classId: room.id,
-        clientRequestId: crypto.randomUUID(),
-      });
-      acks.current.set(run.id, ack);
-    } catch (error) {
-      setSendError(error instanceof Error ? error.message : 'ส่งคำขอไม่สำเร็จ กรุณาลองอีกครั้ง');
-    } finally {
-      busy.current = false;
-      setSending(false);
-      setPending(null);
-    }
-  }
-  async function send(preset?: string) {
-    const prompt = (preset ?? draft).trim();
+  async function send(text: string = draft, source: SendSource = 'draft') {
+    const prompt = text.trim();
     if (localGatewayUnconfirmed || !prompt || busy.current) return;
     notePosition();
     busy.current = true;
-    setSending(true);
     setSendError('');
     input.current?.focus({ preventScroll: true });
-    const ack = ackFor(agent, prompt);
-    setPending({ prompt, ack });
+    const previous = retry.current;
+    const reuse = previous?.source === source && previous.text === prompt;
+    const attempt: Attempt = reuse
+      ? previous
+      : {
+          source,
+          text: prompt,
+          request: { prompt, classId: room.id, clientRequestId: crypto.randomUUID() },
+        };
+    if (!reuse) retry.current = null;
+    setPending(attempt);
     try {
-      if (!retry.current || teacherMessage(retry.current.prompt) !== prompt) {
-        let message = prompt;
-        if (referencesWorksheet(prompt)) {
-          const current = await history.refetch({ throwOnError: true });
-          const roomRuns = current.data?.runs.filter((r) => r.classId === room.id) ?? [];
-          const latest = roomRuns.find((r) => r.worksheetIds.length)?.worksheetIds.at(-1);
-          const openSheet = roomRuns.some((r) => r.worksheetIds.includes(sheet))
-            ? sheet
-            : undefined;
-          const id = /เพิ่งสร้าง|ล่าสุด|เมื่อกี้/u.test(prompt) ? latest : (openSheet ?? latest);
-          if (id) message = withWorksheet(prompt, await readSchoolWorksheet(id));
-        }
-        retry.current = { prompt: message, classId: room.id, clientRequestId: crypto.randomUUID() };
+      if (!reuse && !source.startsWith('retry:') && referencesWorksheet(prompt)) {
+        const current = await history.refetch({ throwOnError: true });
+        const roomRuns = current.data?.runs.filter((r) => r.classId === room.id) ?? [];
+        const latest = roomRuns.find((r) => r.worksheetIds.length)?.worksheetIds.at(-1);
+        const openSheet = roomRuns.some((r) => r.worksheetIds.includes(sheet)) ? sheet : undefined;
+        const id = /เพิ่งสร้าง|ล่าสุด|เมื่อกี้/u.test(prompt) ? latest : (openSheet ?? latest);
+        if (id) attempt.request.prompt = withWorksheet(prompt, await readSchoolWorksheet(id));
       }
-      const run = await create.mutateAsync({
-        ...retry.current,
+      retry.current = attempt;
+      const visiblePrompt = teacherMessage(prompt);
+      await create.mutateAsync({
+        ...attempt.request,
         background:
-          presets.find((p) => p.text === prompt)?.background ?? isBackgroundRequest(prompt),
+          presets.find((p) => p.text === visiblePrompt)?.background ??
+          isBackgroundRequest(visiblePrompt),
       });
-      acks.current.set(run.id, ack);
-      if (preset === undefined) editDraft('');
+      if (source === 'draft' && draft.trim() === prompt) editDraft('');
       retry.current = null;
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : 'ส่งคำขอไม่สำเร็จ กรุณาลองอีกครั้ง');
+      if (!retry.current && error instanceof Error && !(error instanceof TypeError))
+        setSendError(error.message);
+      else if (error instanceof ApiError && error.status === 429)
+        setSendError('ส่งถึงขีดจำกัดแล้ว กรุณาลองใหม่ภายหลัง');
+      else if (error instanceof ApiError && error.status < 500)
+        setSendError('ส่งข้อความไม่ได้ กรุณาตรวจสิทธิ์ของบัญชีและห้องเรียน');
+      else setSendError('ยังยืนยันการส่งข้อความไม่ได้');
     } finally {
       busy.current = false;
-      setSending(false);
       setPending(null);
     }
   }
@@ -336,7 +332,7 @@ function ChatRoom({
                 <AssistantIcon id={agent} size={64} />
                 <p className="text-lg font-bold">เริ่มคำขอแรกสำหรับห้อง {room.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  พิมพ์สิ่งที่อยากให้{agentName}ช่วย หรือเลือกคำขอที่ทำได้แน่นอนด้านล่าง
+                  พิมพ์สิ่งที่อยากให้{agentName}ช่วย หรือเลือกคำขอด้านล่าง
                 </p>
                 {presets.length > 0 && !pending && (
                   <div className="preset-cards">
@@ -345,7 +341,7 @@ function ChatRoom({
                         key={p.text}
                         type="button"
                         disabled={sending || localGatewayUnconfirmed}
-                        onClick={() => void send(p.text)}
+                        onClick={() => void send(p.text, 'preset')}
                       >
                         <strong>{p.text}</strong>
                         <small>{p.result}</small>
@@ -357,67 +353,49 @@ function ChatRoom({
             )
           )}
           <ol ref={content} className="space-y-4 py-3">
-            {runs.map((run, index) => (
-              <li key={run.id} className="space-y-2">
+            {messages.map(({ key, prompt, run }, index) => (
+              <li key={key} className="space-y-2">
                 <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
-                  {teacherMessage(run.prompt)}
+                  {teacherMessage(prompt)}
                 </p>
-                <div className="flex items-start gap-2">
-                  <AssistantIcon id={run.agentId} />
-                  <div className="m-msg chat-response min-w-0 px-4 py-3">
-                    <RunDetails
-                      id={run.id}
-                      membershipId={actor.membershipId}
-                      status={run.status}
-                      agentId={run.agentId}
-                      onFormUrl={formHandler(run.id)}
-                      onFollowUp={
-                        index === runs.length - 1 &&
-                        !pending &&
-                        !sending &&
-                        !localGatewayUnconfirmed
-                          ? (text) => void send(text)
-                          : undefined
-                      }
-                      ack={acks.current.get(run.id)}
-                      onRetry={() => void resend(run.prompt)}
-                      retryDisabled={sending || localGatewayUnconfirmed}
-                    />
-                  </div>
-                </div>
-                {run.worksheetIds.map((id) => (
-                  <ChatArtifacts
-                    key={id}
-                    id={id}
-                    roomId={room.id}
-                    googleFormUrl={formUrls[run.id]}
-                    membershipId={actor.membershipId}
-                    open={sheet === id}
-                    toggle={() => setSheet(sheet === id ? '' : id)}
-                  />
-                ))}
+                {run && (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <AssistantIcon id={run.agentId} />
+                      <div className="m-msg chat-response min-w-0 px-4 py-3">
+                        <RunDetails
+                          id={run.id}
+                          membershipId={actor.membershipId}
+                          status={run.status}
+                          agentId={run.agentId}
+                          onFormUrl={formHandler(run.id)}
+                          agents={directory.data?.agents}
+                          onFollowUp={
+                            index === messages.length - 1 && !sending && !localGatewayUnconfirmed
+                              ? (text) => void send(text)
+                              : undefined
+                          }
+                          hasArtifacts={run.worksheetIds.length > 0}
+                          onRetry={() => void send(run.prompt, `retry:${run.id}`)}
+                          retryDisabled={sending || localGatewayUnconfirmed}
+                        />
+                      </div>
+                    </div>
+                    {run.worksheetIds.map((id) => (
+                      <ChatArtifacts
+                        key={id}
+                        id={id}
+                        roomId={room.id}
+                        membershipId={actor.membershipId}
+                        open={sheet === id}
+                        googleFormUrl={formUrls[run.id]}
+                        toggle={() => setSheet(sheet === id ? '' : id)}
+                      />
+                    ))}
+                  </>
+                )}
               </li>
             ))}
-            {pending && (
-              <li className="space-y-2">
-                <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
-                  {pending.prompt}
-                </p>
-                <div className="flex items-start gap-2">
-                  <AssistantIcon id={agent} />
-                  <div className="m-msg chat-response min-w-0 px-4 py-3">
-                    <p className="run-ack" role="status">
-                      {pending.ack}
-                      <span className="typing-dots" aria-hidden="true">
-                        <i />
-                        <i />
-                        <i />
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </li>
-            )}
           </ol>
         </div>
         <form
@@ -427,8 +405,26 @@ function ChatRoom({
             void send();
           }}
         >
+          <LatestMessageButton viewport={viewport} />
           {localGatewayUnconfirmed && <p role="status">ยังไม่ได้เปิดใช้ runtime จริงในเครื่อง</p>}
-          {sendError && <p role="alert">{sendError}</p>}
+          {sendError && (
+            <div role="alert" className="compose-send-error">
+              <span>{sendError}</span>
+              {retry.current && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="link"
+                  onClick={() => {
+                    const attempt = retry.current;
+                    if (attempt) void send(attempt.text, attempt.source);
+                  }}
+                >
+                  ลองส่งอีกครั้ง
+                </Button>
+              )}
+            </div>
+          )}
           <div className="school-quick-prompts" aria-label="คำสั่งลัด">
             {runs.length > 0 &&
               presets.map((p) => (
@@ -437,7 +433,7 @@ function ChatRoom({
                   type="button"
                   title={p.result}
                   disabled={sending || localGatewayUnconfirmed}
-                  onClick={() => void send(p.text)}
+                  onClick={() => void send(p.text, 'preset')}
                 >
                   {p.text}
                 </button>
@@ -460,7 +456,7 @@ function ChatRoom({
               placeholder={'พิมพ์คุยกับ' + agentName + '…'}
               maxLength={4000}
               readOnly={sending}
-              value={draft}
+              value={pending?.source === 'draft' && pending.text === draft.trim() ? '' : draft}
               onChange={(e) => editDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -471,10 +467,11 @@ function ChatRoom({
             />
             <button
               className="submit-arrow"
-              aria-label="ส่งข้อความ"
+              aria-label={sending ? 'กำลังส่งข้อความ' : 'ส่งข้อความ'}
+              aria-busy={sending}
               disabled={localGatewayUnconfirmed || !draft.trim() || sending}
             >
-              <ArrowUp />
+              {sending ? <LoaderCircle aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}
             </button>
           </div>
         </form>
@@ -486,7 +483,8 @@ function ChatRoom({
         task={
           currentTask && {
             prompt: teacherMessage(currentTask.prompt),
-            status: statusLabels[currentTask.status],
+            id: currentTask.id,
+            status: currentTask.status,
           }
         }
       />

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   runEventBatchMediaType,
   runEventBatchSchema,
@@ -15,16 +15,14 @@ interface Replay {
   nextPoll: number | false;
 }
 
-export function useRunEvents(membershipId: string, id: string, active: boolean) {
-  const client = useQueryClient();
+export function runEventsQuery(
+  client: QueryClient,
+  membershipId: string,
+  id: string,
+  active: boolean,
+) {
   const queryKey = ['school-data', membershipId, 'events', id] as const;
-  const live = useQuery<LiveChat | null>({
-    queryKey: liveChatKey(membershipId, id),
-    enabled: false,
-    queryFn: () => null,
-  });
-  const query = useQuery({
-    enabled: !live.data,
+  return queryOptions({
     queryKey,
     staleTime: Infinity,
     queryFn: async ({ signal }): Promise<Replay> => {
@@ -72,10 +70,39 @@ export function useRunEvents(membershipId: string, id: string, active: boolean) 
     },
     refetchOnReconnect: ({ state }) => (state.data?.nextPoll !== false ? 'always' : false),
   });
+}
+
+// Direct chat publishes NDJSON batches into this cache. Losing the stream clears the value
+// and the existing run resumes from durable history without sending a second prompt.
+export function liveRunQuery(membershipId: string, id: string) {
+  return queryOptions({
+    queryKey: liveChatKey(membershipId, id),
+    queryFn: (): LiveChat | null => null,
+    enabled: false,
+  });
+}
+
+function useObservedRunEvents(membershipId: string, id: string, active: boolean, fetch: boolean) {
+  const client = useQueryClient();
+  const live = useQuery(liveRunQuery(membershipId, id));
+  const query = useQuery({
+    ...runEventsQuery(client, membershipId, id, active),
+    enabled: fetch && !live.data,
+  });
   return {
     events: live.data?.events ?? query.data?.events ?? [],
-    error: query.error?.message ?? '',
+    error: live.data ? '' : (query.error?.message ?? ''),
     loading: !live.data && !active && query.isPending,
+    reload: query.refetch,
     complete: live.data?.complete ?? query.data?.nextPoll === false,
   };
+}
+
+export function useRunEvents(membershipId: string, id: string, active: boolean) {
+  return useObservedRunEvents(membershipId, id, active, true);
+}
+
+// The side panel follows both transports without making a second read.
+export function useCachedRunEvents(membershipId: string, id: string) {
+  return useObservedRunEvents(membershipId, id, false, false);
 }

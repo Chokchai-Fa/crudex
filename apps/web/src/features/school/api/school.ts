@@ -1,5 +1,5 @@
 import { meSchema, type AgentId, type CreateRun, type GuestSignIn } from '@repo/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { startDirectChat } from './direct-chat';
 import { api } from '@/lib/api-client';
 import { toApiError } from '@/lib/api-error';
@@ -87,15 +87,22 @@ export function useSchoolBrief(membershipId: string) {
   });
 }
 
-export function useSchoolRuns(membershipId: string, agentId: AgentId = 'jaew') {
-  return useQuery({
+export function schoolRunsQuery(membershipId: string, agentId: AgentId) {
+  return queryOptions({
     queryKey: ['school-data', membershipId, 'runs', agentId],
     staleTime: 0,
-    queryFn: async () => {
-      const res = await jaew.history.$get({ param: { id: agentId } });
+    queryFn: async ({ signal }) => {
+      const res = await jaew.history.$get({ param: { id: agentId } }, { init: { signal } });
       if (!res.ok) throw await toApiError(res, 'อ่านประวัติงานไม่สำเร็จ');
       return res.json();
     },
+  });
+}
+
+export function useSchoolRuns(membershipId: string, agentId: AgentId = 'jaew') {
+  return useQuery({
+    ...schoolRunsQuery(membershipId, agentId),
+    refetchOnWindowFocus: true,
     refetchInterval: ({ state }) =>
       state.data?.runs.some((r) => r.status === 'queued' || r.status === 'running') ? 1500 : false,
   });
@@ -110,8 +117,29 @@ export function useCreateSchoolRun(membershipId: string, agentId: AgentId = 'jae
       if (!res.ok) throw await toApiError(res, 'ส่งคำขอไม่สำเร็จ');
       return res.json();
     },
-    onSuccess: () =>
-      client.invalidateQueries({ queryKey: ['school-data', membershipId, 'runs', agentId] }),
+    onSuccess: async (run, input) => {
+      const { queryKey } = schoolRunsQuery(membershipId, agentId);
+      // A foreground stream acknowledges with just X-Run-Id. History replaces this local
+      // receipt with the server's timestamp and state; durable retries return the full row.
+      const receipt = {
+        agentId,
+        clientRequestId: input.clientRequestId,
+        classId: input.classId ?? null,
+        prompt: input.prompt,
+        status: 'queued' as const,
+        createdAt: new Date().toISOString(),
+        ...run,
+        worksheetIds: [],
+      };
+      await client.cancelQueries({ queryKey, exact: true });
+      client.setQueryData(queryKey, (previous) => {
+        if (previous?.runs.some((r) => r.id === run.id)) return previous;
+        return {
+          runs: [receipt, ...(previous?.runs ?? [])],
+        };
+      });
+      void client.invalidateQueries({ queryKey, exact: true });
+    },
   });
 }
 

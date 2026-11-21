@@ -38,6 +38,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     name: z.string(),
     id: z.string(),
     status: z.enum(['started', 'failed', 'success']),
+    agentId: agentIdSchema.optional(),
     bridgeElapsedMs: z.number().optional(),
   }),
 ]);

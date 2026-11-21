@@ -12,6 +12,7 @@ export type RunEvent =
       name: string;
       id: string;
       status: 'started' | 'success' | 'failed';
+      agentId?: string;
       bridgeElapsedMs?: number;
     }
   | { type: 'done'; elapsedMs: number }
@@ -63,7 +64,11 @@ export function createTurnRunner(host: Host) {
     const opts = { signal };
     let sessionID: string | undefined;
     const delegated = new Set<string>();
-    const children = new Map<string, { text: string; formUrl?: string; completed?: boolean }>();
+    const children = new Map<
+      string,
+      { text: string; formUrl?: string; completed?: boolean; agentId?: string; activityId?: string }
+    >();
+    let delegationCount = 0;
     let promptSent = false;
     let finished = false;
 
@@ -144,8 +149,13 @@ export function createTurnRunner(host: Host) {
         const root = source === sessionID;
         if (!root && !children.has(source)) {
           if (!turn.agent.subagents.length) continue;
-          if ((await findSession(host, source, signal))?.parentID !== sessionID) continue;
-          children.set(source, { text: '' });
+          const childSession = await findSession(host, source, signal);
+          if (childSession?.parentID !== sessionID) continue;
+          const agentId = childSession.agent;
+          children.set(source, {
+            text: '',
+            agentId: agentId && turn.agent.subagents.includes(agentId) ? agentId : undefined,
+          });
         }
         const child = children.get(source);
         if (turn.school) {
@@ -157,6 +167,39 @@ export function createTurnRunner(host: Host) {
           }
         }
 
+        // Announce a named handoff only once the verified child actually starts work.
+        if (
+          child?.agentId &&
+          !child.activityId &&
+          (event.type === 'session.step.started' ||
+            event.type === 'session.text.delta' ||
+            event.type === 'session.tool.input.started')
+        ) {
+          child.activityId = 'delegation:' + ++delegationCount;
+          child.completed = undefined;
+          yield {
+            type: 'tool',
+            name: 'subagent',
+            id: child.activityId,
+            agentId: child.agentId,
+            status: 'started',
+          };
+        }
+        if (
+          child?.activityId &&
+          (event.type === 'session.execution.succeeded' ||
+            event.type === 'session.execution.failed' ||
+            event.type === 'session.execution.interrupted')
+        ) {
+          yield {
+            type: 'tool',
+            name: 'subagent',
+            id: child.activityId,
+            agentId: child.agentId,
+            status: event.type === 'session.execution.succeeded' ? 'success' : 'failed',
+          };
+          child.activityId = undefined;
+        }
         switch (event.type) {
           case 'session.tool.called':
             if (root && event.data.executed === false)

@@ -1,0 +1,47 @@
+.school-team .team-row .team-row-activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.school-team .team-row[data-activity='queued'] .team-row-activity {
+  color: var(--muted-foreground);
+}
+
+.team-row-activity svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+@media (max-width: 1023px) {
+  .team-row[data-activity] .team-row-copy {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.6rem;
+  }
+
+  .school-team .team-row .team-row-activity {
+    font-size: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .team-row[data-activity]:not([data-activity='queued']) .team-row-activity svg {
+    animation: team-working 1.4s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes team-working {
+  from {
+    transform: scaleY(0.6);
+    opacity: 0.65;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
