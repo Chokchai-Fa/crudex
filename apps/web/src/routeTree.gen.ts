@@ -15,6 +15,7 @@ import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as PrincipalRouteImport } from './routes/principal'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as StudentRoomIdRouteImport } from './routes/student.$roomId'
 
@@ -48,6 +49,11 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeacherRoute = TeacherRouteImport.update({
   id: '/teacher',
   path: '/teacher',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
+  '/sign-in': typeof SignInRoute
   '/teacher': typeof TeacherRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
+  '/sign-in': typeof SignInRoute
   '/teacher': typeof TeacherRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
+  '/sign-in': typeof SignInRoute
   '/teacher': typeof TeacherRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/principal'
     | '/reports'
+    | '/sign-in'
     | '/teacher'
     | '/student/$roomId'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/principal'
     | '/reports'
+    | '/sign-in'
     | '/teacher'
     | '/student/$roomId'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/notes'
     | '/principal'
     | '/reports'
+    | '/sign-in'
     | '/teacher'
     | '/student/$roomId'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   NotesRoute: typeof NotesRoute
   PrincipalRoute: typeof PrincipalRoute
   ReportsRoute: typeof ReportsRoute
+  SignInRoute: typeof SignInRoute
   TeacherRoute: typeof TeacherRoute
   StudentRoomIdRoute: typeof StudentRoomIdRoute
 }
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teacher': {
       id: '/teacher'
       path: '/teacher'
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotesRoute: NotesRoute,
   PrincipalRoute: PrincipalRoute,
   ReportsRoute: ReportsRoute,
+  SignInRoute: SignInRoute,
   TeacherRoute: TeacherRoute,
   StudentRoomIdRoute: StudentRoomIdRoute,
 }

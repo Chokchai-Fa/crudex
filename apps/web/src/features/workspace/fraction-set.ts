@@ -12,3 +12,10 @@ export const exercises = [
   ['3/10 + 2/5', '7/10'],
   ['11/12 − 1/4', '2/3'],
 ] as const;
+
+export function answerChoices(answer: string, questionIndex: number, count: number) {
+  const alternatives = exercises.map(([, value]) => value).filter((value) => value !== answer);
+  const choices = [answer, ...new Set(alternatives)].slice(0, count);
+  const offset = questionIndex % choices.length;
+  return [...choices.slice(offset), ...choices.slice(0, offset)];
+}

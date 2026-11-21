@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { BookOpen } from 'lucide-react';
+import { signOutDemo } from '@/features/workspace/demo-session';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -20,7 +21,7 @@ export function RoomNavigation({
       className="grid grid-cols-[1fr_auto] items-center gap-x-2 px-2 lg:flex lg:flex-col lg:items-stretch lg:gap-3 lg:border-e lg:p-5 print:hidden"
     >
       <Link
-        to="/"
+        to="/sign-in"
         aria-label="Crudex · เลือกบทบาท"
         className="inline-flex min-h-11 w-fit items-center rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
       >
@@ -36,11 +37,14 @@ export function RoomNavigation({
         ครูผู้สอน <span className="text-muted-foreground font-normal">· บัญชีตัวอย่าง</span>
       </p>
       <Link
-        to="/"
+        to="/sign-in"
         className="col-start-2 row-start-1 inline-flex min-h-11 items-center justify-end text-sm underline lg:order-last lg:justify-start"
       >
         สลับบทบาท
       </Link>
+      <Button variant="link" className="justify-start px-0 lg:order-last" onClick={signOutDemo}>
+        ออกจากระบบ
+      </Button>
       <div className="col-start-1 flex items-center gap-2 lg:flex-col lg:items-stretch">
         <Label htmlFor="room">ห้อง</Label>
         <NativeSelect id="room" value={room} onChange={(event) => onRoomChange(event.target.value)}>

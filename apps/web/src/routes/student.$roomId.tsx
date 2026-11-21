@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { exercises, rooms } from '@/features/workspace/fraction-set';
+import { answerChoices, exercises, rooms } from '@/features/workspace/fraction-set';
 
 export const Route = createFileRoute('/student/$roomId')({ component: StudentPage });
 
@@ -15,7 +15,7 @@ function StudentPage() {
     <section className="mx-auto max-w-xl space-y-4 rounded-2xl border bg-card p-5">
       <h1 className="text-2xl font-semibold">ไม่พบฟอร์มสำหรับห้องนี้</h1>
       <Button asChild variant="outline">
-        <Link to="/">กลับไปเลือกบทบาท</Link>
+        <Link to="/">กลับหน้าแรก</Link>
       </Button>
     </section>
   );
@@ -91,11 +91,7 @@ function Quiz({ room }: { room: string }) {
             )}
           </label>
           {exercises.map(([question, answer], i) => {
-            const alternatives = exercises
-              .map(([, value]) => value)
-              .filter((value) => value !== answer);
-            const choices = [answer, ...new Set(alternatives)].slice(0, 3);
-            const ordered = choices.slice(i % 3).concat(choices.slice(0, i % 3));
+            const ordered = answerChoices(answer, i, 3);
             return (
               <fieldset key={question} className="bg-card rounded-2xl border p-4 shadow-sm">
                 <legend className="px-1 font-medium">
@@ -129,7 +125,7 @@ function Quiz({ room }: { room: string }) {
         </form>
       )}
       <Link to="/" className="inline-flex min-h-11 items-center text-sm text-primary underline">
-        กลับไปเลือกบทบาท
+        กลับหน้าแรก
       </Link>
     </section>
   );

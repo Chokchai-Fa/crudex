@@ -1,16 +1,24 @@
-import { createRootRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
+import { createRootRoute, Link, redirect, Outlet, useRouterState } from '@tanstack/react-router';
+import { demoRole } from '@/features/workspace/demo-session';
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 
 export const Route = createRootRoute({
+  beforeLoad: ({ location }) => {
+    const path = location.pathname.toLowerCase().replace(/\/+$/, '');
+    const teacherPages = ['/teacher', '/gradebook', '/reports', '/memory', '/notes'];
+    const required =
+      path === '/principal' ? 'principal' : teacherPages.includes(path) ? 'teacher' : null;
+    if (required && demoRole() !== required) throw redirect({ to: '/sign-in', replace: true });
+  },
   component: RootLayout,
   notFoundComponent: () => (
     <AppShell>
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <h1 className="text-2xl font-semibold">ไม่พบหน้านี้</h1>
-        <p className="text-muted-foreground">ตรวจสอบลิงก์หรือกลับไปเลือกบทบาท</p>
+        <p className="text-muted-foreground">ตรวจสอบลิงก์หรือกลับหน้าแรก</p>
         <Button asChild>
-          <Link to="/">กลับไปเลือกบทบาท</Link>
+          <Link to="/">กลับหน้าแรก</Link>
         </Button>
       </div>
     </AppShell>
@@ -23,7 +31,7 @@ export const Route = createRootRoute({
           {error instanceof Error ? error.message : 'กรุณาลองใหม่อีกครั้ง'}
         </p>
         <Button asChild>
-          <Link to="/">กลับไปเลือกบทบาท</Link>
+          <Link to="/">กลับหน้าแรก</Link>
         </Button>
       </div>
     </AppShell>
@@ -32,7 +40,8 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const page = useRouterState({ select: (state) => state.matches.at(-1)?.routeId });
-  if (page === '/' || page === '/teacher' || page === '/gradebook') return <Outlet />;
+  if (page === '/' || page === '/sign-in' || page === '/teacher' || page === '/gradebook')
+    return <Outlet />;
   return (
     <AppShell>
       <Outlet />

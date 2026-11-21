@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { signOutDemo } from '@/features/workspace/demo-session';
 import { Button } from '@/components/ui/button';
 
 export const Route = createFileRoute('/principal')({ component: PrincipalBrief });
@@ -12,9 +13,12 @@ function PrincipalBrief() {
       <header className="space-y-2">
         <p className="text-sm text-muted-foreground">ทั้งโรงเรียน</p>
         <h1 className="text-2xl font-bold">ผู้อำนวยการ</h1>
-        <Link to="/" className="inline-flex min-h-11 items-center text-primary underline">
+        <Link to="/sign-in" className="inline-flex min-h-11 items-center text-primary underline">
           สลับบทบาท
         </Link>
+        <Button variant="link" className="justify-start px-0 lg:order-last" onClick={signOutDemo}>
+          ออกจากระบบ
+        </Button>
       </header>
       <article className="min-w-0 space-y-5 rounded-2xl border bg-card p-5 sm:p-6">
         <div className="flex items-center gap-4 border-b border-border pb-4">
