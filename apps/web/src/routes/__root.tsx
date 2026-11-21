@@ -1,13 +1,9 @@
-import { createRootRoute, Link, Outlet } from '@tanstack/react-router';
+import { createRootRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 
 export const Route = createRootRoute({
-  component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
-  ),
+  component: RootLayout,
   notFoundComponent: () => (
     <AppShell>
       <div className="flex flex-col items-center gap-4 py-16 text-center">
@@ -30,3 +26,14 @@ export const Route = createRootRoute({
     </AppShell>
   ),
 });
+
+function RootLayout() {
+  const landing = useRouterState({ select: (state) => state.location.pathname === '/' });
+  return landing ? (
+    <Outlet />
+  ) : (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  );
+}
