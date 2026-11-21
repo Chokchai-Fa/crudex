@@ -140,3 +140,24 @@ describe('brief follows the 09-principal-brief design', () => {
     }
   });
 });
+
+describe('school app shares the same sample flagged rooms', () => {
+  it('packages/shared sampleFlaggedClasses equals get_school_summary', async () => {
+    const { sampleFlaggedClasses } =
+      await import('../../../packages/shared/src/morning-brief.schema');
+    const summary = schoolSummary();
+    expect(sampleFlaggedClasses.map((c) => c.line).join('; ')).toBe(summary.briefClassLine);
+    for (const shared of sampleFlaggedClasses) {
+      const c = summary.classes.find((k) => k.label === shared.label)!;
+      expect(c).toMatchObject({
+        mean: shared.mean,
+        maxScore: shared.maxScore,
+        meanPercent: shared.meanPercent,
+      });
+      expect(c.weakTopics.map((t) => t.correctPercent)).toEqual(
+        shared.weakTopics.map((t) => t.correctPercent),
+      );
+      expect(c.meanLabel).toBe(shared.meanLabel);
+    }
+  });
+});

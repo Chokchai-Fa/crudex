@@ -53,6 +53,8 @@ const schoolLocalTools = new Set([
   'fraction_addition_form',
   'make_slides',
   'make_file',
+  // Checked here by brief-guard, then forwarded so the school app can show it (see below).
+  'publish_brief',
 ]);
 
 export function createRuntimePlugin(
@@ -176,6 +178,9 @@ export function createRuntimePlugin(
                 sessionID: call.sessionID,
                 signal: call.signal,
               });
+              if (scope && tool.name === 'publish_brief') {
+                await schoolTool(scope, 'publish_brief', input, call.signal);
+              }
               const action = Object.hasOwn(activityActions, tool.name)
                 ? activityActions[tool.name]
                 : undefined;
