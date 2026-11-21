@@ -5,7 +5,7 @@ interface __BaseEnv_Env {
 	DAILY_RUN_LIMIT: "60";
 	DAILY_RUN_LIMIT_OVERRIDES: {"2026-11-21":300};
 	IDLE_STOP_MINUTES: "10";
-	AGENT_BACKEND: "openai";
+	AGENT_BACKEND: "vercel";
 	OPENAI_AGENTS: "nun";
 	PASSCODE: string;
 	OPENAI_API_KEY: string;
