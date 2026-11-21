@@ -28,7 +28,7 @@ features, then delete it. `CLAUDE.md` has the architecture rules.
    Upstash), put your Neon org ID in `infra/envs/prod/terraform.tfvars`, then set the GitHub
    secrets with `scripts/verify-credentials.py` and `scripts/setup-github-secrets.sh`.
 4. Push to `main`. `deploy.yml` creates the infrastructure, runs migrations and deploys to
-   `https://app.<edbot>.workers.dev`.
+   `https://app.<crudex>.workers.dev`.
 
 ## Develop locally
 

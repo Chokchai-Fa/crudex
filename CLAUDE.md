@@ -377,7 +377,7 @@ version, bindings, and non-secret `[vars]`. `wrangler types` generates the `Env`
 ```toml
 # The single Worker: Hono API on /api/* + the SPA (apps/web/dist) via Workers Static Assets.
 # Non-secret config only — this file is committed. Secrets are uploaded by CI (see CLAUDE.md).
-name = "app"                                # → https://app.<edbot>.workers.dev
+name = "app"                                # → https://app.<crudex>.workers.dev
 main = "src/index.ts"
 compatibility_date = "2026-10-01"           # bump deliberately, never automatically
 compatibility_flags = ["nodejs_compat"]
@@ -392,7 +392,7 @@ crons = ["17 3 * * *"]
 
 [vars]
 APP_ENV = "production"
-APP_URL = "https://app.edbot.workers.dev"   # set by scripts/init-template.sh
+APP_URL = "https://app.crudex.workers.dev"   # set by scripts/init-template.sh
 
 [assets]                                    # Workers Static Assets: the SPA
 directory = "../web/dist"                   # build apps/web first (turbo does this)
