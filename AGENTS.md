@@ -19,7 +19,7 @@ packages/shared zod schemas = the API contract, used by both apps
 infra/          Terraform (Neon, Upstash, Queue, KV, Vercel project); state in HCP Terraform
 .github/        ci, deploy, drift (weekly), destroy (manual)
 scripts/        init-template.sh, verify-credentials.py, setup-github-secrets.sh
-.claude/skills/ dev skills (also served to Codex via .agents/skills → symlink)
+skills/         dev skills, the single source; .claude/skills and .agents/skills are symlinks to it
 ```
 
 ## Commands
@@ -33,7 +33,7 @@ pnpm --filter api db:generate              # after changing a Drizzle table; com
 Node 22 (`.nvmrc`), pnpm via `corepack enable`. Run lint, typecheck and test before finishing.
 
 ## Skills — load the matching one before you start
-Skills live in `.claude/skills/<name>/SKILL.md` (Codex finds them via `.agents/skills`).
+Skills live in `skills/<name>/SKILL.md`. Claude Code reads them via `.claude/skills` and Codex via `.agents/skills`, both symlinks to `skills/`: edit only `skills/`.
 
 | Skill | Use when touching |
 |-------|-------------------|

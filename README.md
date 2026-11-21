@@ -11,7 +11,7 @@ Redis and Cloudflare Queues, all provisioned by Terraform and deployed by GitHub
 | `packages/shared` | zod schemas = the API contract, used by both apps |
 | `infra/` | Terraform modules for Neon, Upstash and the queue; state in HCP Terraform (free) |
 | `.github/` | `ci` (lint/typecheck/test/build + plan comment), `deploy`, weekly `drift` check, manual `destroy` |
-| `.claude/skills/` | Claude Code skills: `design-system` (UI rules + UX checklist) and `manage-secrets` |
+| `skills/` | Agent skills (one folder; `.claude/skills` and `.agents/skills` symlink to it): `design-system` (UI rules + UX checklist) and `manage-secrets` |
 
 The one example feature, **notes**, goes through every layer. Copy its shape for your own
 features, then delete it. `CLAUDE.md` has the architecture rules.

@@ -65,7 +65,7 @@ Do **not** use:
 ├── .github/                # workflows (ci, deploy, drift) + composite actions (setup, terraform-outputs)
 ├── README.md               # quick start: use the template, rename, first deploy
 ├── scripts/                # init-template.sh, setup-github-secrets.sh, verify-credentials.py
-├── .claude/skills/         # project skills for Claude Code (manage-secrets, design-system)
+├── skills/                 # agent skills, single source (manage-secrets, design-system, infra); .claude/skills + .agents/skills symlink here
 ├── pnpm-workspace.yaml
 ├── turbo.json
 └── CLAUDE.md
@@ -237,7 +237,7 @@ look calm and consistent (spacing rhythm, type scale, neutral base + one accent,
 motion). The guidelines and the required **UX review checklist** live in the `design-system`
 skill.
 
-**Use the `design-system` skill** (`.claude/skills/design-system/SKILL.md`) for any UI work —
+**Use the `design-system` skill** (`skills/design-system/SKILL.md`) for any UI work —
 new screens, tokens, `components/ui/*`, variants, shared components.
 
 Stack: Tailwind v4 (CSS-first config, no `tailwind.config.js`), shadcn/ui (Radix primitives,
@@ -342,7 +342,7 @@ app job ─► build web + api ─► migrations (DATABASE_URL) ─► wrangler 
 ```
 
 **To add, remove, rename, or rotate any secret or env var, use the `manage-secrets` skill**
-(`.claude/skills/manage-secrets/SKILL.md`) — it lists every file to touch per kind.
+(`skills/manage-secrets/SKILL.md`) — it lists every file to touch per kind.
 
 Rules:
 - Never put secrets in `wrangler.toml`, `VITE_*` vars, logs, or committed files. `VITE_*` and
