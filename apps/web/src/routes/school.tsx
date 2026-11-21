@@ -56,7 +56,7 @@ function School() {
   const me = session.data;
   if (!session.error && !session.isPending && !me)
     return (
-      <div className="school-flow mx-auto max-w-4xl">
+      <div className="school-flow school-entry mx-auto max-w-4xl">
         <GuestRolePicker />
       </div>
     );
