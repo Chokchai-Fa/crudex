@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { LoaderCircle, MessageCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AgentId, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -70,6 +70,7 @@ export function RunDetails({
   status,
   agentId,
   ack,
+  onFormUrl,
   onRetry,
   retryDisabled,
 }: {
@@ -80,6 +81,8 @@ export function RunDetails({
   agentId?: AgentId;
   /** Instant client-side acknowledgement shown until the first real content arrives. */
   ack?: string;
+  /** Reports a Google Form link found in this reply, for the form card. */
+  onFormUrl?: (url: string) => void;
   /** Sends the same request again; shown only after a failed or interrupted reply. */
   onRetry?: () => void;
   retryDisabled?: boolean;
@@ -92,6 +95,12 @@ export function RunDetails({
     complete,
   );
   const failed = phase === 'failed' || phase === 'interrupted';
+  const googleForm = /https:\/\/docs\.google\.com\/forms\/[^\s"'<>)\]\\]+/.exec(
+    JSON.stringify(events),
+  )?.[0];
+  useEffect(() => {
+    if (googleForm) onFormUrl?.(googleForm);
+  }, [googleForm, onFormUrl]);
   const acking = !!ack && !answer && !failed && !notice && !error && !final;
 
   return (

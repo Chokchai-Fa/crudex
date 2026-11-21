@@ -128,6 +128,18 @@ function ChatRoom({
   // Instant acknowledgement: shown from the moment of sending, then kept per run until real content.
   const [pending, setPending] = useState<{ prompt: string; ack: string } | null>(null);
   const acks = useRef(new Map<string, string>());
+  // Google Form links found in each run's reply (the worksheet API only has the in-app /play link).
+  const [formUrls, setFormUrls] = useState<Record<string, string>>({});
+  const formHandlers = useRef(new Map<string, (url: string) => void>());
+  function formHandler(id: string) {
+    let handler = formHandlers.current.get(id);
+    if (!handler) {
+      handler = (url: string) =>
+        setFormUrls((prev) => (prev[id] === url ? prev : { ...prev, [id]: url }));
+      formHandlers.current.set(id, handler);
+    }
+    return handler;
+  }
   const presets = presetsFor(agent, room.name);
   const [sendError, setSendError] = useState('');
   const input = useRef<HTMLTextAreaElement>(null);
@@ -358,6 +370,7 @@ function ChatRoom({
                       membershipId={actor.membershipId}
                       status={run.status}
                       agentId={run.agentId}
+                      onFormUrl={formHandler(run.id)}
                       ack={acks.current.get(run.id)}
                       onRetry={() => void resend(run.prompt)}
                       retryDisabled={sending || localGatewayUnconfirmed}
@@ -369,6 +382,7 @@ function ChatRoom({
                     key={id}
                     id={id}
                     roomId={room.id}
+                    googleFormUrl={formUrls[run.id]}
                     membershipId={actor.membershipId}
                     open={sheet === id}
                     toggle={() => setSheet(sheet === id ? '' : id)}
