@@ -25,7 +25,7 @@ const team: { id: AgentId; name: string; role: string; short: string }[] = [
   },
   {
     id: 'jum',
-    name: 'น้องจ๋ำ',
+    name: 'น้องจ๋า',
     role: 'ใบงาน PDF, ข้อสอบ และ Google Form ตามตัวชี้วัด สพฐ.',
     short: 'ใบงาน PDF ข้อสอบ และ Google Form',
   },
@@ -146,7 +146,7 @@ function ChatSample({ compact = false }: { compact?: boolean }) {
             compact ? 'px-3.5 py-2.5 text-[15px]/5.75' : 'px-4 py-3 text-[15px]/5.75',
           )}
         >
-          ได้เลยค่ะครู! น้องจ๋ำทำใบงานกับฟอร์ม พี่เจ๋งทำเกม ส่งกลับมาในแชตนี้
+          ได้เลยค่ะครู! น้องจ๋าทำใบงานกับฟอร์ม พี่เจ๋งทำเกม ส่งกลับมาในแชตนี้
         </div>
       </div>
       <div className={cn('flex flex-col gap-2.5', compact ? 'pl-7' : 'pl-8')}>
