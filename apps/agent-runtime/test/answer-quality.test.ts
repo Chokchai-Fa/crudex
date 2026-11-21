@@ -60,3 +60,14 @@ describe('fast first reply', () => {
     }
   });
 });
+
+describe('morning brief stays within 7 lines', () => {
+  it('has no intro sentence, next-question block or defaults line in รุ่งเช้า brief, and only รุ่งเช้า/ลุงนิต carry the exception', () => {
+    for (const id of ['rungchao', 'lekha_por']) {
+      const t = byId[id]?.instructions ?? '';
+      expect(t, id).toContain('ห้ามมีประโยคเปิด');
+      expect(t, id).toContain('ไม่เกิน 7 บรรทัดนับรวมชื่อ');
+    }
+    expect(byId['jum']?.instructions).not.toContain('ไม่เกิน 7 บรรทัดนับรวมชื่อ');
+  });
+});
