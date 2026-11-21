@@ -14,6 +14,10 @@ export function useSchoolSession() {
     retry: false,
     refetchOnWindowFocus: true,
     queryFn: async () => {
+      const health = await api.health.$get();
+      if (!health.ok || (await health.json()).env !== 'production') {
+        throw new Error('ยังไม่ได้เชื่อมต่อ School API ของโรงเรียน');
+      }
       const res = await api.me.$get();
       if (res.status === 401) return null;
       if (!res.ok) throw await toApiError(res, 'เปิดบัญชีโรงเรียนไม่สำเร็จ');
@@ -25,13 +29,8 @@ export function useSchoolSession() {
 export function useSchoolLogin() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (
-      input: { role: 'teacher' | 'principal' | 'student' } | { credential: string },
-    ) => {
-      const res =
-        'role' in input
-          ? await api.auth.local.$post({ json: { school: 'lotus', account: 1, role: input.role } })
-          : await api.auth.session.$post({ json: input });
+    mutationFn: async (input: { credential: string }) => {
+      const res = await api.auth.session.$post({ json: input });
       if (!res.ok) throw await toApiError(res, 'เข้าใช้โรงเรียนไม่สำเร็จ');
       return meSchema.parse(await res.json());
     },

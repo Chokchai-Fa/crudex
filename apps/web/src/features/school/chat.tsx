@@ -10,10 +10,6 @@ import { RunDetails, Worksheet, statusLabels, SchoolGradebook } from './classroo
 import { useCreateSchoolRun, useSchoolRuns, useSchoolSession, useSchoolLogout } from './api/school';
 import '../workspace/chat-activity.css';
 
-const gatewayMode = import.meta.env.VITE_SCHOOL_GATEWAY_FIXTURE;
-const localHost = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-const fixture = gatewayMode === 'true' || (localHost && gatewayMode !== 'false');
-
 export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
   const session = useSchoolSession();
   if (session.error) return <p role="alert">{session.error.message}</p>;
@@ -80,7 +76,7 @@ function ChatRoom({
   }, []);
   async function send() {
     const prompt = draft.trim();
-    if (!prompt || busy.current || fixture) return;
+    if (!prompt || busy.current) return;
     notePosition();
     busy.current = true;
     if (retry.current?.prompt !== prompt)
@@ -136,48 +132,45 @@ function ChatRoom({
           สมุดคะแนน · {room.name}
         </Button>
         {grades && <SchoolGradebook classId={room.id} membershipId={actor.membershipId} />}
-        {fixture ? (
-          <p role="status">ยังส่งคำขอไม่ได้ ยังไม่ได้เปิดใช้ runtime จริงสำหรับเซิร์ฟเวอร์นี้</p>
-        ) : history.isPending ? (
+        {history.isPending ? (
           <p role="status">กำลังอ่านประวัติ…</p>
         ) : (
           !runs.length && !history.error && <p>เริ่มคำขอแรกสำหรับห้อง {room.name}</p>
         )}
         <ol ref={content} className="space-y-4 py-3">
-          {!fixture &&
-            runs.map((run) => (
-              <li key={run.id} className="space-y-2">
-                <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
-                  {run.prompt}
-                </p>
-                <div className="flex items-start gap-2">
-                  <img src="/team/secretary.svg" alt="เลขาครู" width="32" height="32" />
-                  <div className="min-w-0 rounded-2xl bg-muted p-3">
-                    <p role="status">{statusLabels[run.status]}</p>
-                    <button
-                      className="min-h-11 text-primary"
-                      aria-expanded={expanded === run.id}
-                      onClick={() => setExpanded(expanded === run.id ? '' : run.id)}
-                    >
-                      {expanded === run.id ? 'ย่อรายละเอียดงาน' : 'ดูรายละเอียดงาน'}
-                    </button>
-                    {expanded === run.id && <RunDetails key={run.id} id={run.id} />}
-                  </div>
+          {runs.map((run) => (
+            <li key={run.id} className="space-y-2">
+              <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
+                {run.prompt}
+              </p>
+              <div className="flex items-start gap-2">
+                <img src="/team/secretary.svg" alt="เลขาครู" width="32" height="32" />
+                <div className="min-w-0 rounded-2xl bg-muted p-3">
+                  <p role="status">{statusLabels[run.status]}</p>
+                  <button
+                    className="min-h-11 text-primary"
+                    aria-expanded={expanded === run.id}
+                    onClick={() => setExpanded(expanded === run.id ? '' : run.id)}
+                  >
+                    {expanded === run.id ? 'ย่อรายละเอียดงาน' : 'ดูรายละเอียดงาน'}
+                  </button>
+                  {expanded === run.id && <RunDetails key={run.id} id={run.id} />}
                 </div>
-                {run.worksheetIds.map((id, i) => (
-                  <div key={id}>
-                    <Button
-                      variant="outline"
-                      aria-expanded={sheet === id}
-                      onClick={() => setSheet(sheet === id ? '' : id)}
-                    >
-                      {sheet === id ? 'ปิดใบงาน' : 'เปิดใบงาน ' + (i + 1)}
-                    </Button>
-                    {sheet === id && <Worksheet membershipId={actor.membershipId} id={id} />}
-                  </div>
-                ))}
-              </li>
-            ))}
+              </div>
+              {run.worksheetIds.map((id, i) => (
+                <div key={id}>
+                  <Button
+                    variant="outline"
+                    aria-expanded={sheet === id}
+                    onClick={() => setSheet(sheet === id ? '' : id)}
+                  >
+                    {sheet === id ? 'ปิดใบงาน' : 'เปิดใบงาน ' + (i + 1)}
+                  </Button>
+                  {sheet === id && <Worksheet membershipId={actor.membershipId} id={id} />}
+                </div>
+              ))}
+            </li>
+          ))}
         </ol>
       </div>
       <form
@@ -197,7 +190,7 @@ function ChatRoom({
             placeholder="พิมพ์คุยกับเลขาครู…"
             maxLength={4000}
             readOnly={create.isPending}
-            disabled={fixture}
+
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -210,7 +203,7 @@ function ChatRoom({
           <button
             className="submit-arrow"
             aria-label="ส่งข้อความ"
-            disabled={fixture || !draft.trim() || create.isPending}
+            disabled={!draft.trim() || create.isPending}
           >
             <ArrowUp />
           </button>

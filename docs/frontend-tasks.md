@@ -77,4 +77,10 @@ QA-03 รุ่น `df92108` ที่ 390 px ทดสอบตั้งแต�
 
 เปิด `/school` เข้าบัญชีครู เลือกห้องแล้วกด **เปิดแชตเลขาครู** หน้า `/teacher` ตรวจบัญชีและห้องผ่าน School API แสดงประวัติตามห้อง ส่งคำขอและอ่านเหตุการณ์จาก run ID เปิดใบงานและฟอร์มนักเรียนจาก ID ที่ API คืน สมุดคะแนนอ่านจากฐานข้อมูลโรงเรียน นักเรียนเข้าจากลิงก์ฟอร์มด้วยบัญชีที่ได้รับมอบหมาย
 
-การทดสอบ live ต้องให้ Worker ส่งงานไป gateway และ runtime ที่มีสิทธิ์ใช้โมเดล พร้อม callback กลับ School API ได้ เมื่อยืนยัน binding แล้วจึงตั้ง `VITE_SCHOOL_GATEWAY_FIXTURE=false` สำหรับ Vite ในเครื่อง การเปลี่ยน flag อย่างเดียวไม่เปลี่ยน gateway ชุดทดสอบที่ใช้ fixture ปิดปุ่มส่งแชต รุ่นนี้ยังไม่มีหลักฐาน live run, การถามต่อ, การส่งคำตอบจากใบงานของ live run หรือคะแนนของใบงานนั้นหลัง reload
+### ทดสอบ frontend กับ Worker ที่ deploy แล้ว (PR #16)
+
+ใช้ Node 22 และรัน `pnpm --filter web dev` จาก root แล้วเปิด http://localhost:5173/school สำหรับไฟล์ที่ build แล้ว รัน `pnpm --filter web build` ตามด้วย `pnpm --filter web preview` และเปิด http://localhost:4173/school ใช้ hostname เดิมตลอดการทดสอบ เพราะ cookie ผูกกับ host
+
+Vite ทั้ง dev และ preview ส่ง `/api/` ผ่าน HTTPS ไป `https://app.crudex.workers.dev` เท่านั้น หน้าเว็บอ่าน health ก่อนเปิดบัญชีและรับเฉพาะ environment production สำหรับ build ที่ให้ Worker เสิร์ฟ ไฟล์อยู่ใน `apps/web/dist` และเบราว์เซอร์เรียก `/api/` บน origin เดียวกันตาม Workers Static Assets config การเปลี่ยนค่า fixture ในเครื่องไม่เปลี่ยนปลายทางนี้
+
+เข้าด้วยรหัสเชิญใช้ครั้งเดียวของบัญชีทดสอบที่โรงเรียนจัดให้ ปุ่มเลือกบทบาทแบบ local ถูกถอดออก ครูและนักเรียนต้องมีสิทธิ์ของตนเองในห้องเดียวกัน แนะนำให้ใช้คนละ browser session เมื่อทดสอบพร้อมกัน ทุก action และ EventSource ใช้ cookie ของ session โดยไม่เก็บ token ใน JavaScript เมื่อยังไม่มี session API ตอบ 401 ผลทดสอบ live ต้องใช้ run ID, เหตุการณ์จบงาน และผล callback ที่ Runtime ตรวจแล้ว ก่อน QA ทวนใบงาน ฟอร์ม และคะแนนหลัง reload

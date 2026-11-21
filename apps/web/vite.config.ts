@@ -1,7 +1,31 @@
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type ProxyOptions } from 'vite';
+
+const schoolOrigin = 'https://app.crudex.workers.dev';
+const schoolProxy: ProxyOptions = {
+  target: schoolOrigin,
+  changeOrigin: true,
+  secure: true,
+  bypass(req) {
+    const host = req.headers.host ?? '';
+    if (!/^(localhost|127\.0\.0\.1):\d+$/.test(host)) return false;
+    const origin = req.headers.origin;
+    const read = req.method === 'GET' || req.method === 'HEAD';
+    // Validate the browser origin before translating it for the upstream Worker.
+    if ((!read || origin) && origin !== 'http://' + host) return false;
+    if (origin) req.headers.origin = schoolOrigin;
+    const session = req.headers.cookie
+      ?.split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('__Host-school_session='));
+    delete req.headers.cookie;
+    delete req.headers.authorization;
+    if (session) req.headers.cookie = session;
+  },
+};
+const proxy = { '/api/': schoolProxy };
 
 export default defineConfig({
   plugins: [
@@ -15,12 +39,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // One origin in dev too: the browser talks only to :5173; /api (incl. WebSockets) goes to
-    // `wrangler dev` on :8787.
-    proxy: {
-      '/api': { target: 'http://localhost:8787', changeOrigin: false, ws: true },
-    },
+    host: '127.0.0.1',
+    proxy,
   },
+  preview: { host: '127.0.0.1', proxy },
   build: {
     outDir: 'dist',
   },

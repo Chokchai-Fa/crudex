@@ -91,7 +91,7 @@ function SchoolPlay() {
           {logout.error && <p role="alert">{logout.error.message}</p>}
         </>
       ) : (
-        <SchoolLogin student />
+        <SchoolLogin />
       )}
     </section>
   );
