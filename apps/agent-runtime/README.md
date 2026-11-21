@@ -6,6 +6,19 @@ sessions in SQLite under `DATA_DIR`. Sandbox rotation or idle shutdown starts a
 fresh database. A client with an expired session ID gets a fresh session on its
 next turn.
 
+Memory, approvals, notifications, and published briefs are written atomically
+to `DATA_DIR/state.json` and loaded when the runtime starts. The gateway also
+checkpoints this state in the sandbox manager's Durable Object after streamed
+chats and before idle shutdown or rotation. It restores the checkpoint before
+proxying requests to a replacement sandbox. Demo state uses the `runtimeState`
+key, and school state uses a separate key for each school and owner.
+
+The gateway stores snapshots in 120 KiB byte chunks and transfers snapshots up
+to 1 MiB through the token-protected `/__state` route. If a checkpoint fails
+or exceeds 1 MiB, the gateway keeps the last successful checkpoint. If a
+restore fails, the replacement sandbox stays unavailable until a boot can
+restore the saved state.
+
 ## Run locally
 
 1. Run `pnpm install` at the repo root.

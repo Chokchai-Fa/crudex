@@ -3,6 +3,7 @@ import { dispatchSchema, signedTurn } from '../../../packages/shared/src/school-
 import { DurableObject } from 'cloudflare:workers';
 import { consumeRun, countToday, type DailyUsage } from './daily-cap';
 import { envSchema, type AgentConfig } from './env';
+import { restoreRuntimeState, saveRuntimeState } from './runtime-state';
 import {
   archivePath,
   bootSandbox,
@@ -34,6 +35,7 @@ export class SandboxManager extends DurableObject<Env> {
   private transition?: Promise<void>;
   private activeRequests = 0;
   private drained?: () => void;
+  private checkpoint = Promise.resolve();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -173,18 +175,27 @@ export class SandboxManager extends DurableObject<Env> {
         await upstream.body?.cancel();
         throw new Error('Unexpected runtime redirect');
       }
-      if (!upstream.body) return upstream;
-
-      // Keep the sandbox in use until the response body finishes or the downstream cancels.
-      const stream = new TransformStream<Uint8Array, Uint8Array>();
+      // Keep the sandbox in use through streaming and the chat checkpoint.
+      const stream = upstream.body && new TransformStream<Uint8Array, Uint8Array>();
+      const finished =
+        stream && upstream.body ? upstream.body.pipeTo(stream.writable) : Promise.resolve();
       this.ctx.waitUntil(
-        upstream.body
-          .pipeTo(stream.writable)
+        finished
+          .then(() => {
+            if (path !== '/chat') return;
+            // Serialize checkpoints so an older fetch cannot overwrite a newer snapshot.
+            this.checkpoint = this.checkpoint.then(() =>
+              saveRuntimeState(this.ctx.storage, sandbox),
+            );
+            return this.checkpoint;
+          })
           .catch(() => undefined)
           .finally(() => this.release()),
       );
       acquired = false;
-      return new Response(stream.readable, { status: upstream.status, headers: upstream.headers });
+      return stream
+        ? new Response(stream.readable, { status: upstream.status, headers: upstream.headers })
+        : upstream;
     } catch {
       return Response.json({ error: 'sandbox_unavailable' }, { status: 503 });
     } finally {
@@ -260,6 +271,13 @@ export class SandboxManager extends DurableObject<Env> {
       await this.ctx.storage.put({ sandbox: record, 'boot-token': bootToken });
       const url = await bootSandbox(sandbox, config, origin, bootToken, token, owner);
       const running = { ...record, url, token, lastUsedAt: Date.now() };
+      // A bad or unreadable snapshot must not keep the sandbox from serving; it starts empty instead.
+      await restoreRuntimeState(this.ctx.storage, running).catch((error: unknown) => {
+        console.warn(
+          'runtime_state_restore_failed',
+          error instanceof Error ? error.message : error,
+        );
+      });
       await this.ctx.storage.put('sandbox', running);
       this.sandbox = running;
       await this.ctx.storage.setAlarm(this.idleDeadline(running, config));
@@ -277,6 +295,7 @@ export class SandboxManager extends DurableObject<Env> {
 
     if (Date.now() < sandbox.startedAt + sandboxTimeout) {
       try {
+        if ('url' in sandbox) await saveRuntimeState(this.ctx.storage, sandbox);
         await stopSandbox(config, sandbox.name);
       } catch (error) {
         await this.ctx.storage.setAlarm(Date.now() + retryAlarmAfter);

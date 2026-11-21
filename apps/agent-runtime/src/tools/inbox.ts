@@ -1,10 +1,6 @@
-export interface InboxItem {
-  id: string;
-  to: string;
-  subject: string;
-  body: string;
-  createdAt: number;
-}
+import { inbox } from '../state';
 
-/** In-process stand-in for the test mailbox; the approval box lives in approval-store.ts. */
-export const testMailbox: InboxItem[] = [];
+export type { InboxItem } from '../state';
+
+/** The test mailbox; kept in the runtime state so it survives sandbox restarts. The approval box lives in approval-store.ts. */
+export const testMailbox = inbox;

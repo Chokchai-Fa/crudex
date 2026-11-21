@@ -3,11 +3,16 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { z } from 'zod';
+import {
+  runtimeStateMaxBytes,
+  runtimeStatePath,
+} from '../../../packages/shared/src/runtime-state.schema';
 import { agents, teacherAgents } from './agents';
 import { validLoginId } from './demo-session';
 import { createHarness } from './harness';
 import { createTurnRunner } from './run';
 import { schoolScopeSchema, validSchoolTurn } from './school';
+import { exportState, importState, loadState } from './state';
 import { tools } from './tools';
 
 const config = z
@@ -29,6 +34,7 @@ if (!config.success) {
 
 const { UPSTREAM_TOKEN, DATA_DIR, PORT, HOST } = config.data;
 const expectedToken = Buffer.from(UPSTREAM_TOKEN);
+loadState();
 const { host, directory, toolCalls, scopes } = await createHarness(resolve(DATA_DIR));
 const runTurn = createTurnRunner(host);
 const sessions = new Map<string, string>();
@@ -46,7 +52,7 @@ function json(response: ServerResponse, status: number, payload: unknown) {
   response.end(JSON.stringify(payload));
 }
 
-async function readChat(request: IncomingMessage) {
+async function readJson(request: IncomingMessage, maxBytes: number): Promise<unknown> {
   const chunks: Buffer[] = [];
   let length = 0;
   // Leave the socket open long enough to return a validation response on oversized bodies.
@@ -54,14 +60,14 @@ async function readChat(request: IncomingMessage) {
   for await (const chunk of iterator) {
     const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     length += bytes.length;
-    if (length > 32_768) {
+    if (length > maxBytes) {
       request.resume();
       return;
     }
     chunks.push(bytes);
   }
   try {
-    return chatBody.safeParse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } catch {
     return;
   }
@@ -75,6 +81,19 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
   }
 
   const { pathname: path, searchParams } = new URL(request.url ?? '/', 'http://localhost');
+  if (path === runtimeStatePath) {
+    if (request.method === 'GET') return json(response, 200, exportState());
+    if (request.method === 'PUT') {
+      try {
+        importState(await readJson(request, runtimeStateMaxBytes));
+      } catch (error) {
+        if (error instanceof z.ZodError) return json(response, 400, { error: 'invalid_state' });
+        throw error;
+      }
+      response.writeHead(204, { 'cache-control': 'no-store' });
+      return response.end();
+    }
+  }
   const role = searchParams.get('role') ?? 'teacher';
   if (role !== 'teacher' && role !== 'principal')
     return json(response, 400, { error: 'invalid_role' });
@@ -103,8 +122,8 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     return json(response, 404, { error: 'not_found' });
   }
 
-  const body = await readChat(request);
-  if (!body?.success) return json(response, 400, { error: 'invalid_chat' });
+  const body = chatBody.safeParse(await readJson(request, 32_768));
+  if (!body.success) return json(response, 400, { error: 'invalid_chat' });
   const { agentId, text, scope } = body.data;
   const owner = process.env.SCHOOL_OWNER;
   if (
