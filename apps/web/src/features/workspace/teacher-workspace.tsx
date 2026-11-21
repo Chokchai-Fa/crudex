@@ -196,12 +196,13 @@ export function TeacherWorkspace() {
                 เดโมใช้ชุดเศษส่วน ป.5 จำนวน 10 ข้อเสมอ แม้เปลี่ยนห้องหรือแก้คำสั่ง
               </p>
               <Button
-                className="w-full sm:w-auto"
-                disabled={!draft.trim() || pending[room]}
+                className="w-full aria-disabled:cursor-wait aria-disabled:opacity-70 sm:w-auto"
+                disabled={!draft.trim()}
+                aria-disabled={!draft.trim() || !!pending[room]}
                 onClick={prepareWorksheet}
               >
                 <Send aria-hidden="true" />
-                สร้างใบงานและฟอร์มตัวอย่าง
+                {pending[room] ? 'กำลังเตรียมชุดตัวอย่าง…' : 'สร้างใบงานและฟอร์มตัวอย่าง'}
               </Button>
             </>
           )}

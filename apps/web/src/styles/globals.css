@@ -116,8 +116,8 @@
   }
 }
 
-/* Paper 01 conversation colors, scoped to the teacher workspace. */
-.teacher-chat {
+/* Shared colors for the teacher conversation and gradebook. */
+:is(.teacher-chat, .gradebook) {
   --primary: oklch(0.52 0.23 263);
   --primary-foreground: white;
   --ring: var(--primary);
@@ -126,14 +126,14 @@
   --accent-foreground: oklch(0.31 0.09 260);
   font-family: 'Inter Variable', 'Noto Sans Thai', Thonburi, Tahoma, sans-serif;
 }
-.dark .teacher-chat {
+.dark :is(.teacher-chat, .gradebook) {
   --primary: oklch(0.79 0.11 259);
   --primary-foreground: oklch(0.2 0.05 259);
   --muted: oklch(0.23 0.022 258);
   --accent: oklch(0.32 0.065 258);
   --accent-foreground: oklch(0.95 0.02 258);
 }
-.teacher-chat [data-slot='button'] {
+:is(.teacher-chat, .gradebook) [data-slot='button'] {
   min-height: 2.75rem;
   border-radius: 9999px;
 }
