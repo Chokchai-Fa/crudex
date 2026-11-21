@@ -78,4 +78,9 @@ describe('jaew lesson preparation flow', () => {
     expect(jum.instructions).toContain('worksheet.answers');
     expect(jum.instructions).toContain('ห้ามเรียงตัวเลือกใหม่');
   });
+
+  it('tells jum to paste the worksheet as plain text, never inside a code fence', () => {
+    expect(jum.instructions).toContain('ห้ามครอบด้วย code fence');
+    expect(jum.instructions).toContain('ห้ามใส่ blockquote ตาราง หรือตัวหนาครอบทั้งก้อน');
+  });
 });
