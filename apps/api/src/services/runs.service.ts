@@ -4,6 +4,7 @@ import {
   type DelegatedKahoot,
   type RunEvent,
   type AgentId,
+  type RecipientAgent,
   type CreateRun,
   type SchoolActor,
 } from '@repo/shared';
@@ -73,6 +74,15 @@ export async function runHistory(deps: Deps, a: SchoolActor, agent: AgentId) {
       .filter((r) => !r.classId || a.classes.some((c) => c.id === r.classId))
       .map((r) => ({ ...dto(r), worksheetIds: r.worksheetIds })),
   };
+}
+export async function handoffFeed(
+  deps: Deps,
+  actor: SchoolActor,
+  recipient: RecipientAgent,
+  classId: string,
+) {
+  authorize(actor, recipient, classId);
+  return { handoffs: await repo.recipientHandoffs(deps.db, actor, classId, recipient) };
 }
 export async function replay(deps: Deps, a: SchoolActor, id: string, cursor: number) {
   const run = await ownedRun(deps, a, id);
@@ -244,7 +254,7 @@ export async function dispatchRun(
       const now = Date.now();
       const toolUpdate =
         e.type === 'tool' &&
-        ((e.name === 'subagent' && e.agentId) ||
+        (((e.name === 'subagent' || e.name === 'subagent_return') && e.agentId) ||
           (now - lastToolUpdate >= 2500 && e.status === 'started'));
       if (
         toolUpdate ||

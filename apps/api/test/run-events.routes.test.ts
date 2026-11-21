@@ -1,7 +1,7 @@
 import { exports } from 'cloudflare:workers';
 import { runEventBatchMediaType, runEventBatchSchema, type SchoolActor } from '@repo/shared';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { replay } from '../src/services/runs.service';
+import { replay, handoffFeed } from '../src/services/runs.service';
 import { authenticate } from '../src/services/identity.service';
 import { NotFoundError } from '../src/lib/errors';
 
@@ -84,4 +84,19 @@ it('rejects invalid cursors and preserves run ownership errors', async () => {
   expect(replay).not.toHaveBeenCalled();
   vi.mocked(replay).mockRejectedValue(new NotFoundError());
   expect((await read(runEventBatchMediaType)).status).toBe(404);
+});
+
+it('requires a recipient and selected room before reading handoffs', async () => {
+  const base = 'https://example.com/api/agents/';
+  for (const path of [
+    'jeng/handoffs',
+    'jaew/handoffs?classId=' + id,
+    'nun/handoffs?classId=' + id + '&ownerId=' + id,
+  ])
+    expect((await exports.default.fetch(base + path)).status).toBe(400);
+  expect(handoffFeed).not.toHaveBeenCalled();
+  vi.mocked(handoffFeed).mockResolvedValue({ handoffs: [] });
+  const res = await exports.default.fetch(base + 'nun/handoffs?classId=' + id);
+  expect(await res.json()).toEqual({ handoffs: [] });
+  expect(handoffFeed).toHaveBeenCalledExactlyOnceWith(expect.anything(), actor, 'nun', id);
 });

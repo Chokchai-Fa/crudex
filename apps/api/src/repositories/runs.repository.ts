@@ -1,4 +1,4 @@
-import { runEventPageSize } from '@repo/shared';
+import { runEventPageSize, type Handoff, type RecipientAgent } from '@repo/shared';
 import {
   and,
   asc,
@@ -106,6 +106,35 @@ export function history(db: Db, a: SchoolActor, agentId: AgentId) {
     )
     .orderBy(desc(runs.createdAt))
     .limit(100);
+}
+/** One status per actual delegation. Neither the child session nor the original tool ID is public. */
+export async function recipientHandoffs(
+  db: Db,
+  actor: SchoolActor,
+  classId: string,
+  recipient: RecipientAgent,
+) {
+  const result = await db.execute<Handoff>(sql`
+    with activities as (
+      select r.id as parent_id, r.prompt, r.created_at, e.id as sequence,
+        e.body->>'id' as activity, e.body->>'agentId' as recipient,
+        case when e.body->>'name'='subagent_return' then 'returned'
+          else e.body->>'status' end as phase
+      from agent_runs r join run_events e on e.run_id=r.id
+      where r.school_id=${actor.schoolId} and r.owner_id=${actor.ownerId}
+        and r.membership_id=${actor.membershipId} and r.class_id=${classId}
+        and r.role='teacher' and r.agent_id='jaew'
+        and e.body->>'type'='tool' and e.body->>'agentId'=${recipient} and e.body->>'id'<>''
+        and ((e.body->>'name'='subagent' and e.body->>'status' in ('started','success','failed'))
+          or (e.body->>'name'='subagent_return' and e.body->>'status'='success'))
+    )
+    select parent_id as "parentRunId", 'handoff-' || min(sequence) as "handoffId",
+      recipient as "agentId", (array_agg(phase order by sequence desc))[1] as status,
+      prompt, to_char(created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "createdAt"
+    from activities group by parent_id,activity,recipient,prompt,created_at
+    having bool_or(phase='started')
+    order by max(sequence) desc limit 100`);
+  return result.rows;
 }
 export function events(db: Db, runId: string, cursor: number) {
   return db

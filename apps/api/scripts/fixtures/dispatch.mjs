@@ -36,8 +36,17 @@ export class SchoolDispatch extends WorkerEntrypoint {
         kahootId: 'fixture',
         text: 'Fixture Kahoot ready',
       };
+      const tool = (name, agentId, status, id) => ({ type: 'tool', name, agentId, status, id });
       return new Response(
-        [receipt, receipt, { type: 'done', elapsedMs: 1 }]
+        [
+          tool('subagent', 'jeng', 'started', 'private-fixture'),
+          tool('subagent', 'nun', 'started', 'private-fixture-2'),
+          tool('subagent', 'jeng', 'success', 'private-fixture'),
+          tool('subagent_return', 'jeng', 'success', 'private-fixture'),
+          receipt,
+          receipt,
+          { type: 'done', elapsedMs: 1 },
+        ]
           .map((e) => 'data: ' + JSON.stringify(e) + '\n\n')
           .join(''),
       );
