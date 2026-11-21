@@ -218,6 +218,30 @@ describe('scores from published forms', () => {
     });
   });
 
+  it('records the form for the room the teacher named when the session has no room', async () => {
+    const demo = { ...teacher, classId: undefined };
+    request.mockResolvedValueOnce(
+      Response.json({ ...form, formId: 'named', url: form.url.replace('/sample/', '/named/') }),
+    );
+    await saveAssessment.execute({ ...quiz, grade: 'ม.2', classLabel: 'ม.2/1' }, demo);
+    request.mockResolvedValueOnce(Response.json(responseBody('named')));
+    expect(await getScores.execute({ classLabel: 'ม.2/1' }, demo)).toMatchObject({
+      mode: 'form',
+      classId: 'class-m2-1',
+    });
+    request.mockResolvedValueOnce(
+      Response.json({
+        ...form,
+        formId: 'untaught',
+        url: form.url.replace('/sample/', '/untaught/'),
+      }),
+    );
+    await saveAssessment.execute({ ...quiz, grade: 'ม.2', classLabel: 'ม.2/3' }, demo);
+    expect(await getScores.execute({ classLabel: 'ม.2/2' }, demo)).toMatchObject({
+      mode: 'sample',
+    });
+  });
+
   it('isolates answers by teacher and room and rejects untaught rooms before fetching', async () => {
     await publish('private-form');
     await publish('private-form', otherTeacher);

@@ -81,21 +81,33 @@ export const publisher = {
   },
 };
 
-export const saveAssessment = validatedTool(assessmentSchema, {
+const saveInputSchema = assessmentSchema.extend({ classLabel: z.string().max(40).optional() });
+
+function formClassId(ownerId: string, grade: string, classLabel: string | undefined) {
+  const rooms = classesOf(ownerId);
+  for (const wanted of [classLabel, grade]) {
+    if (!wanted) continue;
+    const label = normalizeClassLabel(wanted);
+    const room = rooms.find(
+      (room) => room.id === wanted.trim() || normalizeClassLabel(room.label) === label,
+    );
+    if (room) return room.id;
+  }
+  const level = normalizeClassLabel(grade);
+  const matching = rooms.filter(({ label }) => normalizeClassLabel(label).split('/')[0] === level);
+  return matching.length === 1 ? matching[0]?.id : undefined;
+}
+
+export const saveAssessment = validatedTool(saveInputSchema, {
   name: 'save_assessment',
   description:
-    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร เมื่อบันทึกฟอร์มให้ห้องสำเร็จ get_scores ใช้ mode form เมื่อมีคำตอบทดสอบ หรือ mode sample เมื่อใช้ข้อมูลตัวอย่าง',
+    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ถ้าครูระบุห้อง ให้ใส่ classLabel เช่น ม.2/1 เพื่อให้ get_scores อ่านคำตอบของห้องนั้น ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร เมื่อบันทึกฟอร์มให้ห้องสำเร็จ get_scores ใช้ mode form เมื่อมีคำตอบทดสอบ หรือ mode sample เมื่อใช้ข้อมูลตัวอย่าง',
   gate: 'allow',
-  execute: async (input, context) => {
+  execute: async ({ classLabel, ...input }, context) => {
     const published = await saveVerifiedAssessment(input, context.signal, context.scope);
     if (published.mode === 'apps-script') {
       const ownerId = ownerOf(context).id;
-      const grade = normalizeClassLabel(input.grade);
-      const matchingRooms = classesOf(ownerId).filter(
-        ({ label }) => normalizeClassLabel(label).split('/')[0] === grade,
-      );
-      const classId =
-        classOf(context) ?? (matchingRooms.length === 1 ? matchingRooms[0]?.id : undefined);
+      const classId = classOf(context) ?? formClassId(ownerId, input.grade, classLabel);
       if (classId) {
         recordForm({
           formId: published.formId,
