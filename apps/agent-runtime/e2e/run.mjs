@@ -495,6 +495,39 @@ check(
   principalOut.slice(0, 200),
 );
 
+console.log('# fraction_addition_form is a fallback only');
+const sessionOf = (evs) => evs.find((e) => e.sessionID)?.sessionID;
+const inSession = (sid, text2) => run(['--agent', 'jum', '--session', sid, text2]);
+let evF = run(['--agent', 'jum', 'CALL fraction_addition_form {"count":3}']);
+const fallbackSession = sessionOf(evF);
+check(
+  'fraction_addition_form is refused before any failed check',
+  tool(evF)?.state?.status === 'error' &&
+    /fallback_not_allowed|ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
+  JSON.stringify(tool(evF)?.state),
+);
+evF = inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
+evF = inSession(fallbackSession, 'CALL fraction_addition_form {"count":3}');
+check(
+  'it is still refused after one failed check',
+  tool(evF)?.state?.status === 'error' && /ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
+  JSON.stringify(tool(evF)?.state),
+);
+evF = inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
+evF = inSession(fallbackSession, 'CALL fraction_addition_form {"count":3}');
+check(
+  'it runs after two failed checks in the same session and returns a real Google Form link',
+  tool(evF)?.state?.status === 'completed' &&
+    (tool(evF)?.state?.output ?? '').includes('docs.google.com/forms/d/form_e2e_1'),
+  JSON.stringify(tool(evF)?.state).slice(0, 300),
+);
+evF = run(['--agent', 'jum', 'CALL fraction_addition_form {"count":3}']);
+check(
+  'a different session cannot borrow those failures',
+  tool(evF)?.state?.status === 'error' && /ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
+  JSON.stringify(tool(evF)?.state),
+);
+
 console.log('# secretary delegates');
 const sessionsOf = async (agent) =>
   ((await api('/api/session')).data ?? []).filter((x) => x.agent === agent);

@@ -90,6 +90,18 @@ describe('teacher agents', () => {
 });
 
 describe('jum main loop', () => {
+  it('writes questions first and uses the template only after two consecutive failed checks', () => {
+    const text = byId['jum']?.instructions ?? '';
+    expect(text.indexOf('เขียนโจทย์เองโดยใช้ข้อมูลจากความจำและหลักสูตร')).toBeLessThan(
+      text.indexOf('เรียก check_assessment'),
+    );
+    expect(text).toContain(
+      'ใช้ fraction_addition_form เป็นทางสำรองเมื่อ check_assessment คืน ok เป็น false สองครั้งติดกันในเซสชันเดียวกันเท่านั้น',
+    );
+    expect(text).toContain('ห้ามเรียก fraction_addition_form ก่อนตรวจไม่ผ่านสองครั้งติดกัน');
+    expect(text).toContain('ใช้แบบมาตรฐานเพราะชุดที่เขียนเองไม่ผ่านการตรวจ');
+  });
+
   it('calls make_file only when the teacher asks for a file', () => {
     const text = byId['jum']?.instructions ?? '';
     expect(text).toContain('ห้ามเรียก make_file ในวงจรปกติ');
