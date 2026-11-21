@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import { jaew } from '../src/agents/jaew';
+import { nun } from '../src/agents/nun';
+import { decide, permissionsFor } from '../src/permissions';
+
+const text = jaew.instructions;
+
+describe('jaew lesson preparation flow', () => {
+  it('reads the room, memory and the history before asking, in that order', () => {
+    const steps = [
+      '(1) จับชื่อห้อง',
+      '(2) เรียก memory_search',
+      '(3) ส่งงานให้ nun',
+      '(5) สรุปให้ครู 3-4 บรรทัด',
+      '(6) เมื่อครูเลือกแล้ว',
+    ];
+    const positions = steps.map((step) => text.indexOf(step));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it('asks before doing and offers the six choices with the exact labels', () => {
+    for (const label of [
+      '1) สื่อการสอน/สไลด์ — พี่เจ๋ง',
+      '2) ใบงาน/การบ้าน — น้องจ๋ำ',
+      '3) แบบทดสอบ Google Form — น้องจ๋ำ',
+      '4) เกม Kahoot — พี่เจ๋ง',
+      '5) กิจกรรมในคาบ — พี่เจ๋ง',
+      '6) ข้อสอบ — น้องจ๋ำ',
+    ]) {
+      expect(text, label).toContain(label);
+    }
+    expect(text).toContain('ห้ามส่งงานสร้างสื่อก่อนครูเลือก');
+    expect(text).toContain('ห้ามเริ่มทำอะไรก่อนครูตอบ');
+    expect(text).toContain('เลือกได้หลายข้อ');
+  });
+
+  it('keeps memory of other rooms out and says plainly when there is no data', () => {
+    expect(text).toContain('ห้ามใช้ความจำที่ระบุห้องอื่น');
+    expect(text).toContain('ยังไม่มีข้อมูลคะแนนของห้องนี้');
+    expect(text).toContain('ห้ามเดาตัวเลข');
+  });
+
+  it('can start nun but not read scores itself', () => {
+    const rules = permissionsFor(jaew);
+    expect(decide(rules, 'subagent', ['nun'])).toBe('allow');
+    expect(decide(rules, 'get_scores', ['*'])).toBe('deny');
+  });
+
+  it('tells nun to pass the room label through and report refusals and missing data', () => {
+    expect(nun.instructions).toContain('classLabel');
+    expect(nun.instructions).toContain('class_not_taught');
+    expect(nun.instructions).toContain('ยังไม่มีข้อมูลคะแนนของห้องนี้');
+  });
+
+  it('is bound to the lesson-prep skill and still has no other skill', () => {
+    expect(jaew.skills).toEqual(['lesson-prep']);
+  });
+});

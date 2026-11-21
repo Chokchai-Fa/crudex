@@ -40,3 +40,8 @@ export const classHistories: Readonly<Record<string, ClassHistory | undefined>> 
   },
   'class-m2-2': undefined,
 };
+
+export function studentIdentity(index: number) {
+  const no = String(index + 1).padStart(2, '0');
+  return { studentId: 's-' + no, displayName: 'นักเรียนตัวอย่าง ' + no };
+}

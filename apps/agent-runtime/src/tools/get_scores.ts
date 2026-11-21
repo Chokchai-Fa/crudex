@@ -1,39 +1,40 @@
 import { z } from 'zod';
-import { assessment, questionTopics, results, sampleClassId } from '../data/sample';
-import { classOf, ToolError } from './identity';
+import {
+  classHistories,
+  studentIdentity,
+  teacherClasses,
+  type ClassHistory,
+} from '../data/class-history';
+import { classOf, ownerOf, ToolError } from './identity';
 import { validatedTool } from './validated';
 
-const threshold = assessment.maxScore * 0.5;
-
-const students = results.map((row, i) => {
-  const wrong = new Map<string, { wrong: number; total: number }>();
-  [...row].forEach((c, q) => {
-    const topic = questionTopics[q] as string;
-    const t = wrong.get(topic) ?? { wrong: 0, total: 0 };
-    t.total++;
-    if (c === 'x') t.wrong++;
-    wrong.set(topic, t);
+function countTopics(
+  row: string,
+  questionTopics: ClassHistory['questionTopics'],
+  counts = new Map<string, { wrong: number; total: number }>(),
+) {
+  [...row].forEach((answer, index) => {
+    const topic = questionTopics[index] as string;
+    const count = counts.get(topic) ?? { wrong: 0, total: 0 };
+    count.total++;
+    if (answer === 'x') count.wrong++;
+    counts.set(topic, count);
   });
-  const no = String(i + 1).padStart(2, '0');
-  return {
-    studentId: 's-' + no,
-    displayName: 'นักเรียนตัวอย่าง ' + no,
-    score: [...row].filter((c) => c === '1').length,
-    wrongTopics: [...wrong].filter(([, v]) => v.wrong > 0).map(([topic, v]) => ({ topic, ...v })),
-  };
-});
+  return counts;
+}
 
-function summarize() {
+function summarize({ assessment, questionTopics, results }: ClassHistory) {
+  const threshold = assessment.maxScore * 0.5;
   const byTopic = new Map<string, { wrong: number; total: number }>();
-  for (const row of results) {
-    [...row].forEach((c, q) => {
-      const topic = questionTopics[q] as string;
-      const t = byTopic.get(topic) ?? { wrong: 0, total: 0 };
-      t.total++;
-      if (c === 'x') t.wrong++;
-      byTopic.set(topic, t);
-    });
-  }
+  const students = results.map((row, index) => {
+    countTopics(row, questionTopics, byTopic);
+    const wrong = countTopics(row, questionTopics);
+    return {
+      ...studentIdentity(index),
+      score: [...row].filter((answer) => answer === '1').length,
+      wrongTopics: [...wrong].filter(([, v]) => v.wrong > 0).map(([topic, v]) => ({ topic, ...v })),
+    };
+  });
   const total = students.reduce((sum, s) => sum + s.score, 0);
   return {
     ...assessment,
@@ -54,14 +55,44 @@ function summarize() {
   };
 }
 
-export const getScores = validatedTool(z.strictObject({}), {
+function normalizeLabel(label: string) {
+  return label
+    .trim()
+    .replace(/\s+/gu, '')
+    .replace(/^([มป])\.?/u, '$1.');
+}
+
+export const getScores = validatedTool(z.strictObject({ classLabel: z.string().optional() }), {
   name: 'get_scores',
   description:
-    'ดูคะแนนตัวอย่างของห้องที่ครูสอน (ห้องมาจาก session ไม่ต้องระบุ) คืนค่าเฉลี่ย รายชื่อต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบตั้ง) หัวข้อที่ผิดมากสุด และรายคน ตัวเลขทุกตัวคำนวณโดยระบบ',
+    'ดูคะแนนตัวอย่างของห้องที่ครูสอน ระบุ classLabel เป็นชื่อห้อง เช่น ม.2/1 หรือรหัสห้องได้ ถ้าไม่ระบุจะใช้ห้องในเซสชันหรือห้องแรกที่ครูสอน คืนค่าเฉลี่ย รายชื่อต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบตั้ง) หัวข้อที่ผิดมากสุด และคะแนนรายคน ตัวเลขทุกตัวคำนวณโดยระบบ',
   gate: 'allow',
-  execute: (_input, context) => {
-    const classId = classOf(context);
-    if (classId !== sampleClassId) throw new ToolError('no_scores', 'ยังไม่มีคะแนนของห้องนี้');
-    return { classId, ...summarize() };
+  execute: ({ classLabel }, context) => {
+    const ownerId = ownerOf(context).id;
+    const rooms = Object.hasOwn(teacherClasses, ownerId) ? (teacherClasses[ownerId] ?? []) : [];
+    const sessionClassId = classOf(context);
+    const room =
+      classLabel !== undefined
+        ? rooms.find(
+            ({ id, label }) =>
+              id === classLabel.trim() || normalizeLabel(label) === normalizeLabel(classLabel),
+          )
+        : sessionClassId === undefined
+          ? rooms[0]
+          : rooms.find(({ id }) => id === sessionClassId);
+    if (!room) {
+      const labels = rooms.map(({ label }) => label).join(', ');
+      throw new ToolError(
+        'class_not_taught',
+        labels ? `เลือกได้เฉพาะห้องที่ครูสอน ได้แก่ ${labels}` : 'ยังไม่มีห้องที่ครูสอนในระบบ',
+      );
+    }
+
+    const { id: classId, label } = room;
+    const history = classHistories[classId];
+    if (!history) {
+      return { hasData: false, classId, label, message: 'ยังไม่มีข้อมูลคะแนนของห้องนี้' };
+    }
+    return { hasData: true, classId, label, ...summarize(history) };
   },
 });

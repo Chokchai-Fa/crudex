@@ -1,4 +1,4 @@
-import { results } from '../data/sample';
+import { classHistories, studentIdentity } from '../data/class-history';
 import { checkBrief } from '../lib/brief-guard';
 import { ownerOf, ToolError } from './identity';
 import type { ToolDefinition } from './types';
@@ -13,7 +13,9 @@ export interface PublishedBrief {
 /** In-process until the gateway stores briefs for the principal's page and the 07:00 alarm. */
 export const briefs: PublishedBrief[] = [];
 
-const studentNames = results.map((_, i) => 'นักเรียนตัวอย่าง ' + String(i + 1).padStart(2, '0'));
+const studentNames = Object.values(classHistories).flatMap(
+  (history) => history?.results.map((_, index) => studentIdentity(index).displayName) ?? [],
+);
 
 export const publishBrief: ToolDefinition = {
   name: 'publish_brief',

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sampleOwner } from '../src/data/sample';
 import sample from './fixtures/assessment-sample.json';
 import { tools } from '../src/tools';
 import { approvals, resetApprovals } from '../src/tools/approval-store';
@@ -52,6 +53,7 @@ it.each([
   ['send_email', { to: 'sample', subject: 's', body: {} }],
   ['submit_for_approval', { claimId: 'claim-sample', note: 3 }],
   ['get_scores', { classId: 'class-p5-3' }],
+  ['get_scores', { classLabel: 2 }],
   ['curriculum_lookup', { query: [] }],
   ['old_exam_search', { exam: 'OTHER' }],
   ['read_budget', { code: 4 }],
@@ -182,17 +184,85 @@ describe('assessment chain', () => {
 });
 
 describe('get_scores', () => {
-  it.each([{ classId: 'class-p5-3' }, { ownerId: 'unassigned-teacher' }])(
-    'has no scores for an unrelated or unassigned class (%j)',
-    async (identity) => {
-      await expect(call('get_scores', {}, ctx(identity))).rejects.toMatchObject({
-        code: 'no_scores',
+  it('lists only the teacher’s rooms when the requested room is not taught', async () => {
+    await expect(call('get_scores', { classLabel: 'ป.5/3' })).rejects.toMatchObject({
+      code: 'class_not_taught',
+      message: 'เลือกได้เฉพาะห้องที่ครูสอน ได้แก่ ป.5/2, ม.2/1, ม.2/2',
+    });
+    await expect(call('get_scores', {}, ctx({ classId: 'class-p5-3' }))).rejects.toMatchObject({
+      code: 'class_not_taught',
+    });
+  });
+
+  it('refuses an unassigned owner even with a valid room in both input and context', async () => {
+    await expect(
+      call(
+        'get_scores',
+        { classLabel: 'ม.2/1' },
+        ctx({ ownerId: 'unassigned-teacher', classId: 'class-m2-1' }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'class_not_taught',
+      message: 'ยังไม่มีห้องที่ครูสอนในระบบ',
+    });
+  });
+
+  it.each(['ม2/1', '  ม. 2/1  ', 'ม.2/1', 'class-m2-1'])(
+    'resolves %s to the same room',
+    async (classLabel) => {
+      expect(await call('get_scores', { classLabel })).toMatchObject({
+        classId: 'class-m2-1',
+        label: 'ม.2/1',
+        hasData: true,
       });
     },
   );
 
-  it('computes class numbers by code', async () => {
-    const r = await call('get_scores', {}, ctx({ classId: 'class-p5-2', ownerId: 't' }));
+  it.each(['ป5/2', '  ป. 5/2  ', 'ป.5/2'])('resolves %s to ป.5/2', async (classLabel) => {
+    expect(await call('get_scores', { classLabel })).toMatchObject({ label: 'ป.5/2' });
+  });
+
+  it('uses the session room when no room is requested', async () => {
+    expect(await call('get_scores', {}, ctx({ classId: 'class-m2-1' }))).toMatchObject({
+      classId: 'class-m2-1',
+    });
+  });
+
+  it('returns a message without scores for a taught room with no history', async () => {
+    expect(await call('get_scores', { classLabel: 'ม.2/2' })).toEqual({
+      hasData: false,
+      classId: 'class-m2-2',
+      label: 'ม.2/2',
+      message: 'ยังไม่มีข้อมูลคะแนนของห้องนี้',
+    });
+  });
+
+  it('computes the scores and topic counts for ม.2/1', async () => {
+    const r = await call('get_scores', { classLabel: 'ม.2/1' });
+    expect(r).toMatchObject({
+      title: 'ตัวอย่าง: แบบฝึกหัดพีทาโกรัส ม.2/1',
+      topic: 'ทฤษฎีบทพีทาโกรัส',
+      maxScore: 6,
+      threshold: 3,
+      n: 8,
+      mean: 3.5,
+    });
+    expect(r.students.map((student: { score: number }) => student.score)).toEqual([
+      4, 3, 5, 2, 3, 4, 6, 1,
+    ]);
+    expect(r.belowThreshold).toEqual([
+      { studentId: 's-04', displayName: 'นักเรียนตัวอย่าง 04', score: 2 },
+      { studentId: 's-08', displayName: 'นักเรียนตัวอย่าง 08', score: 1 },
+    ]);
+    expect(r.wrongByTopic).toEqual([
+      { topic: 'การประยุกต์ทฤษฎีบทพีทาโกรัส', wrong: 15, total: 24, wrongRate: 0.625 },
+      { topic: 'ทฤษฎีบทพีทาโกรัส', wrong: 5, total: 24, wrongRate: 0.208 },
+    ]);
+  });
+
+  it('defaults to the teacher’s first room and preserves its numbers', async () => {
+    const r = await call('get_scores', {}, ctx({ ownerId: sampleOwner }));
+    expect(r.label).toBe('ป.5/2');
     expect(r.n).toBe(20);
     expect(r.mean).toBe(6.8);
     expect(r.threshold).toBe(5);
