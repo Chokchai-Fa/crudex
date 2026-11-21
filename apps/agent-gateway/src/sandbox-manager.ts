@@ -53,6 +53,7 @@ export class SandboxManager extends DurableObject<Env> {
             : this.transition
               ? 'starting'
               : 'stopped',
+        runtimeRevision: this.sandbox?.revision,
         startedAt: this.sandbox?.startedAt,
         lastUsedAt: this.sandbox?.lastUsedAt,
         runsToday: countToday(usage, Date.now()),

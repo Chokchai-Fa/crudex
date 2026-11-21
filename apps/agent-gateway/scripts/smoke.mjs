@@ -36,8 +36,18 @@ for (;;) {
   });
   assert.equal(catalog.status, 200);
   const ids = (await catalog.json()).map(({ id }) => id);
-  if (JSON.stringify(ids) === JSON.stringify(expectedIds)) break;
-  if (performance.now() >= deadline) assert.deepEqual(ids, expectedIds);
+  const current = await fetch(new URL('/api/status', AGENT_URL), {
+    headers: { cookie },
+    signal: AbortSignal.timeout(15_000),
+  });
+  assert.equal(current.status, 200);
+  const { runtimeRevision } = await current.json();
+  const revisionMatches = !process.env.GITHUB_SHA || runtimeRevision === process.env.GITHUB_SHA;
+  if (revisionMatches && JSON.stringify(ids) === JSON.stringify(expectedIds)) break;
+  if (performance.now() >= deadline) {
+    assert.deepEqual(ids, expectedIds);
+    assert(revisionMatches, 'Sandbox did not switch to the deployed revision');
+  }
   console.log('Waiting for the teacher catalog after deploy');
   await delay(15_000);
 }
