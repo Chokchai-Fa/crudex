@@ -23,13 +23,15 @@ async function digest(token: string) {
     new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))),
   );
 }
-async function newSession() {
+export async function newCredential() {
   const token = hex(crypto.getRandomValues(new Uint8Array(32)));
   return {
     token,
     digest: await digest(token),
-    expiresAt: new Date(Date.now() + sessionSeconds * 1000),
   };
+}
+async function newSession() {
+  return { ...(await newCredential()), expiresAt: new Date(Date.now() + sessionSeconds * 1000) };
 }
 
 export async function loadSchoolActor(deps: Deps, scope: repo.ActorScope): Promise<SchoolActor> {

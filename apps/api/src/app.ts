@@ -1,3 +1,4 @@
+import { adminRoutes } from './routes/admin.routes';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { HTTPException } from 'hono/http-exception';
@@ -56,6 +57,7 @@ const app = new Hono<AppEnv>()
   .use((c, next) => (c.req.path === schoolKahootCallbackPath ? next() : logRequest(c, next)))
   .use(depsMiddleware)
   .route('/', memoryRoutes)
+  .route('/admin', adminRoutes)
   .route('/', meRoutes)
   .route('/', runRoutes)
   .route('/', classroomRoutes)

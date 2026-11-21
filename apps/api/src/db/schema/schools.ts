@@ -98,3 +98,10 @@ export const schoolSessions = pgTable('school_sessions', {
     .references(() => schoolMemberships.id),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
+
+// Operator-managed bootstrap grant. School roles cannot create or delegate this privilege.
+export const platformAdmins = pgTable('platform_admins', {
+  accountId: uuid('account_id')
+    .primaryKey()
+    .references(() => schoolAccounts.id),
+});

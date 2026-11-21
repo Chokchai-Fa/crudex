@@ -42,7 +42,7 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const path = useRouterState({ select: (state) => state.location.pathname });
-  return path === '/school' || path.startsWith('/play/') ? (
+  return ['/school', '/admin', '/account'].includes(path) || path.startsWith('/play/') ? (
     <AppShell>
       <Outlet />
     </AppShell>
