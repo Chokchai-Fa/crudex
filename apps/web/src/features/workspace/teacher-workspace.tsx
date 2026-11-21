@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { BookOpen, Send } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -66,21 +67,34 @@ export function TeacherWorkspace() {
   }
 
   return (
-    <section className="teacher-chat grid items-start gap-3 rounded-3xl bg-muted p-2 sm:gap-4 sm:p-5 lg:grid-cols-[10rem_minmax(0,1fr)_11rem] print:block print:bg-white print:p-0">
+    <main className="teacher-chat grid min-h-dvh content-start gap-3 bg-muted px-2 pb-2 pt-[env(safe-area-inset-top)] sm:px-4 lg:content-stretch lg:grid-cols-[minmax(12rem,22fr)_minmax(0,55fr)_minmax(12rem,23fr)] lg:gap-0 lg:px-0 lg:pb-0 print:block print:min-h-0 print:bg-white print:p-0">
       <nav
         aria-label="พื้นที่ครู"
-        className="grid grid-cols-[1fr_auto] items-center gap-x-2 px-1 lg:flex lg:flex-col lg:items-stretch lg:gap-3 print:hidden"
+        className="grid grid-cols-[1fr_auto] items-center gap-x-2 px-2 lg:flex lg:flex-col lg:items-stretch lg:gap-3 lg:border-e lg:p-5 print:hidden"
       >
-        <p className="text-sm font-semibold">
+        <Link
+          to="/"
+          aria-label="Crudex · เลือกบทบาท"
+          className="inline-flex min-h-11 w-fit items-center rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <img
+            src="/roles/brand.png"
+            alt=""
+            width="122"
+            height="27"
+            className="w-28 rounded dark:bg-white dark:p-1 lg:w-[122px]"
+          />
+        </Link>
+        <p className="col-start-1 row-start-2 text-sm font-semibold">
           ครูผู้สอน <span className="text-muted-foreground font-normal">· บัญชีตัวอย่าง</span>
         </p>
         <Link
           to="/"
-          className="inline-flex min-h-11 items-center justify-end text-sm underline lg:order-last lg:justify-start"
+          className="col-start-2 row-start-1 inline-flex min-h-11 items-center justify-end text-sm underline lg:order-last lg:justify-start"
         >
           สลับบทบาท
         </Link>
-        <div className="flex items-center gap-2 lg:flex-col lg:items-stretch">
+        <div className="col-start-1 flex items-center gap-2 lg:flex-col lg:items-stretch">
           <Label htmlFor="room">ห้อง</Label>
           <NativeSelect id="room" value={room} onChange={(event) => switchRoom(event.target.value)}>
             {rooms.map((name) => (
@@ -100,7 +114,7 @@ export function TeacherWorkspace() {
           </Link>
         </Button>
       </nav>
-      <div className="min-w-0 space-y-4 rounded-2xl border bg-card p-4 sm:p-5 print:border-0 print:p-0">
+      <div className="min-w-0 space-y-4 rounded-2xl border bg-card p-4 sm:p-5 lg:rounded-none lg:border-0 print:border-0 print:p-0">
         <header className="flex items-center gap-3 border-b pb-3">
           <img
             src="/agents/jaew.svg"
@@ -112,6 +126,9 @@ export function TeacherWorkspace() {
           <div>
             <h1 className="text-2xl font-semibold">น้องแจ๋ว · เลขาครู</h1>
             <p className="text-sm text-muted-foreground">ห้อง {room} · บทสนทนาตัวอย่าง</p>
+          </div>
+          <div className="ms-auto shrink-0">
+            <ThemeToggle />
           </div>
         </header>
         {!request && !pending[room] && (
@@ -220,7 +237,7 @@ export function TeacherWorkspace() {
           )}
         </div>
       </div>
-      <aside className="space-y-2 rounded-2xl border bg-card p-4 print:hidden">
+      <aside className="space-y-2 rounded-2xl border bg-card p-4 lg:rounded-none lg:border-0 lg:border-s lg:p-5 print:hidden">
         <h2 className="font-semibold">สถานะงาน · {room}</h2>
         {request && !pending[room] ? (
           <dl className="space-y-3 text-sm">
@@ -239,6 +256,6 @@ export function TeacherWorkspace() {
           </p>
         )}
       </aside>
-    </section>
+    </main>
   );
 }

@@ -28,8 +28,11 @@ export const Route = createRootRoute({
 });
 
 function RootLayout() {
-  const landing = useRouterState({ select: (state) => state.location.pathname === '/' });
-  return landing ? (
+  const standalone = useRouterState({
+    select: (state) =>
+      state.matches.some(({ routeId }) => routeId === '/' || routeId === '/teacher'),
+  });
+  return standalone ? (
     <Outlet />
   ) : (
     <AppShell>
