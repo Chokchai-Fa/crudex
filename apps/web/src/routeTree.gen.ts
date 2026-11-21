@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GradebookRouteImport } from './routes/gradebook'
+import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as PrincipalRouteImport } from './routes/principal'
 import { Route as ReportsRouteImport } from './routes/reports'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const GradebookRoute = GradebookRouteImport.update({
   id: '/gradebook',
   path: '/gradebook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MemoryRoute = MemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -56,6 +62,7 @@ const StudentRoomIdRoute = StudentRoomIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/gradebook': typeof GradebookRoute
+  '/memory': typeof MemoryRoute
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/gradebook': typeof GradebookRoute
+  '/memory': typeof MemoryRoute
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/gradebook': typeof GradebookRoute
+  '/memory': typeof MemoryRoute
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/gradebook'
+    | '/memory'
     | '/notes'
     | '/principal'
     | '/reports'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/gradebook'
+    | '/memory'
     | '/notes'
     | '/principal'
     | '/reports'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/gradebook'
+    | '/memory'
     | '/notes'
     | '/principal'
     | '/reports'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GradebookRoute: typeof GradebookRoute
+  MemoryRoute: typeof MemoryRoute
   NotesRoute: typeof NotesRoute
   PrincipalRoute: typeof PrincipalRoute
   ReportsRoute: typeof ReportsRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/gradebook'
       fullPath: '/gradebook'
       preLoaderRoute: typeof GradebookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/memory': {
+      id: '/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof MemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GradebookRoute: GradebookRoute,
+  MemoryRoute: MemoryRoute,
   NotesRoute: NotesRoute,
   PrincipalRoute: PrincipalRoute,
   ReportsRoute: ReportsRoute,

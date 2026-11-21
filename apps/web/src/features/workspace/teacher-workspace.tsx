@@ -98,6 +98,11 @@ export function TeacherWorkspace() {
             สมุดคะแนน
           </Link>
         </Button>
+        <Button asChild variant="link" className="col-span-2 justify-start px-0">
+          <Link to="/memory" search={{ room }}>
+            ความจำของห้อง {room}
+          </Link>
+        </Button>
       </nav>
       <div className="min-w-0 space-y-4 rounded-2xl border bg-card p-4 sm:p-5 print:border-0 print:p-0">
         <header className="flex items-center gap-3 border-b pb-3">

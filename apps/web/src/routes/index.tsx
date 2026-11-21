@@ -25,7 +25,12 @@ const roles = [
 function RoleChooser() {
   const [notice, setNotice] = useState('');
   function resetDemo() {
-    if (!window.confirm('รีเซ็ตห้องที่เลือก ร่างคำสั่ง และใบงานตัวอย่างในแท็บนี้?')) return;
+    if (
+      !window.confirm(
+        'รีเซ็ตข้อมูลตัวอย่างทั้งหมดในแท็บนี้ รวมถึงร่าง ใบงาน ความชอบรายห้อง และสถานะส่งรายงาน?',
+      )
+    )
+      return;
     for (const key of Object.keys(sessionStorage)) {
       if (key.startsWith('crudex.demo.')) sessionStorage.removeItem(key);
     }
