@@ -2,7 +2,7 @@ export interface AgentDefinition {
   id: string;
   name: string;
   description: string;
-  mode: 'primary' | 'subagent';
+  mode: 'primary' | 'subagent' | 'all';
   model: string;
   instructions: string;
   tools: readonly string[];

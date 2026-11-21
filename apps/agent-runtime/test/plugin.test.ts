@@ -1,6 +1,7 @@
 import { Agent, type Plugin } from '@opencode/plugin';
 import { expect, it, vi } from 'vitest';
 import { createRuntimePlugin } from '../src/plugin';
+import { tools } from '../src/tools';
 
 type AgentEditor = Parameters<Parameters<Plugin.Context['agent']['transform']>[0]>[0];
 type ToolEditor = Parameters<Parameters<Plugin.Context['tool']['transform']>[0]>[0];
@@ -78,7 +79,7 @@ it('registers its agents, skills and tools and enforces the binding before asser
   });
 
   expect(removed.mock.calls.flat()).toEqual(['build', 'plan', 'general', 'explore']);
-  expect(setDefault).toHaveBeenCalledWith('test-agent');
+  expect(setDefault).toHaveBeenCalledWith('jaew');
   expect(installedAgent.model).toMatchObject({ providerID: 'openai', id: 'gpt-5.4-mini' });
   expect(installedAgent.permissions).toContainEqual({
     action: 'server_clock',
@@ -88,7 +89,7 @@ it('registers its agents, skills and tools and enforces the binding before asser
   expect(addSkill).toHaveBeenCalledWith(
     expect.objectContaining({ id: 'sample', content: 'Sample instructions.' }),
   );
-  expect([...registeredTools.keys()]).toEqual(['server_clock', 'restricted_probe']);
+  expect([...registeredTools.keys()]).toEqual(tools.map((tool) => tool.name));
   const clock = registeredTools.get('server_clock');
   const probe = registeredTools.get('restricted_probe');
   if (!clock || !probe || !evaluate) throw new Error('Incomplete plugin registration');
