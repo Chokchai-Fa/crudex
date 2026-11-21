@@ -37,6 +37,26 @@ The turn goes to the sandbox if:
 
 A direct reply can't delegate work or create materials. When a teacher asks for that, the turn is labelled `task`. [Direct reply module](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/src/direct-reply.ts)
 
+## OpenAI backend and rollback
+
+Agents are moving from the Vercel sandbox to the OpenAI API, one at a time, to remove sandbox start-up time. A ported agent runs in the gateway Worker. The Worker sends the agent's instructions, with its skills appended, to OpenAI and streams the reply as run events. It runs tool calls between model rounds:
+
+- **School API tools** (`get_scores`, `memory_search`…) call the same `/api/internal/runs/{id}/tools/*` callbacks as the runtime, using the attempt credential.
+- **Pure tools** (`calc`) run inside the Worker from the runtime's own tool modules.
+
+The agent definitions, skills and tool descriptions are imported from `apps/agent-runtime`, so both backends see the same text. OpenAI's hosted shell is not used: the ported tools don't need a container, and starting one would add latency and container charges.
+
+Two vars in `apps/agent-gateway/wrangler.toml` control it:
+
+| Var | Values | Effect |
+|-----|--------|--------|
+| `AGENT_BACKEND` | `openai` (current) or `vercel` | `vercel` sends every school turn to the sandbox, including Jaew's chat and memory turns |
+| `OPENAI_AGENTS` | Comma-separated agent IDs (currently `nun`) | Agents that run on OpenAI. Unlisted agents, and agents not yet ported, use the sandbox |
+
+**To roll back**, set `AGENT_BACKEND = "vercel"`, or remove an agent from `OPENAI_AGENTS`, then redeploy the gateway with the `deploy-agent.yml` workflow. The sandbox, `SandboxManager` and runtime bundle stay deployed until every agent has moved. A turn also falls back to the sandbox automatically when OpenAI refuses its first request.
+
+Ported so far: **Nun**, when a teacher chats with Nun directly. Work that Jaew hands to Nun still runs in the sandbox until Jaew is ported. [OpenAI backend](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/src/openai-backend.ts)
+
 [Run service](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/src/services/runs.service.ts) · [Dispatch entrypoint](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/src/school-dispatch.ts) · [Runtime integration](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-runtime/src/school.ts)
 
 ## Access and data ownership

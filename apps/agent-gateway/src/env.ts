@@ -12,6 +12,8 @@ export const envSchema = z.object({
   DAILY_RUN_LIMIT: z.coerce.number().int().positive().default(60),
   DAILY_RUN_LIMIT_OVERRIDES: z.record(z.iso.date(), z.number().int().positive()).optional(),
   IDLE_STOP_MINUTES: z.coerce.number().int().positive().default(10),
+  AGENT_BACKEND: z.enum(['vercel', 'openai']).default('vercel'),
+  OPENAI_AGENTS: z.string().default(''),
 });
 
 export type AgentConfig = z.infer<typeof envSchema>;
