@@ -10,7 +10,7 @@ export const submitForApproval = validatedTool(
     name: 'submit_for_approval',
     description:
       'ส่งเอกสารเบิกที่กรอกแล้วและไม่เกินงบเข้ากล่องอนุมัติของ ผอ. (กล่องในระบบ ไม่ส่งอีเมลออกนอกระบบ) ต้องมี claimId จาก fill_claim_form ของครูคนเดียวกัน',
-    gate: 'allow',
+    gate: 'ask',
     execute: ({ claimId, note }, context) => {
       const { id: ownerId, key } = ownerOf(context);
       const stored = getApprovalClaim(claimId, key);
