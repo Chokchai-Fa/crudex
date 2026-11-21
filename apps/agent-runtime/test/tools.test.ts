@@ -241,7 +241,7 @@ describe('get_scores', () => {
     const r = await call('get_scores', { classLabel: 'ม.2/1' });
     expect(r).toMatchObject({
       title: 'ตัวอย่าง: แบบฝึกหัดพีทาโกรัส ม.2/1',
-      topic: 'ทฤษฎีบทพีทาโกรัส',
+      topic: 'ทฤษฎีบทพีทาโกรัสและบทกลับ',
       maxScore: 6,
       threshold: 3,
       n: 8,
@@ -255,8 +255,13 @@ describe('get_scores', () => {
       { studentId: 's-08', displayName: 'นักเรียนตัวอย่าง 08', score: 1 },
     ]);
     expect(r.wrongByTopic).toEqual([
-      { topic: 'การประยุกต์ทฤษฎีบทพีทาโกรัส', wrong: 15, total: 24, wrongRate: 0.625 },
-      { topic: 'ทฤษฎีบทพีทาโกรัส', wrong: 5, total: 24, wrongRate: 0.208 },
+      {
+        topic: 'การนำความรู้เกี่ยวกับทฤษฎีบทพีทาโกรัสและบทกลับไปใช้ในชีวิตจริง',
+        wrong: 15,
+        total: 24,
+        wrongRate: 0.625,
+      },
+      { topic: 'ทฤษฎีบทพีทาโกรัสและบทกลับ', wrong: 5, total: 24, wrongRate: 0.208 },
     ]);
   });
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { indicators, topics } from '../data/indicators';
+import { curriculumIndicators as indicators, curriculumTopics as topics } from '../data/curriculum';
 import { validatedTool } from './validated';
 
 export const curriculumLookup = validatedTool(
@@ -11,7 +11,7 @@ export const curriculumLookup = validatedTool(
   {
     name: 'curriculum_lookup',
     description:
-      'ค้นตัวชี้วัดคณิตศาสตร์ของหลักสูตรแกนกลาง (ชุดที่มี: ป.5 สาระ ค 1.1, ค 2.1, ค 3.1) ใช้ id ตามที่คืนมาเท่านั้น ห้ามแต่งรหัสตัวชี้วัด' +
+      'ค้นตัวชี้วัดคณิตศาสตร์ของหลักสูตรแกนกลาง (ชุดที่มี: ป.5 สาระ ค 1.1, ค 2.1, ค 3.1 และ ม.2 สาระ ค 1.1, ค 1.2, ค 2.1, ค 2.2, ค 3.1) ใช้ id ตามที่คืนมาเท่านั้น ห้ามแต่งรหัสตัวชี้วัด' +
       ' คืน topics (ชื่อหัวข้อย่อยมาตรฐาน) ให้ใช้เป็นค่า topic ของข้อสอบตรงตัว',
     gate: 'allow',
     execute: ({ grade, query, id }) => {
