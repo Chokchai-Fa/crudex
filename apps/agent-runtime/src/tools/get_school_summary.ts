@@ -1,5 +1,5 @@
 import { activities, schoolClasses } from '../data/school';
-import { pendingApprovals } from './list_pending_approvals';
+import { pendingApprovals, pendingLabel } from './list_pending_approvals';
 import { thaiDate } from './server-clock';
 import { scoreLabel } from '../lib/score-label';
 import type { ToolDefinition } from './types';
@@ -38,6 +38,7 @@ export function schoolSummary(now = new Date()) {
     date: thaiDate(now),
     // Same box as list_pending_approvals and teacher_activity.
     pendingApprovals: pendingApprovals().length,
+    pendingApprovalsLabel: pendingLabel(pendingApprovals().length),
     thresholdRatio: THRESHOLD_RATIO,
     classes,
     flaggedClasses: classes.filter((c) => c.belowThreshold).map((c) => c.label),
@@ -61,7 +62,7 @@ export function schoolSummary(now = new Date()) {
 export const getSchoolSummary: ToolDefinition = {
   name: 'get_school_summary',
   description:
-    'สรุปข้อมูลโรงเรียนระดับห้องและระดับกิจกรรม (ตัวจำลอง: ข้อมูลตัวอย่าง) คืนวันที่วันนี้แบบ พ.ศ. (date.thai) จำนวนเอกสารรออนุมัติในกล่องจริง (pendingApprovals) ค่าเฉลี่ยรายห้องพร้อมหน่วย (meanLabel และ scoreLabel ให้ใช้ตรงตัว) ห้องที่ต่ำกว่าเกณฑ์ (flaggedClasses: ค่าเฉลี่ยห้องหรือหัวข้อใดหัวข้อหนึ่งได้ต่ำกว่า 50% ระบบกำหนด เหตุผลอยู่ใน belowThresholdReason) และงบรวมกับกิจกรรมที่ใกล้เต็ม ไม่มีข้อมูลรายคน ตัวเลขคำนวณโดยระบบ',
+    'สรุปข้อมูลโรงเรียนระดับห้องและระดับกิจกรรม (ตัวจำลอง: ข้อมูลตัวอย่าง) คืนวันที่วันนี้แบบ พ.ศ. (date.thai) จำนวนเอกสารรออนุมัติในกล่องจริง (pendingApprovals และ pendingApprovalsLabel ให้ใช้ตรงตัว) ค่าเฉลี่ยรายห้องพร้อมหน่วย (meanLabel และ scoreLabel ให้ใช้ตรงตัว) ห้องที่ต่ำกว่าเกณฑ์ (flaggedClasses: ค่าเฉลี่ยห้องหรือหัวข้อใดหัวข้อหนึ่งได้ต่ำกว่า 50% ระบบกำหนด เหตุผลอยู่ใน belowThresholdReason) และงบรวมกับกิจกรรมที่ใกล้เต็ม ไม่มีข้อมูลรายคน ตัวเลขคำนวณโดยระบบ',
   input: { type: 'object', properties: {}, additionalProperties: false },
   gate: 'allow',
   execute: () => schoolSummary(),

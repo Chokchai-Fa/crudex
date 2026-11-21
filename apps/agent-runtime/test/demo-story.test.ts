@@ -34,6 +34,8 @@ describe('one demo story: ม.2/1 on the teacher side is the principal headline'
     expect(seedSampleClaim()).toBe(false);
     expect((await call('list_pending_approvals')).count).toBe(1);
     expect(schoolSummary().pendingApprovals).toBe(1);
+    expect(schoolSummary().pendingApprovalsLabel).toBe('เอกสารรออนุมัติ 1 รายการ');
+    expect((await call('list_pending_approvals')).countLabel).toBe('เอกสารรออนุมัติ 1 รายการ');
     expect(approvals[0]).toMatchObject({
       id: sampleClaimId,
       claim: { overBudget: false, total: 750, remainingAfter: 5150 },
