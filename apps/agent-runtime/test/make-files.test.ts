@@ -95,3 +95,22 @@ it('never returns a fake id when the bridge fails or answers badly', async () =>
   vi.stubEnv('SCHOOL_BOT_APPS_SCRIPT_URL', '');
   await expect(makeSlides.execute({ title: 't', outline: ['a'] }, context)).rejects.toThrow();
 });
+
+it('accepts rendered worksheet text as content', async () => {
+  request.mockResolvedValueOnce(
+    Response.json({
+      ok: true,
+      fileId: 'pdfFileId000002',
+      url: 'https://drive.google.com/file/d/pdfFileId000002/view',
+    }),
+  );
+  await makeFile.execute(
+    { title: 'ใบงาน', format: 'pdf', content: '1) 3² + 4² = ?\nเฉลย: 25' },
+    context,
+  );
+  expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+    action: 'createPdf',
+    title: 'ใบงาน',
+    sections: [{ heading: 'ใบงาน', body: '1) 3² + 4² = ?\nเฉลย: 25' }],
+  });
+});

@@ -12,17 +12,19 @@ export const makeFile = validatedTool(
       .min(1)
       .max(40)
       .optional(),
+    content: nonBlank.max(60000).optional(),
   }),
   {
     name: 'make_file',
     description:
-      'ออกใบงานเป็นไฟล์ PDF จริงบน Google Drive (ทุกคนที่มีลิงก์ดูได้) จากชุดที่ผ่านการตรวจ ใส่ format เป็น pdf และ sections เป็นรายการ {heading, body} ที่มีเนื้อหาครบ คืน url และ label ข้อมูลตัวอย่าง ส่งลิงก์ตาม url ที่คืนมาเท่านั้น ยังไม่รองรับ docx ถ้าสร้างไม่สำเร็จให้บอกครูตรง ๆ ห้ามแต่งลิงก์',
+      'ออกใบงานเป็นไฟล์ PDF จริงบน Google Drive (ทุกคนที่มีลิงก์ดูได้) จากชุดที่ผ่านการตรวจ ใส่ format เป็น pdf และ content เป็นข้อความใบงานพร้อมเฉลยตามที่ check_assessment คืนมา (ไม่ต้องเรียบเรียงใหม่) หรือ sections เป็นรายการ {heading, body} คืน url และ label ข้อมูลตัวอย่าง ส่งลิงก์ตาม url ที่คืนมาเท่านั้น ยังไม่รองรับ docx ถ้าสร้างไม่สำเร็จให้บอกครูตรง ๆ ห้ามแต่งลิงก์',
     gate: 'allow',
-    execute: async ({ title, format, sections }, context) => {
+    execute: async ({ title, format, sections, content }, context) => {
       if (format !== 'pdf') throw new ToolError('unsupported_format', 'ตอนนี้สร้างได้เฉพาะ PDF');
-      if (!sections)
-        throw new ToolError('invalid_input', 'ใส่ sections ({heading, body}) ที่มีเนื้อหาใบงานครบ');
-      const file = await createBridgeFile('createPdf', { title, sections }, context.signal);
+      const parts = sections ?? (content ? [{ heading: title, body: content }] : undefined);
+      if (!parts)
+        throw new ToolError('invalid_input', 'ใส่ content หรือ sections ที่มีเนื้อหาใบงานครบ');
+      const file = await createBridgeFile('createPdf', { title, sections: parts }, context.signal);
       return {
         mode: 'apps-script',
         kind: 'pdf',
