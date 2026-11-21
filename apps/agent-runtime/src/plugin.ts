@@ -1,4 +1,5 @@
 import { Agent, Location, Model, Skill, type Plugin } from '@opencode/plugin';
+import { schoolCallbacks } from './school-callbacks';
 import { schoolTool, type SchoolScope } from './school';
 import { agents } from './agents';
 import { jeng } from './agents/jeng';
@@ -35,15 +36,6 @@ class ToolNotBound extends Error {
 const builtins = ['build', 'plan', 'general', 'explore'];
 const definitions = new Map(agents.map((agent) => [agent.id, agent]));
 
-const schoolCallbacks: Record<string, string> = {
-  memory_save: 'เสนอข้อความให้เจ้าของบัญชีอนุมัติ ก่อนเก็บเป็นความจำถาวร',
-  memory_search: 'ค้นข้อความที่เจ้าของบัญชีอนุมัติให้จำแล้ว',
-  get_scores: 'อ่านคะแนนและคะแนนเต็มที่บันทึกในห้องที่เลือก',
-  get_school_summary: 'อ่านยอดรวมห้อง นักเรียน คะแนน และรายงานของโรงเรียน',
-  teacher_activity: 'อ่านจำนวนงานที่เสร็จและใบงานที่สร้างในวันก่อนหน้า',
-  list_pending_approvals: 'อ่านคำขอที่รอการอนุมัติของโรงเรียน',
-  get_approval: 'อ่านรายละเอียดคำขอในโรงเรียนตามรหัส',
-};
 const schoolLocalTools = new Set([
   'calc',
   'server_clock',
