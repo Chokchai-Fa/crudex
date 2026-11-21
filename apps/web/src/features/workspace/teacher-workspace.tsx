@@ -71,6 +71,11 @@ export function TeacherWorkspace() {
             <option key={name}>{name}</option>
           ))}
         </select>
+        <Button asChild variant="outline">
+          <Link to="/gradebook" search={{ room }}>
+            สมุดคะแนน
+          </Link>
+        </Button>
       </div>
       <div className="space-y-3">
         <Label htmlFor="draft">ร่างคำสั่งสำหรับห้อง {room}</Label>
