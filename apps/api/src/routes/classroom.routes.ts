@@ -75,6 +75,20 @@ export const classroomRoutes = new Hono<AppEnv>()
         ),
       ),
   )
+  .post(
+    '/internal/runs/:id/tools/publish_brief',
+    idParam,
+    validate('json', z.object({ text: z.string().min(1).max(4000) })),
+    async (c) =>
+      c.json(
+        await classroom.publishBrief(
+          c.var.deps,
+          c.req.valid('param').id,
+          bearer(c.req.header('authorization')),
+          c.req.valid('json').text,
+        ),
+      ),
+  )
   .post('/internal/runs/:id/tools/get_school_summary', idParam, async (c) =>
     c.json(
       await classroom.principalTool(

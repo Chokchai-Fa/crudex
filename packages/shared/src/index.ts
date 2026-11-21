@@ -14,3 +14,4 @@ export {
   type SchoolKahootRpc,
 } from './school-dispatch.schema';
 export * from './admin.schema';
+export * from './morning-brief.schema';
