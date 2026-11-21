@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { curriculumIndicators as indicators } from '../data/curriculum';
+import { arrangeAnswers } from '../lib/answer-positions';
 import { pythagoreanIssues, reuseIssue, type SemanticQuestion } from '../lib/assessment-semantics';
 import { checkAssessment } from '../lib/fractions';
 import { recordCheckResult } from './check-failures';
@@ -82,6 +83,8 @@ export function runCheck(
       verifiedCount: result.verified.length,
       unverifiedCount: result.unverified.length,
       topics: [...byTopic].map(([topic, count]) => ({ topic, count })),
+      // The order to print in the chat worksheet: the answer keys are spread over ก-ง by code, not left where the model put them.
+      worksheetOrder: result.ok ? arrangeAnswers(assessment.questions) : undefined,
     },
   };
 }
@@ -89,7 +92,7 @@ export function runCheck(
 export const checkAssessmentTool = validatedTool(assessmentSchema, {
   name: 'check_assessment',
   description:
-    'ตรวจชุดข้อสอบด้วยโค้ด: คำนวณเศษส่วนจริง ตรวจเฉลย ตัวเลือกที่ค่าเท่ากันหลังย่อ และจำนวนข้อ (expectedCount = จำนวนที่ครูขอ) การหารเขียน (4/7)/(2/7) ข้อพีทาโกรัสต้องใส่ pythagorean {legA, legB, hypotenuse, ask} ระบุขา 2 ด้านกับด้านตรงข้ามมุมฉากและด้านที่ถาม ถ้าไม่ใส่ข้อนั้นจะนับเป็นยังไม่ได้ตรวจด้วยโค้ด ชุดที่ใช้ตัวเลขซ้ำกับชุดก่อนหน้าในเซสชันเดียวกันจะไม่ผ่าน ยกกำลังเขียน 7^2 รากที่สองเขียน sqrt(625) (ใช้ได้เมื่อลงตัวพอดีเท่านั้น) ถ้า ok เป็น false ให้แก้ตาม errors แล้วเรียกใหม่',
+    'ตรวจชุดข้อสอบด้วยโค้ด: คำนวณเศษส่วนจริง ตรวจเฉลย ตัวเลือกที่ค่าเท่ากันหลังย่อ และจำนวนข้อ (expectedCount = จำนวนที่ครูขอ) การหารเขียน (4/7)/(2/7) ข้อพีทาโกรัสต้องใส่ pythagorean {legA, legB, hypotenuse, ask} ระบุขา 2 ด้านกับด้านตรงข้ามมุมฉากและด้านที่ถาม ถ้าไม่ใส่ข้อนั้นจะนับเป็นยังไม่ได้ตรวจด้วยโค้ด ชุดที่ใช้ตัวเลขซ้ำกับชุดก่อนหน้าในเซสชันเดียวกันจะไม่ผ่าน ยกกำลังเขียน 7^2 รากที่สองเขียน sqrt(625) (ใช้ได้เมื่อลงตัวพอดีเท่านั้น) ถ้า ok เป็น true ผลมี worksheetOrder (ลำดับตัวเลือกและเฉลย ก-ง ที่ระบบสลับให้เฉลยกระจาย) ให้ใช้พิมพ์ใบงานในแชตตามลำดับนี้ ห้ามใช้ลำดับที่เขียนเอง ถ้า ok เป็น false ให้แก้ตาม errors แล้วเรียกใหม่',
   gate: 'allow',
   execute: (input, context) => {
     const { assessment, result } = runCheck(input, { defaultFloor: true });

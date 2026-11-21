@@ -604,3 +604,36 @@ describe('semantic checks and reused numbers', () => {
     );
   });
 });
+
+describe('worksheet order for the chat draft', () => {
+  it('spreads the keys over ก-ง, keeps each key correct and is stable for the same set', async () => {
+    const allFirst = structuredClone(sample);
+    for (const q of allFirst.questions) {
+      const key = q.choices.find((c) => c.id === q.correctChoiceId)!;
+      q.choices = [key, ...q.choices.filter((c) => c !== key)];
+    }
+    const first = await call('check_assessment', allFirst);
+    expect(first.ok).toBe(true);
+    const counts: Record<string, number> = {};
+    for (const q of first.worksheetOrder as {
+      id: string;
+      answer: string;
+      choices: { id: string }[];
+    }[]) {
+      counts[q.answer] = (counts[q.answer] ?? 0) + 1;
+      const source = allFirst.questions.find((x) => x.id === q.id)!;
+      expect(q.choices['กขคง'.indexOf(q.answer)]?.id).toBe(source.correctChoiceId);
+      expect(q.choices.map((c) => c.id).sort()).toEqual(source.choices.map((c) => c.id).sort());
+    }
+    expect(Math.max(...Object.values(counts))).toBeLessThanOrEqual(3);
+    expect(
+      (await call('check_assessment', allFirst, ctx({ sessionID: 'again' }))).worksheetOrder,
+    ).toEqual(first.worksheetOrder);
+  });
+
+  it('gives no order for a set that failed the check', async () => {
+    const bad = structuredClone(sample);
+    bad.questions[0]!.correctChoiceId = 'c1';
+    expect((await call('check_assessment', bad)).worksheetOrder).toBeUndefined();
+  });
+});
