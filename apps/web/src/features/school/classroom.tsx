@@ -67,31 +67,67 @@ export function RunDetails({
   id,
   membershipId,
   status,
+  ack,
+  onRetry,
+  retryDisabled,
 }: {
   id: string;
   membershipId: string;
   status: keyof typeof statusLabels;
+  /** Instant client-side acknowledgement shown until the first real content arrives. */
+  ack?: string;
+  /** Sends the same request again; shown only after a failed or interrupted reply. */
+  onRetry?: () => void;
+  retryDisabled?: boolean;
 }) {
   const active = status === 'queued' || status === 'running';
   const { events, error, complete } = useRunEvents(membershipId, id, active);
-  const { answer, activity, notice, lastProposalId, final } = presentRun(status, events, complete);
+  const { answer, activity, notice, lastProposalId, final, phase } = presentRun(
+    status,
+    events,
+    complete,
+  );
+  const failed = phase === 'failed' || phase === 'interrupted';
+  const acking = !!ack && !answer && !failed && !notice && !error && !final;
 
   return (
     <div className="space-y-2">
       {answer && <SchoolAnswer text={answer} />}
-      {!error && activity && (
+      {acking && (
+        <p className="run-ack" role="status">
+          {ack}
+          <span className="typing-dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+        </p>
+      )}
+      {!error && activity && !(acking && /^(รอคิว|กำลังคิด)$/.test(activity)) && (
         <p className="school-run-activity" role="status">
           <LoaderCircle aria-hidden="true" />
           {activity}
         </p>
       )}
-      {notice && (
-        <p role="status" className="text-sm font-medium">
-          {notice}
-        </p>
+      {failed ? (
+        <div className="run-failed" role="status">
+          <p>ขอโทษค่ะ ระบบสะดุด ลองส่งอีกครั้งนะคะ</p>
+          {onRetry && (
+            <Button size="sm" disabled={retryDisabled} onClick={onRetry}>
+              ส่งอีกครั้ง
+            </Button>
+          )}
+          {notice && <small className="w-full text-muted-foreground">{notice}</small>}
+        </div>
+      ) : (
+        notice && (
+          <p role="status" className="text-sm font-medium">
+            {notice}
+          </p>
+        )
       )}
       {error && <p role="alert">ยังโหลดคำตอบไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ</p>}
-      {!answer && !activity && !notice && !error && !lastProposalId && (
+      {!answer && !activity && !notice && !error && !lastProposalId && !acking && (
         <p className="text-sm text-muted-foreground" role="status">
           {final ? 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ' : 'กำลังอ่านคำตอบ…'}
         </p>
