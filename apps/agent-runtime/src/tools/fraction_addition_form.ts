@@ -62,7 +62,7 @@ export function additionWorksheet(count: number) {
 export const fractionAdditionForm: ToolDefinition = {
   name: 'fraction_addition_form',
   description:
-    'ใช้เป็นทางสำรองเมื่อ check_assessment คืน ok เป็น false สองครั้งติดกันในเซสชันเดียวกัน จ๋ำสร้างใบงานปรนัย 4 ตัวเลือก เรื่องการบวกเศษส่วน ป.5 ตรวจทุกข้อด้วยโค้ด และสร้าง Google Form จริงในครั้งเดียว ใส่จำนวนข้อเท่านั้น ระบบแสดงใบงาน เฉลยและลิงก์ในแชตโดยตรง',
+    'ใช้เป็นทางสำรองเมื่อ check_assessment คืน ok เป็น false สองครั้งติดกันในเซสชันเดียวกัน จ๋าสร้างใบงานปรนัย 4 ตัวเลือก เรื่องการบวกเศษส่วน ป.5 ตรวจทุกข้อด้วยโค้ด และสร้าง Google Form จริงในครั้งเดียว ใส่จำนวนข้อเท่านั้น ระบบแสดงใบงาน เฉลยและลิงก์ในแชตโดยตรง',
   input: {
     type: 'object',
     properties: { count: { type: 'integer', minimum: 1, maximum: 30 } },

@@ -687,3 +687,20 @@ describe('distractors from real mistakes', () => {
     expect((await run(leg(['14', '10', '100', '6']))).errors).toEqual([]);
   });
 });
+
+describe('worksheet text is plain', () => {
+  it('has no code fence, markdown table or bold marker in what the model must paste', async () => {
+    const r = await call('check_assessment', sample);
+    expect(r.ok).toBe(true);
+    for (const piece of [r.worksheet.text as string, r.worksheet.answers as string]) {
+      expect(piece).not.toContain('```');
+      expect(piece).not.toMatch(/^\s*\|/m);
+      expect(piece).not.toContain('**');
+    }
+  });
+
+  it('describes the paste rule in the tool description the model reads', async () => {
+    const { checkAssessmentTool } = await import('../src/tools/check_assessment');
+    expect(checkAssessmentTool.description).toContain('ห้ามครอบด้วย code fence');
+  });
+});
