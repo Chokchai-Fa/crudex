@@ -4,7 +4,13 @@ import type { Host } from './harness';
 export type RunEvent =
   | { type: 'session'; sessionId: string }
   | { type: 'delta'; text: string }
-  | { type: 'tool'; name: string; id: string; status: 'started' | 'success' | 'failed' }
+  | {
+      type: 'tool';
+      name: string;
+      id: string;
+      status: 'started' | 'success' | 'failed';
+      bridgeElapsedMs?: number;
+    }
   | { type: 'done'; elapsedMs: number }
   | { type: 'error'; code: string };
 
@@ -79,6 +85,7 @@ export function createTurnRunner(host: Host) {
       yield { type: 'session', sessionId: sessionID };
 
       const calls = new Map<string, string>();
+      const renderedWorksheets = new Set<string>();
       let rootDone = false;
       let rootText = '';
       for await (const event of host.event.subscribe(opts)) {
@@ -133,10 +140,27 @@ export function createTurnRunner(host: Host) {
             const name = calls.get(source + '/' + event.data.id);
             if (name) {
               calls.delete(source + '/' + event.data.id);
+              let bridgeElapsedMs: number | undefined;
               if (event.type === 'session.tool.success') {
                 const childId = event.data.metadata?.sessionID;
                 if (root && name === 'subagent' && typeof childId === 'string')
                   delegated.add(childId);
+                if (name === 'fraction_addition_form') {
+                  for (const part of event.data.content) {
+                    if (part.type !== 'text') continue;
+                    const output = JSON.parse(part.text);
+                    if (
+                      output.mode === 'apps-script' &&
+                      typeof output.worksheet === 'string' &&
+                      !renderedWorksheets.has(output.formUrl)
+                    ) {
+                      if (typeof output.bridgeElapsedMs === 'number')
+                        bridgeElapsedMs = output.bridgeElapsedMs;
+                      renderedWorksheets.add(output.formUrl);
+                      yield { type: 'delta', text: '\n\n' + output.worksheet + '\n\n' };
+                    }
+                  }
+                }
                 if (child && name === 'save_assessment') {
                   for (const part of event.data.content) {
                     if (part.type !== 'text') continue;
@@ -147,7 +171,7 @@ export function createTurnRunner(host: Host) {
                 }
               }
               const status = event.type === 'session.tool.success' ? 'success' : 'failed';
-              yield { type: 'tool', name, id: event.data.id, status };
+              yield { type: 'tool', name, id: event.data.id, status, bridgeElapsedMs };
             }
             break;
           }

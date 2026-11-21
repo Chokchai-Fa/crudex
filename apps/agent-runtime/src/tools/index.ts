@@ -1,3 +1,4 @@
+import { fractionAdditionForm } from './fraction_addition_form';
 import { decideApproval } from './decide_approval';
 import { getApproval } from './get_approval';
 import { getSchoolSummary } from './get_school_summary';
@@ -35,6 +36,7 @@ export const tools = [
   oldExamSearch,
   checkAssessmentTool,
   saveAssessment,
+  fractionAdditionForm,
   makeFile,
   searchProj14,
   makeSlides,

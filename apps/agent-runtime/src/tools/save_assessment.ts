@@ -84,18 +84,22 @@ export const saveAssessment: ToolDefinition = {
     'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร',
   input: assessmentSchema,
   gate: 'allow',
-  execute: async (input, context) => {
-    const { assessment, result } = runCheck(input);
-    if (!result.ok || result.unverified.length) {
-      const reasons = result.errors.map((error) => error.message).concat(result.unverified);
-      throw new ToolError('invalid_assessment', reasons.join('; '));
-    }
-    const { mode, formId, url, questions } = await publisher.publish(assessment, context.signal);
-    const published = questions?.map((question, index) => ({
-      id: assessment.questions[index]?.id,
-      choices: question.choices,
-      answer: 'กขคง'[question.answerIndex],
-    }));
-    return { formUrl: url, mode, formId, questions: published };
-  },
+  execute: (input, context) => saveVerifiedAssessment(input, context.signal),
 };
+
+export async function saveVerifiedAssessment(input: unknown, signal: AbortSignal) {
+  const { assessment, result } = runCheck(input);
+  if (!result.ok || result.unverified.length) {
+    const reasons = result.errors.map((error) => error.message).concat(result.unverified);
+    throw new ToolError('invalid_assessment', reasons.join('; '));
+  }
+  const bridgeStarted = performance.now();
+  const { mode, formId, url, questions } = await publisher.publish(assessment, signal);
+  const bridgeElapsedMs = Math.round(performance.now() - bridgeStarted);
+  const published = questions?.map((question, index) => ({
+    id: assessment.questions[index]?.id,
+    choices: question.choices,
+    answer: 'กขคง'[question.answerIndex],
+  }));
+  return { formUrl: url, mode, formId, questions: published, bridgeElapsedMs };
+}
