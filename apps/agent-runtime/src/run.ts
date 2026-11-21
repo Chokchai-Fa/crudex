@@ -51,6 +51,8 @@ export function createTurnRunner(host: Host) {
     const signal = AbortSignal.any([turn.signal, timeout, closeEvents.signal]);
     const opts = { signal };
     let sessionID: string | undefined;
+    const delegated = new Set<string>();
+    const children = new Map<string, { text: string; formUrl?: string; completed?: boolean }>();
     let promptSent = false;
     let finished = false;
 
@@ -77,6 +79,8 @@ export function createTurnRunner(host: Host) {
       yield { type: 'session', sessionId: sessionID };
 
       const calls = new Map<string, string>();
+      let rootDone = false;
+      let rootText = '';
       for await (const event of host.event.subscribe(opts)) {
         if (event.type === 'server.connected') {
           promptSent = true;
@@ -96,32 +100,67 @@ export function createTurnRunner(host: Host) {
           }
           continue;
         }
-        if (!('sessionID' in event.data) || event.data.sessionID !== sessionID) continue;
+        if (!('sessionID' in event.data)) continue;
+        const source = event.data.sessionID;
+        const root = source === sessionID;
+        if (!root && !children.has(source)) {
+          if (!turn.agent.subagents.length) continue;
+          if (
+            !delegated.has(source) &&
+            (await findSession(host, source, signal))?.parentID !== sessionID
+          )
+            continue;
+          children.set(source, { text: '' });
+        }
+        const child = children.get(source);
 
         switch (event.type) {
           case 'session.text.delta':
-            yield { type: 'delta', text: event.data.delta };
+            if (root) {
+              rootText += event.data.delta;
+              yield { type: 'delta', text: event.data.delta };
+            }
+            break;
+          case 'session.text.ended':
+            if (child) child.text += event.data.text + '\n';
             break;
           case 'session.tool.input.started':
-            calls.set(event.data.id, event.data.name);
+            calls.set(source + '/' + event.data.id, event.data.name);
             yield { type: 'tool', name: event.data.name, id: event.data.id, status: 'started' };
             break;
           case 'session.tool.success':
           case 'session.tool.failed': {
-            const name = calls.get(event.data.id);
+            const name = calls.get(source + '/' + event.data.id);
             if (name) {
-              calls.delete(event.data.id);
+              calls.delete(source + '/' + event.data.id);
+              if (event.type === 'session.tool.success') {
+                const childId = event.data.metadata?.sessionID;
+                if (root && name === 'subagent' && typeof childId === 'string')
+                  delegated.add(childId);
+                if (child && name === 'save_assessment') {
+                  for (const part of event.data.content) {
+                    if (part.type !== 'text') continue;
+                    const result = JSON.parse(part.text);
+                    if (result.mode === 'apps-script' && typeof result.formUrl === 'string')
+                      child.formUrl = result.formUrl;
+                  }
+                }
+              }
               const status = event.type === 'session.tool.success' ? 'success' : 'failed';
               yield { type: 'tool', name, id: event.data.id, status };
             }
             break;
           }
           case 'session.execution.succeeded':
-            finished = true;
-            yield { type: 'done', elapsedMs: Math.round(performance.now() - started) };
-            return;
+            if (root) rootDone = true;
+            if (child) child.completed = true;
+            break;
           case 'session.execution.failed':
           case 'session.execution.interrupted':
+            if (child) {
+              child.completed = false;
+              break;
+            }
             finished = true;
             yield {
               type: 'error',
@@ -130,6 +169,27 @@ export function createTurnRunner(host: Host) {
             };
             return;
         }
+        if (!rootDone) continue;
+        const results = [...delegated].map((id) => children.get(id));
+        if (results.some((result) => result?.completed === undefined)) continue;
+        for (const result of results) {
+          if (!result?.completed) {
+            yield { type: 'error', code: 'delegation_failed' };
+            return;
+          }
+          const reply = result.text.trim();
+          if (reply && !rootText.includes(reply)) yield { type: 'delta', text: '\n\n' + reply };
+          if (
+            result.formUrl &&
+            !rootText.includes(result.formUrl) &&
+            !reply.includes(result.formUrl)
+          ) {
+            yield { type: 'delta', text: '\n' + result.formUrl };
+          }
+        }
+        finished = true;
+        yield { type: 'done', elapsedMs: Math.round(performance.now() - started) };
+        return;
       }
       signal.throwIfAborted();
       yield { type: 'error', code: 'stream_closed' };
@@ -141,9 +201,14 @@ export function createTurnRunner(host: Host) {
       closeEvents.abort();
       if (sessionID) {
         if (promptSent && !finished) {
-          await host.session
-            .interrupt({ sessionID }, { signal: AbortSignal.timeout(2_000) })
-            .catch(() => undefined);
+          await Promise.allSettled(
+            [
+              sessionID,
+              ...[...delegated].filter((id) => children.get(id)?.completed === undefined),
+            ].map((id) =>
+              host.session.interrupt({ sessionID: id }, { signal: AbortSignal.timeout(2_000) }),
+            ),
+          );
         }
         activeSessions.delete(sessionID);
       }
