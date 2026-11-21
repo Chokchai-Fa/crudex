@@ -3,10 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as repo from '../src/repositories/identity.repository';
 
 import { createGuestSchool } from '../src/repositories/guest-school.repository';
-const { limiter } = vi.hoisted(() => ({ limiter: vi.fn() }));
-vi.mock('../src/lib/cache', () => ({
-  createCache: () => ({ multi: () => ({ incr: () => ({ expire: () => ({ exec: limiter }) }) }) }),
-}));
 vi.mock('../src/repositories/guest-school.repository');
 vi.mock('../src/repositories/identity.repository');
 const base = 'https://example.com/api';
@@ -80,7 +76,6 @@ describe('public school trial', () => {
   it.each(['teacher', 'principal'] as const)(
     'starts a %s session with server-generated scope',
     async (role) => {
-      limiter.mockResolvedValue([1, 1]);
       vi.mocked(repo.findMembership).mockResolvedValue({ ...scope, role, displayName: 'Guest' });
       vi.mocked(repo.listSchoolClasses).mockResolvedValue([]);
       const res = await post('/auth/guest', { role });
@@ -115,9 +110,13 @@ describe('public school trial', () => {
     ).toBe(409);
     expect(createGuestSchool).not.toHaveBeenCalled();
   });
-  it('limits public provisioning before inserting records', async () => {
-    limiter.mockResolvedValue([13, 1]);
-    expect((await post('/auth/guest', { role: 'principal' })).status).toBe(429);
-    expect(createGuestSchool).not.toHaveBeenCalled();
+  it('allows more than twelve guests on the same school network to start trials', async () => {
+    const headers = { 'CF-Connecting-IP': '192.0.2.1' };
+    for (let attempt = 0; attempt < 13; attempt++) {
+      const res = await post('/auth/guest', { role: 'teacher' }, headers);
+      expect(res.status).toBe(200);
+      await res.json();
+    }
+    expect(createGuestSchool).toHaveBeenCalledTimes(13);
   });
 });
