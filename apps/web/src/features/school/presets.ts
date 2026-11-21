@@ -23,6 +23,14 @@ export const presets: Preset[] = [
     background: true,
   },
   {
+    agent: 'jaew',
+    text: 'ทำเกม Kahoot พีทาโกรัส 5 ข้อ',
+    result: 'ได้เกม Kahoot',
+    enabled: true,
+    background: true,
+  },
+
+  {
     agent: 'jum',
     text: 'ทำใบงานพีทาโกรัส ม.2 5 ข้อ เป็น PDF',
     result: 'ได้ PDF ใบงาน',
