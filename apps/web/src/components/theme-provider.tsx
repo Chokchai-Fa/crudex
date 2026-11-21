@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, type ReactNode } from 'react';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -10,45 +10,18 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = 'theme';
 
-function readStoredTheme(): Theme {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
-  } catch {
-    return 'system';
-  }
-}
-
-function applyTheme(theme: Theme) {
-  const dark =
-    theme === 'dark' ||
-    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.classList.toggle('dark', dark);
-}
-
-/** Dark mode via the `.dark` class on <html>; follows the OS when set to "system". */
+/** The app ships a white theme only (design: tokens.css), whatever the OS or a saved choice says. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(readStoredTheme);
-
   useEffect(() => {
-    applyTheme(theme);
-    if (theme !== 'system') return;
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = () => applyTheme('system');
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, [theme]);
-
-  const setTheme = useCallback((next: Theme) => {
+    document.documentElement.classList.remove('dark');
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      localStorage.removeItem(STORAGE_KEY);
     } catch {
-      // Storage can be unavailable (private mode); the theme still applies for this session.
+      // Storage can be unavailable (private mode).
     }
-    setThemeState(next);
   }, []);
-
-  return <ThemeContext value={{ theme, setTheme }}>{children}</ThemeContext>;
+  const setTheme = useCallback((_next: Theme) => {}, []);
+  return <ThemeContext value={{ theme: 'light', setTheme }}>{children}</ThemeContext>;
 }
 
 export function useTheme() {

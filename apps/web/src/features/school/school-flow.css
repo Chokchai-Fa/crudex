@@ -394,10 +394,6 @@
   gap: 32px;
   padding: clamp(16px, 6vh, 72px) 0;
 }
-.role-picker > img {
-  height: 48px;
-  width: auto;
-}
 .role-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -492,10 +488,6 @@
   background: var(--card);
   border: 1.5px solid var(--border);
 }
-.school-bar > img {
-  height: 32px;
-  width: auto;
-}
 .school-panel {
   padding: 20px;
   border-radius: 22px;
@@ -555,9 +547,6 @@
   border-radius: 50%;
   background: #18b87a;
   box-shadow: 0 0 0 3px color-mix(in srgb, #18b87a 22%, transparent);
-}
-html:not(.dark) :is(.role-picker, .school-bar) > img {
-  mix-blend-mode: multiply;
 }
 .brief-tiles dd[data-text] {
   padding-top: 4px;

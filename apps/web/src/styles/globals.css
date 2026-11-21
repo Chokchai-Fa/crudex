@@ -33,6 +33,7 @@
   --ring: var(--primary);
   /* Paper design tokens (design/tokens.css) */
   --sidebar: #f6f9ff;
+  --page: #f6f9ff;
   --subtle-foreground: #6b7a99;
   --primary-hover: #1f56e0;
   --primary-softer: #eef4ff;
@@ -76,6 +77,7 @@
   --input: oklch(1 0 0 / 15%);
   --ring: var(--primary);
   --sidebar: #172331;
+  --page: #0f1724;
   --subtle-foreground: #9aa7c2;
   --primary-hover: #c3d6ff;
   --primary-softer: #1d2b42;
@@ -124,6 +126,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
+  --color-page: var(--page);
+  --font-logo: 'Fredoka', 'Anuphan Variable', sans-serif;
   --color-subtle-foreground: var(--subtle-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-softer: var(--primary-softer);
@@ -196,4 +200,19 @@
 .badge-new {
   background: var(--primary);
   color: var(--primary-foreground);
+}
+
+/* crudex wordmark (Paper "Brand · โลโก้ crudex"): transparent mark + Fredoka text. */
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-logo);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #152238;
+}
+.brand-logo > svg {
+  flex: none;
 }

@@ -34,6 +34,8 @@ restore the saved state.
 Run `pnpm turbo run lint typecheck test --filter=agent-runtime --filter=agent-gateway`
 to check both packages together.
 
+The harness adds models from `openai-models.json` to the built-in OpenAI provider when it creates the sandbox workspace. An OpenCode `provider.no-route` error can occur before OpenAI receives a request. The gateway supplies the API key separately at runtime.
+
 ## Add an agent
 
 1. Define it in `src/agents/<id>.ts` using `AgentDefinition`. Choose `primary` for a
@@ -61,8 +63,8 @@ to check both packages together.
 
 ## Gateway deployment
 
-`.github/workflows/deploy-agent.yml` builds the archive, deploys `crudex-agent`,
-and runs the Thai clock and restricted-tool smoke tests. Configure
+`.github/workflows/deploy-agent.yml` tests the agent packages, builds the archive and deploys
+`crudex-agent`. Configure
 `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE` and `AGENT_OPENAI_API_KEY`
 as GitHub Actions secrets. The workflow resolves the account, Worker subdomain,
 Hobby team and project. The Worker controls the daily Bangkok quota and idle
