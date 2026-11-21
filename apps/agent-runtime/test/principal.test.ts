@@ -115,8 +115,8 @@ describe('school data stays above the student level', () => {
       lowestClass: string;
       budget: { nearLimit: { code: string }[] };
     };
-    expect(r.classes.filter((c) => c.belowThreshold).map((c) => c.label)).toEqual(['ป.6/1']);
-    expect(r.lowestClass).toBe('ป.6/1');
+    expect(r.classes.filter((c) => c.belowThreshold).map((c) => c.label)).toEqual(['ม.2/1']);
+    expect(r.lowestClass).toBe('ม.2/1');
     expect(r.budget.nearLimit.map((a) => a.code)).toEqual(['A24', 'A07']);
   });
 });
@@ -166,7 +166,7 @@ describe('approval desk', () => {
 describe('publish_brief', () => {
   const brief = [
     'สรุปเช้า (ตัวอย่าง)',
-    'ผลเรียน: ป.6/1 ต่ำกว่าเกณฑ์ ค่าเฉลี่ย 4.6/10',
+    'ห้องที่ต้องดู: ม.2/1 เฉลี่ย 3.5/6 (58%) แต่หัวข้อการนำพีทาโกรัสไปใช้ถูกแค่ 37.5% ต่ำกว่าเกณฑ์ 50%',
     'งบ: ใช้ไป 56% กิจกรรม A24 ใกล้เต็ม',
     'เอกสารรออนุมัติ: 2 ฉบับ',
     'งานครูเมื่อวาน: ใบงาน 2 ฉบับ',

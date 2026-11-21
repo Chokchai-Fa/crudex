@@ -72,6 +72,21 @@ it('authenticates state transfer and validates before replacing the persisted sn
     notifications: [],
     briefs: [],
     inbox: [],
+    activity: [],
+    forms: {
+      'teacher-fixture': [
+        {
+          formId: 'form-fixture',
+          classId: 'class-m2-1',
+          ownerId: 'teacher-fixture',
+          title: 'Sample quiz',
+          topic: 'Fractions',
+          questionTopics: ['Adding fractions'],
+          maxScore: 1,
+          createdAt: 20,
+        },
+      ],
+    },
   };
   expect((await fetch(url)).status).toBe(401);
   expect((await put(JSON.stringify(snapshot), {})).status).toBe(401);
@@ -81,6 +96,12 @@ it('authenticates state transfer and validates before replacing the persisted sn
   expect((await put(' '.repeat(1024 * 1024) + JSON.stringify(snapshot))).status).toBe(400);
   const response = await fetch(url, { headers });
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual(snapshot);
-  expect(JSON.parse(await readFile(join(dataDir, 'state.json'), 'utf8'))).toEqual(snapshot);
+  // An empty approval box gets the one sample claim after every restore.
+  const restored = {
+    ...snapshot,
+    approvals: [expect.objectContaining({ id: 'approval-sample-1' })],
+  };
+  const served = await response.json();
+  expect(served).toEqual(restored);
+  expect(JSON.parse(await readFile(join(dataDir, 'state.json'), 'utf8'))).toEqual(served);
 });

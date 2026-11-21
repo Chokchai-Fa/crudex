@@ -14,6 +14,7 @@ import { createTurnRunner } from './run';
 import { schoolScopeSchema, validSchoolTurn } from './school';
 import { exportState, importState, loadState } from './state';
 import { tools } from './tools';
+import { seedSampleClaim } from './tools/approval-store';
 
 const config = z
   .object({
@@ -35,6 +36,7 @@ if (!config.success) {
 const { UPSTREAM_TOKEN, DATA_DIR, PORT, HOST } = config.data;
 const expectedToken = Buffer.from(UPSTREAM_TOKEN);
 loadState();
+seedSampleClaim();
 const { host, directory, toolCalls, scopes, prepareSchoolKahoot } = await createHarness(
   resolve(DATA_DIR),
 );
@@ -88,6 +90,7 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     if (request.method === 'PUT') {
       try {
         importState(await readJson(request, runtimeStateMaxBytes));
+        seedSampleClaim();
       } catch (error) {
         if (error instanceof z.ZodError) return json(response, 400, { error: 'invalid_state' });
         throw error;
