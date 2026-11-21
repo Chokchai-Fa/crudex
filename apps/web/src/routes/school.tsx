@@ -2,6 +2,7 @@ import { GuestRolePicker } from '@/features/school/login';
 import { createFileRoute } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
+import { BriefLines, WatchPanel, readBriefExtras } from '@/features/school/principal-brief';
 import { SchoolClassroom } from '@/features/school/classroom';
 import { useSchoolBrief, useSchoolLogout, useSchoolSession } from '@/features/school/api/school';
 
@@ -11,13 +12,16 @@ function Brief({ membershipId }: { membershipId: string }) {
   if (brief.error) return <p role="alert">{brief.error.message}</p>;
   if (!brief.data) return <p role="status">กำลังอ่านสรุปโรงเรียน…</p>;
   const b = brief.data;
-  return (
+  const { brief: published, flagged } = readBriefExtras(b);
+  const card = (
     <section className="school-panel brief-card space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <img src="/agents/rungchao.svg" width="44" height="44" alt="" />
-        <h2 className="grow text-lg font-bold">สรุปเช้า · {b.date}</h2>
+        <h2 className="grow text-lg font-bold">{published?.title ?? 'สรุปเช้า'}</h2>
+        <span className="badge-date">{b.date}</span>
         <span className="badge-sample">ข้อมูลตัวอย่าง</span>
       </div>
+      {published && <BriefLines brief={published} />}
       <dl className="brief-tiles">
         {[
           ['ห้องเรียน', b.classes],
@@ -32,8 +36,18 @@ function Brief({ membershipId }: { membershipId: string }) {
           </div>
         ))}
       </dl>
-      <p className="brief-foot">ภาพรวมระดับห้อง · ไม่มีคะแนนรายคน</p>
+      <p className="brief-foot">
+        ภาพรวมระดับห้อง · ไม่มีคะแนนรายคน
+        {published && ' · ' + (published.lines.length + 1) + '/7 บรรทัด'}
+      </p>
     </section>
+  );
+  if (!flagged) return card;
+  return (
+    <div className="brief-layout">
+      {card}
+      <WatchPanel flagged={flagged} />
+    </div>
   );
 }
 function School() {
