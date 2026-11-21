@@ -442,7 +442,7 @@ check(
     const evb = run([
       '--agent',
       'rungchao',
-      `CALL publish_brief ${JSON.stringify({ text: 'สรุปเช้า (ตัวอย่าง)\nป.6/1 ต่ำกว่าเกณฑ์' })}`,
+      `CALL publish_brief ${JSON.stringify({ text: 'สรุปเช้า (ตัวอย่าง)\nห้องที่ต้องดู: ม.2/1 หัวข้อพีทาโกรัสต่ำกว่าเกณฑ์' })}`,
     ]);
     return tool(evb)?.state?.status === 'completed';
   })(),
