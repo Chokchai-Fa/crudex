@@ -113,6 +113,14 @@
         overflow-wrap: anywhere;
         line-height: 1.65;
       }
+      #progress {
+        color: #475569;
+        font-size: 0.875rem;
+        overflow-wrap: anywhere;
+      }
+      #progress span {
+        display: block;
+      }
       #feedback {
         margin: 8px 0 0;
         color: #475569;
@@ -193,6 +201,7 @@
           <p id="feedback" role="status"></p>
           <hr />
           <h2>Answer</h2>
+          <div id="progress" lang="th" aria-live="polite"></div>
           <p id="answer" lang="th" aria-live="polite">Your answer will appear here.</p>
         </section>
         <aside class="side" aria-label="Runtime details">
@@ -230,6 +239,7 @@
       const role = get('role');
       const send = get('send');
       const answer = get('answer');
+      const progress = get('progress');
       const feedback = get('feedback');
       const toolEvents = get('events');
       let sessionId;
@@ -322,6 +332,7 @@
         agent.replaceChildren();
         showDescription();
         answer.textContent = feedback.textContent = get('prompt').value = '';
+        progress.replaceChildren();
         toolEvents.replaceChildren();
         get('empty-events').hidden = false;
         const principal = role.value === 'principal';
@@ -347,9 +358,11 @@
         }
         send.disabled = agent.disabled = role.disabled = true;
         answer.textContent = '';
+        progress.replaceChildren();
         feedback.textContent = 'Waiting for the agent…';
         toolEvents.replaceChildren();
         get('empty-events').hidden = false;
+        const messages = new Map();
         let finished = false;
         let publishedBrief = false;
         try {
@@ -374,10 +387,22 @@
                 case 'session':
                   sessionId = item.sessionId;
                   break;
-                case 'delta':
+                case 'delta': {
                   feedback.textContent = 'Receiving answer…';
-                  if (!publishedBrief) answer.append(item.text);
+                  let message = messages.get(item.messageId);
+                  if (!message) {
+                    message = document.createElement('span');
+                    messages.set(item.messageId, message);
+                    if (!publishedBrief) answer.append(message);
+                  }
+                  message.append(item.text);
                   break;
+                }
+                case 'progress': {
+                  const message = messages.get(item.messageId);
+                  if (message) progress.append(message);
+                  break;
+                }
                 case 'principal_brief':
                   publishedBrief = true;
                   answer.textContent = item.text;

@@ -1,6 +1,10 @@
 # Agent gateway integration
 
-See the [frontend integration guide](site/docs/integrations/demo-gateway.md) for endpoints, chat events and lesson selection. Append streamed text verbatim so paragraph breaks between progress updates and classroom summaries survive rendering.
+See the [frontend integration guide](site/docs/integrations/demo-gateway.md) for endpoints, chat events and lesson selection.
+
+## แสดงสถานะระหว่างรอคำตอบ
+
+รวม `delta.text` ตาม `delta.messageId` ในแต่ละรอบ โดยเก็บการขึ้นบรรทัดใหม่ไว้ เมื่อได้รับ `progress` ให้แสดงข้อความของ `messageId` นั้นเป็นสถานะระหว่างรอ เช่น “รอผลก่อนนะครับ” ข้อความที่ไม่ได้รับ `progress` ให้แสดงในส่วนคำตอบ หน้าเว็บเดิมที่ต่อ `delta.text` ทุกชิ้นตามลำดับยังแสดงข้อความได้เหมือนเดิม
 
 ## เชื่อมบัญชี Kahoot (สำหรับปุ่มบนหน้าเว็บ)
 
