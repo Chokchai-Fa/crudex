@@ -11,7 +11,7 @@ import { useRunMemory } from './api/run-memory';
 import { presentRun, type AgentNames } from './run-presentation';
 import { parseFollowUps } from './follow-ups';
 import { failureLine } from './presets';
-import { kahootHandoff } from './kahoot-handoff-result';
+import { kahootHandoff, kahootOwnerSummary } from './kahoot-handoff-result';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
 
@@ -93,6 +93,7 @@ export function RunDetails({
   agents,
   agentId,
   roomId,
+  prompt,
   onFormUrl,
   onFollowUp,
   hasArtifacts,
@@ -105,6 +106,7 @@ export function RunDetails({
   agents?: AgentNames;
   agentId?: AgentId;
   roomId?: string;
+  prompt?: string;
   /** Reports a Google Form link found in this reply, for the form card. */
   onFormUrl?: (url: string) => void;
   /** Sends a "ลองถามต่อ" suggestion; passed only for the latest reply. */
@@ -116,14 +118,24 @@ export function RunDetails({
 }) {
   const active = status === 'queued' || status === 'running';
   const { events, error, complete, reload } = useRunEvents(membershipId, id, active);
+  const delegatedKahoot = agentId === 'jaew' ? kahootHandoff(events, prompt) : undefined;
+  const displayEvents = delegatedKahoot?.detailIds.size
+    ? events.filter(
+        (event) =>
+          event.type !== 'delta' ||
+          !event.messageId ||
+          !delegatedKahoot.detailIds.has(event.messageId),
+      )
+    : events;
   const { answer, activity, activityKind, notice, lastProposalId, final, phase } = presentRun(
     status,
-    events,
+    displayEvents,
     complete,
     agents,
   );
   const failed = phase === 'failed' || phase === 'interrupted';
-  const { body, items: followUps } = parseFollowUps(answer);
+  const { body: replyBody, items: followUps } = parseFollowUps(answer);
+  const body = delegatedKahoot ? kahootOwnerSummary(replyBody) : replyBody;
   const googleForm = /https:\/\/docs\.google\.com\/forms\/[^\s"'<>)\]\\]+/.exec(
     JSON.stringify(events),
   )?.[0];
@@ -132,13 +144,17 @@ export function RunDetails({
   }, [googleForm, onFormUrl]);
   const ActivityIcon = activityKind && activityIcons[activityKind];
   const emptyReply = hasArtifacts ? 'ใบงานพร้อมแล้ว' : 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ';
-  const delegatedKahoot = agentId === 'jaew' && final && kahootHandoff(events, body);
+  const handoffSummary =
+    !body && final && !notice && delegatedKahoot?.status === 'success'
+      ? 'พี่เจ๋งทำงาน Kahoot ที่ส่งต่อเสร็จแล้วค่ะ เปิดดูรายละเอียดได้เลยค่ะ'
+      : '';
   const streaming = activityKind === 'writing' && !error;
 
   return (
     <div className="space-y-2">
       {body && <SchoolAnswer text={body} />}
-      {roomId && delegatedKahoot && (
+      {handoffSummary && <p>{handoffSummary}</p>}
+      {roomId && final && delegatedKahoot && (
         <Link
           to="/teacher"
           search={{ roomId, agentId: 'jeng', handoff: id }}
@@ -198,7 +214,7 @@ export function RunDetails({
           </Button>
         </div>
       )}
-      {!answer && !activity && !notice && !error && !lastProposalId && (
+      {!body && !handoffSummary && !activity && !notice && !error && !lastProposalId && (
         <p className="text-sm text-muted-foreground" role="status">
           {final ? emptyReply : 'กำลังอ่านคำตอบ…'}
         </p>

@@ -54,19 +54,24 @@ function HandoffResult({
 }) {
   const active = run.status === 'queued' || run.status === 'running';
   const { events, complete, error } = useRunEvents(membershipId, run.id, active);
-  const { answer, final } = presentRun(run.status, events, complete);
-  const handoff = final && kahootHandoff(events, answer);
+  const { final } = presentRun(run.status, events, complete);
+  const handoff = final && kahootHandoff(events, teacherMessage(run.prompt));
   if (error) return <p role="alert">อ่านผลการส่งต่อไม่สำเร็จ</p>;
   if (!handoff)
     return <p role="status">{complete ? 'ไม่พบการส่งต่องาน Kahoot' : 'กำลังอ่านผลการส่งต่อ…'}</p>;
+  const extraLinks = handoff.links.filter((url) => !handoff.details.includes(url));
   return (
     <>
       <p className="break-words">{teacherMessage(run.prompt)}</p>
-      {handoff.links.length ? (
-        <SchoolAnswer text={handoff.links.map((url) => '- ' + url).join('\n')} />
-      ) : (
+      {handoff.details && <SchoolAnswer text={handoff.details} />}
+      {extraLinks.length > 0 && (
+        <SchoolAnswer text={extraLinks.map((url) => '- ' + url).join('\n')} />
+      )}
+      {!handoff.details && !handoff.links.length && (
         <p className="text-muted-foreground">
-          {handoff.status === 'failed' ? 'งานที่ส่งต่อไม่สำเร็จ' : 'งานนี้ยังไม่มีลิงก์ Kahoot'}
+          {handoff.status === 'failed'
+            ? 'งานที่ส่งต่อไม่สำเร็จ'
+            : 'รายละเอียดจะแสดงในประวัติแชตพี่เจ๋งเมื่อบันทึกเสร็จ'}
         </p>
       )}
     </>
