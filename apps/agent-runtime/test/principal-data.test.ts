@@ -60,6 +60,7 @@ describe('principal brief data', () => {
       mean: teacherSide.mean,
       maxScore: teacherSide.maxScore,
       meanLabel: '3.5/6 คะแนน',
+      scoreLabel: '28/48 คะแนน (8 คน คนละ 6 คะแนน) เฉลี่ย 3.5/6',
       belowThreshold: false,
     });
     expect(JSON.stringify(summary)).not.toMatch(/นักเรียนตัวอย่าง|studentId/);
@@ -68,6 +69,14 @@ describe('principal brief data', () => {
   it('get_scores labels every mean with its full score', async () => {
     const r = await call('get_scores', { classLabel: 'ม.2/1' });
     expect(r.meanLabel).toBe('3.5/6 คะแนน');
-    for (const h of r.history) expect(h.meanLabel).toBe(`${h.mean}/${h.maxScore} คะแนน`);
+    expect(r.scoreLabel).toBe('28/48 คะแนน (8 คน คนละ 6 คะแนน) เฉลี่ย 3.5/6');
+    const p5 = await call('get_scores', { classLabel: 'ป.5/2' });
+    expect(p5.scoreLabel).toBe('136/200 คะแนน (20 คน คนละ 10 คะแนน) เฉลี่ย 6.8/10');
+    for (const h of r.history) {
+      expect(h.meanLabel).toBe(`${h.mean}/${h.maxScore} คะแนน`);
+      expect(h.scoreLabel).toContain(
+        `(${h.n} คน คนละ ${h.maxScore} คะแนน) เฉลี่ย ${h.mean}/${h.maxScore}`,
+      );
+    }
   });
 });

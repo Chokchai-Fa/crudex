@@ -3,6 +3,7 @@ import { classHistories, studentIdentity, type ClassHistory } from '../data/clas
 import { classesOf } from '../data/accounts';
 import { pastAssessments, type PastAssessment } from '../data/class-score-history';
 import { classOf, ownerOf, ToolError } from './identity';
+import { scoreLabel } from '../lib/score-label';
 import { validatedTool } from './validated';
 
 function countTopics(
@@ -39,6 +40,7 @@ function summarize({ assessment, questionTopics, results }: ClassHistory) {
     n: students.length,
     mean: Math.round((total / students.length) * 100) / 100,
     meanLabel: `${Math.round((total / students.length) * 100) / 100}/${assessment.maxScore} คะแนน`,
+    scoreLabel: scoreLabel({ total, n: students.length, maxScore: assessment.maxScore }),
     wrongByTopic: [...byTopic]
       .map(([topic, v]) => ({
         topic,
@@ -74,6 +76,7 @@ function historyOf(classId: string) {
       n: s.n,
       mean: s.mean,
       meanLabel: s.meanLabel,
+      scoreLabel: s.scoreLabel,
       belowThresholdCount: s.belowThreshold.length,
       wrongByTopic: s.wrongByTopic,
     };
@@ -96,7 +99,7 @@ function normalizeLabel(label: string) {
 export const getScores = validatedTool(z.strictObject({ classLabel: z.string().optional() }), {
   name: 'get_scores',
   description:
-    'ดูคะแนนตัวอย่างของห้องที่ครูสอน ระบุ classLabel เป็นชื่อห้อง เช่น ม.2/1 หรือรหัสห้องได้ ถ้าไม่ระบุจะใช้ห้องในเซสชันหรือห้องแรกที่ครูสอน คืนค่าเฉลี่ย รายชื่อต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบตั้ง) หัวข้อที่ผิดมากสุด และคะแนนรายคนของครั้งล่าสุด พร้อม history สรุปทุกครั้งที่ผ่านมา (เก่าไปใหม่) และ repeatedlyBelowThreshold นักเรียนที่ต่ำกว่าเกณฑ์ตั้งแต่ 2 ครั้ง ตัวเลขทุกตัวคำนวณโดยระบบ',
+    'ดูคะแนนตัวอย่างของห้องที่ครูสอน ระบุ classLabel เป็นชื่อห้อง เช่น ม.2/1 หรือรหัสห้องได้ ถ้าไม่ระบุจะใช้ห้องในเซสชันหรือห้องแรกที่ครูสอน คืนค่าเฉลี่ย รายชื่อต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบตั้ง) หัวข้อที่ผิดมากสุด และคะแนนรายคนของครั้งล่าสุด ป้ายคะแนนพร้อมหน่วย (scoreLabel เช่น 28/48 คะแนน (8 คน คนละ 6 คะแนน) เฉลี่ย 3.5/6 ให้ใช้ข้อความนี้ตรงตัวเมื่อสรุปคะแนน) พร้อม history สรุปทุกครั้งที่ผ่านมา (เก่าไปใหม่) และ repeatedlyBelowThreshold นักเรียนที่ต่ำกว่าเกณฑ์ตั้งแต่ 2 ครั้ง ตัวเลขทุกตัวคำนวณโดยระบบ',
   gate: 'allow',
   execute: ({ classLabel }, context) => {
     const ownerId = ownerOf(context).id;
