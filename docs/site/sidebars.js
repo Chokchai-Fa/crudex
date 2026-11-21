@@ -20,6 +20,10 @@ module.exports = {
         'architecture/service-diagrams',
       ],
     },
-    { type: 'category', label: 'Reference', items: ['reference/database'] },
+    {
+      type: 'category',
+      label: 'Reference',
+      items: ['reference/database', 'reference/message-queue'],
+    },
   ],
 };
