@@ -19,7 +19,7 @@ a Vercel Hobby Sandbox, with the Worker handling authentication, quota and SSE p
 
 ## School backend
 
-The application Worker authenticates school memberships, stores business records in Neon and dispatches queued AI runs through the agent gateway’s private service binding. The separate gateway owns sandbox lifecycle and the OpenCode runtime. Notes remain a small layering example. Consult the [school API](docs/API.md), [database schema](docs/DATABASE.md) and [cloud architecture](docs/CLOUD-ARCHITECTURE.md) for the implemented school workflows.
+The application Worker authenticates school memberships, stores business records in Neon and dispatches queued AI runs through the agent gateway’s private service binding. The separate gateway owns sandbox lifecycle and the OpenCode runtime. Notes remain a small layering example. Consult the [school API](docs/site/docs/integrations/school-api.md), [database schema](docs/site/docs/reference/database.md) and [cloud architecture](docs/site/docs/architecture/cloud-services.md) for the implemented school workflows.
 
 ## Layout
 ```
@@ -49,6 +49,7 @@ Skills live in `skills/<name>/SKILL.md`. Claude Code reads them via `.claude/ski
 
 | Skill | Use when touching |
 |-------|-------------------|
+| [write-docusaurus-docs](skills/write-docusaurus-docs/SKILL.md) | published guides, navigation and OpenAPI downloads under `docs/site/` |
 | `infra` | `infra/**`, `apps/api/wrangler.toml`, `.github/workflows/**`, any cloud resource or binding |
 | `manage-secrets` | adding, removing or rotating any secret or env var |
 | `design-system` | `apps/web/**` UI: components, theming, UX checklist |
