@@ -41,3 +41,9 @@ export const handoffStatusText: Record<z.infer<typeof handoffStatusSchema>, stri
   failed: 'ทำงานไม่สำเร็จ',
   returned: 'ส่งผลกลับถึงน้องแจ๋วแล้ว',
 };
+
+export function jaewHandoffLine(name: string, status: z.infer<typeof handoffStatusSchema>) {
+  if (status === 'started') return `แจ๋วส่งงานให้${name}แล้ว`;
+  if (status === 'returned') return `${name}ตอบมาแล้วค่ะ`;
+  return `${name}${handoffStatusText[status]}`;
+}

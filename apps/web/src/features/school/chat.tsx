@@ -27,7 +27,7 @@ import { isBackgroundRequest, presetsFor } from './presets';
 import '../workspace/chat-activity.css';
 import './compose-activity.css';
 import { KahootHandoff } from './kahoot-handoff';
-import { RecipientHandoffs, RunHandoffs } from './handoff-status-view';
+import { RecipientHandoffs } from './handoff-status-view';
 import { LatestMessageButton } from './latest-message-button';
 
 type SendSource = 'draft' | 'preset' | `retry:${string}`;
@@ -395,13 +395,6 @@ function ChatRoom({
                     <div className="flex items-start gap-2">
                       <AssistantIcon id={run.agentId} />
                       <div className="m-msg chat-response min-w-0 px-4 py-3">
-                        {agent === 'jaew' && (
-                          <RunHandoffs
-                            id={run.id}
-                            membershipId={actor.membershipId}
-                            agents={directory.data?.agents ?? []}
-                          />
-                        )}
                         <RunDetails
                           id={run.id}
                           membershipId={actor.membershipId}

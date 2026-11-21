@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { RunEvent } from '@repo/shared';
-import { runHandoffs } from './handoff-status';
+import { jaewHandoffLine, runHandoffs } from './handoff-status';
 
 const jeng: RunEvent = {
   type: 'tool',
@@ -43,4 +43,14 @@ it('reports a real return only when the same assignment ID and recipient match',
 
 it('does not use assistant prose as a handoff or return event', () => {
   expect(runHandoffs([{ type: 'delta', text: 'พี่เจ๋งรับงานและส่งกลับแล้ว' }])).toEqual([]);
+});
+
+it('shows a single dispatch and updates that line when Jaew receives the result', () => {
+  const finish: RunEvent = { ...jeng, status: 'success' };
+  const reply: RunEvent = { ...finish, name: 'subagent_return' };
+  const labels = (events: RunEvent[]) =>
+    runHandoffs(events).map(({ status }) => jaewHandoffLine('พี่เจ๋ง', status));
+  expect(labels([jeng, jeng])).toEqual(['แจ๋วส่งงานให้พี่เจ๋งแล้ว']);
+  expect(labels([jeng, finish])).toEqual(['พี่เจ๋งทำงานเสร็จแล้ว']);
+  expect(labels([jeng, finish, reply, reply])).toEqual(['พี่เจ๋งตอบมาแล้วค่ะ']);
 });
