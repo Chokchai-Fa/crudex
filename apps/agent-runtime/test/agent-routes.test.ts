@@ -73,6 +73,20 @@ it('authenticates state transfer and validates before replacing the persisted sn
     briefs: [],
     inbox: [],
     activity: [],
+    forms: {
+      'teacher-fixture': [
+        {
+          formId: 'form-fixture',
+          classId: 'class-m2-1',
+          ownerId: 'teacher-fixture',
+          title: 'Sample quiz',
+          topic: 'Fractions',
+          questionTopics: ['Adding fractions'],
+          maxScore: 1,
+          createdAt: 20,
+        },
+      ],
+    },
   };
   expect((await fetch(url)).status).toBe(401);
   expect((await put(JSON.stringify(snapshot), {})).status).toBe(401);

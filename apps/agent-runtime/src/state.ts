@@ -1,9 +1,37 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  runtimeStateSchema,
-  type RuntimeState,
-} from '../../../packages/shared/src/runtime-state.schema';
+import { z } from 'zod';
+import { runtimeStateSchema } from '../../../packages/shared/src/runtime-state.schema';
+
+const formRecordSchema = z
+  .strictObject({
+    formId: z.string().regex(/^[A-Za-z0-9_-]+$/),
+    classId: z.string().min(1),
+    ownerId: z.string().min(1),
+    title: z.string().min(1),
+    topic: z.string().min(1),
+    questionTopics: z.array(z.string().min(1)).max(30),
+    maxScore: z.int().min(1).max(30),
+    createdAt: z.number(),
+  })
+  .refine(({ questionTopics, maxScore }) => questionTopics.length === maxScore);
+const stateSchema = runtimeStateSchema
+  .extend({ forms: z.record(z.string(), z.array(formRecordSchema)).default({}) })
+  .refine(
+    ({ forms }) => {
+      const ids = new Set<string>();
+      for (const [ownerId, records] of Object.entries(forms)) {
+        for (const form of records) {
+          if (form.ownerId !== ownerId || ids.has(form.formId)) return false;
+          ids.add(form.formId);
+        }
+      }
+      return true;
+    },
+    { path: ['forms'] },
+  );
+type RuntimeState = z.infer<typeof stateSchema>;
+export type FormRecord = z.infer<typeof formRecordSchema>;
 
 export type MemoryItem = RuntimeState['memory'][string][number];
 export type ApprovalRecord = RuntimeState['approvals'][number];
@@ -19,6 +47,32 @@ export const briefs: PublishedBrief[] = [];
 /** The demo test mailbox written by send_email. */
 export const inbox: InboxItem[] = [];
 export const activity: ActivityEntry[] = [];
+const forms = new Map<string, FormRecord[]>();
+
+export function recordForm(form: FormRecord) {
+  for (const records of forms.values()) {
+    if (records.some(({ formId }) => formId === form.formId)) return;
+  }
+  const previous = forms.get(form.ownerId);
+  let kept = 0;
+  const older = (previous ?? []).filter(({ classId }) => {
+    if (classId !== form.classId) return true;
+    kept++;
+    return kept <= 5;
+  });
+  forms.set(form.ownerId, [form, ...older]);
+  try {
+    persistState();
+  } catch (error) {
+    if (previous) forms.set(form.ownerId, previous);
+    else forms.delete(form.ownerId);
+    throw error;
+  }
+}
+
+export function latestForm(ownerId: string, classId: string) {
+  return forms.get(ownerId)?.find((form) => form.classId === classId);
+}
 
 export const normalizeMemory = (text: string) =>
   text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -34,6 +88,7 @@ function snapshot(): RuntimeState {
     briefs,
     inbox,
     activity,
+    forms: Object.fromEntries(forms),
   };
 }
 
@@ -46,6 +101,8 @@ function replaceState(state: RuntimeState) {
   for (const [owner, items] of Object.entries(state.memory)) {
     memory.set(owner, new Map(items.map((item) => [normalizeMemory(item.text), item])));
   }
+  forms.clear();
+  for (const [owner, records] of Object.entries(state.forms)) forms.set(owner, records);
   approvals.length = 0;
   notifications.length = 0;
   briefs.length = 0;
@@ -72,7 +129,7 @@ export function persistState() {
 }
 
 export function importState(input: unknown) {
-  const state = runtimeStateSchema.parse(input);
+  const state = stateSchema.parse(input);
   const dataDir = process.env.DATA_DIR;
   if (dataDir) writeState(dataDir, state);
   replaceState(state);
@@ -88,7 +145,7 @@ export function loadState() {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return;
     throw error;
   }
-  replaceState(runtimeStateSchema.parse(JSON.parse(json)));
+  replaceState(stateSchema.parse(JSON.parse(json)));
 }
 
 const MAX_ACTIVITY = 500;

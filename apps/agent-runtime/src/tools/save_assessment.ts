@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { Assessment } from '../lib/fractions';
 import { z } from 'zod';
+import { classesOf, normalizeClassLabel } from '../data/accounts';
 import { schoolTool, type SchoolScope } from '../school';
+import { recordForm } from '../state';
 import { assessmentSchema, runCheck } from './check_assessment';
-import { ToolError } from './identity';
+import { classOf, ownerOf, ToolError } from './identity';
 import { validatedTool } from './validated';
 
 const formResponse = z.object({
@@ -82,9 +84,33 @@ export const publisher = {
 export const saveAssessment = validatedTool(assessmentSchema, {
   name: 'save_assessment',
   description:
-    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร',
+    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร เมื่อบันทึกฟอร์มให้ห้องสำเร็จ get_scores ใช้ mode form เมื่อมีคำตอบทดสอบ หรือ mode sample เมื่อใช้ข้อมูลตัวอย่าง',
   gate: 'allow',
-  execute: (input, context) => saveVerifiedAssessment(input, context.signal, context.scope),
+  execute: async (input, context) => {
+    const published = await saveVerifiedAssessment(input, context.signal, context.scope);
+    if (published.mode === 'apps-script') {
+      const ownerId = ownerOf(context).id;
+      const grade = normalizeClassLabel(input.grade);
+      const matchingRooms = classesOf(ownerId).filter(
+        ({ label }) => normalizeClassLabel(label).split('/')[0] === grade,
+      );
+      const classId =
+        classOf(context) ?? (matchingRooms.length === 1 ? matchingRooms[0]?.id : undefined);
+      if (classId) {
+        recordForm({
+          formId: published.formId,
+          classId,
+          ownerId,
+          title: input.title,
+          topic: input.topic,
+          questionTopics: input.questions.map(({ topic }) => topic),
+          maxScore: published.maxScore,
+          createdAt: Date.now(),
+        });
+      }
+    }
+    return published;
+  },
 });
 
 export async function saveVerifiedAssessment(
