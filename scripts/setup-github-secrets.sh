@@ -21,6 +21,8 @@ SECRETS=(
   "UPSTASH_EMAIL|Upstash login email (§1.5)"
   "UPSTASH_API_KEY|Upstash Management API key (§1.5)"
   "VERCEL_TOKEN|Vercel account token, scoped to the Hobby team (§1.7)"
+  "AGENT_PASSCODE|Passcode for the crudex-agent test page"
+  "AGENT_OPENAI_API_KEY|OpenAI API key from platform.openai.com, project-scoped with a monthly budget"
 )
 
 repo=""

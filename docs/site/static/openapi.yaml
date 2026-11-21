@@ -1,0 +1,2509 @@
+openapi: 3.1.0
+info:
+  title: Crudex school API
+  version: 1.0.0
+  description: Application Worker contract. Sessions are scoped to one active membership. Use the application Worker origin for API requests.
+servers:
+  - url: /api
+security:
+  - schoolSession: []
+  - localSession: []
+paths:
+  /health:
+    get:
+      summary: Check application Worker health
+      operationId: getHealth
+      tags:
+        - health
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/healthResponse'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+  /notes:
+    get:
+      summary: List template notes
+      operationId: getNotes
+      tags:
+        - notes
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/noteList'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+    post:
+      summary: Create a template note
+      operationId: postNotes
+      tags:
+        - notes
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/note'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createNote'
+  /notes/{id}:
+    delete:
+      summary: Delete a template note
+      operationId: deleteNotesId
+      tags:
+        - notes
+      responses:
+        '204':
+          description: Success
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security: []
+  /auth/session:
+    post:
+      summary: Exchange a single-use invitation for a session
+      operationId: postAuthSession
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/me'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/credential'
+    delete:
+      summary: Sign out and expire the cookie
+      operationId: deleteAuthSession
+      tags:
+        - auth
+      responses:
+        '204':
+          description: Success
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+  /auth/local:
+    post:
+      summary: Start a loopback development session
+      operationId: postAuthLocal
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/me'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/localSignIn'
+  /auth/membership:
+    post:
+      summary: Select another active membership of this account
+      operationId: postAuthMembership
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/me'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/selectMembership'
+  /me:
+    get:
+      summary: Read active actor and available memberships
+      operationId: getMe
+      tags:
+        - me
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/me'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /agents:
+    get:
+      summary: List agents available to this membership
+      operationId: getAgents
+      tags:
+        - agents
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/agent'
+                required:
+                  - agents
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /agents/{id}/runs:
+    post:
+      summary: Accept an idempotent teacher or principal run
+      operationId: postAgentsIdRuns
+      tags:
+        - agents
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/run'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/agentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createRun'
+  /agents/{id}/history:
+    get:
+      summary: Read up to 100 recent visible runs
+      operationId: getAgentsIdHistory
+      tags:
+        - agents
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/historicRun'
+                required:
+                  - runs
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/agentId'
+  /runs/{id}/events:
+    get:
+      summary: Replay committed events after the cursor
+      operationId: getRunsIdEvents
+      tags:
+        - runs
+      responses:
+        '200':
+          description: Success
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description:
+                  SSE frames with a numeric id and JSON runEvent as data. Reconnect at EOF; close on
+                  terminal event.
+        '204':
+          description: Terminal event already consumed. Stop reconnecting.
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Last-Event-ID
+          schema:
+            type: integer
+            minimum: 0
+  /runs/{id}/cancel:
+    post:
+      summary: Cancel the owned run and revoke its callback credential
+      operationId: postRunsIdCancel
+      tags:
+        - runs
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/run'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /runs/{id}/memory:
+    get:
+      summary: List memory proposals for this run
+      operationId: getRunsIdMemory
+      tags:
+        - runs
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  proposals:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/memoryProposal'
+                required:
+                  - proposals
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /runs/{id}/memory/{proposalId}/approve:
+    post:
+      summary: Approve one proposed memory
+      operationId: postRunsIdMemoryProposalIdApprove
+      tags:
+        - runs
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approved:
+                    const: true
+                required:
+                  - approved
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: proposalId
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /memories:
+    get:
+      summary: List up to 100 approved memories for this owner
+      operationId: getMemories
+      tags:
+        - memories
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/memoryItem'
+                required:
+                  - items
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /memories/{id}:
+    delete:
+      summary: Forget an approved memory
+      operationId: deleteMemoriesId
+      tags:
+        - memories
+      responses:
+        '204':
+          description: Success
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /classes/{id}/gradebook:
+    get:
+      summary: Read combined scores and published worksheets for an assigned class
+      operationId: getClassesIdGradebook
+      tags:
+        - classes
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/gradebook'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /assessments/{id}:
+    get:
+      summary: Read a teacher worksheet and answer key
+      operationId: getAssessmentsId
+      tags:
+        - assessments
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/worksheet'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /play/{id}:
+    get:
+      summary: Read student-safe quiz content by play token
+      operationId: getPlayId
+      tags:
+        - play
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/quiz'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+    post:
+      summary: Record one submission per student and assessment
+      operationId: postPlayId
+      tags:
+        - play
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/result'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/submission'
+  /routines:
+    get:
+      summary: List the teacher’s classroom schedules
+      operationId: getRoutines
+      tags:
+        - routines
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routines:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/routineRecord'
+                required:
+                  - routines
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+    post:
+      summary: Schedule a daily parent report in Bangkok time
+      operationId: postRoutines
+      tags:
+        - routines
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/routineRecord'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/routine'
+  /routines/{id}:
+    patch:
+      summary: Enable or pause an owned routine
+      operationId: patchRoutinesId
+      tags:
+        - routines
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/routineRecord'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/routineUpdate'
+  /reports:
+    get:
+      summary: Read teacher drafts or delivered guardian reports
+      operationId: getReports
+      tags:
+        - reports
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/report'
+                required:
+                  - reports
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /briefs/morning:
+    get:
+      summary: Read principal-only aggregate data for a Bangkok calendar day
+      operationId: getBriefsMorning
+      tags:
+        - briefs
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/brief'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+  /approvals:
+    post:
+      summary: Submit a budget claim
+      operationId: postApprovals
+      tags:
+        - approvals
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/claim'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/budgetClaim'
+    get:
+      summary: List visible claims
+      operationId: getApprovals
+      tags:
+        - approvals
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  claims:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/claim'
+                required:
+                  - claims
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /approvals/{id}:
+    get:
+      summary: Read a visible claim
+      operationId: getApprovalsId
+      tags:
+        - approvals
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/claim'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /approvals/{id}/decision:
+    post:
+      summary: Record a principal’s explicit decision
+      operationId: postApprovalsIdDecision
+      tags:
+        - approvals
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/claim'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/claimDecision'
+  /approval-notifications:
+    get:
+      summary: Read the teacher’s decision notifications
+      operationId: getApprovalNotifications
+      tags:
+        - approval-notifications
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/notification'
+                required:
+                  - notifications
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: query
+          name: channel
+          schema:
+            type: string
+            enum:
+              - teacher
+              - budget_assistant
+  /internal/runs/{id}/tools/save_assessment:
+    post:
+      summary: Private run tool save_assessment
+      operationId: postInternalRunsIdToolsSaveAssessment
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  worksheetUrl:
+                    type: string
+                  formUrl:
+                    type: string
+                required:
+                  - id
+                  - worksheetUrl
+                  - formUrl
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/saveWorksheet'
+  /internal/runs/{id}/tools/get_scores:
+    post:
+      summary: Private run tool get_scores
+      operationId: postInternalRunsIdToolsGetScores
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/gradebook'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+  /internal/runs/{id}/tools/get_school_summary:
+    post:
+      summary: Private run tool get_school_summary
+      operationId: postInternalRunsIdToolsGetSchoolSummary
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/brief'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+  /internal/runs/{id}/tools/teacher_activity:
+    post:
+      summary: Private run tool teacher_activity
+      operationId: postInternalRunsIdToolsTeacherActivity
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  completedRuns:
+                    type: integer
+                  worksheetsCreated:
+                    type: integer
+                required:
+                  - date
+                  - completedRuns
+                  - worksheetsCreated
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+  /internal/runs/{id}/tools/memory_save:
+    post:
+      summary: Private run tool memory_save
+      operationId: postInternalRunsIdToolsMemorySave
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    const: awaiting_owner_approval
+                required:
+                  - status
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                userConfirmed:
+                  type: boolean
+              required:
+                - text
+                - userConfirmed
+  /internal/runs/{id}/tools/memory_search:
+    post:
+      summary: Private run tool memory_search
+      operationId: postInternalRunsIdToolsMemorySearch
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/memoryItem'
+                required:
+                  - items
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  maxLength: 2048
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 5
+  /internal/runs/{id}/tools/list_pending_approvals:
+    post:
+      summary: Private run tool list_pending_approvals
+      operationId: postInternalRunsIdToolsListPendingApprovals
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        approvalId:
+                          type: string
+                          format: uuid
+                        purpose:
+                          type: string
+                        totalSatang:
+                          type: integer
+                        submittedAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - approvalId
+                        - purpose
+                        - totalSatang
+                        - submittedAt
+                required:
+                  - count
+                  - items
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+  /internal/runs/{id}/tools/get_approval:
+    post:
+      summary: Private run tool get_approval
+      operationId: postInternalRunsIdToolsGetApproval
+      tags:
+        - internal
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/claim'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - runCredential: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/getApprovalTool'
+components:
+  securitySchemes:
+    schoolSession:
+      type: apiKey
+      in: cookie
+      name: __Host-school_session
+    localSession:
+      type: apiKey
+      in: cookie
+      name: school_session
+      description: Loopback development only.
+    runCredential:
+      type: http
+      scheme: bearer
+      description: Secret for an active leased run attempt. Server-to-server only.
+  schemas:
+    credential:
+      type: object
+      properties:
+        credential:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+      required:
+        - credential
+      additionalProperties: false
+    localSignIn:
+      type: object
+      properties:
+        school:
+          type: string
+          enum:
+            - lotus
+            - river
+        role:
+          type: string
+          enum:
+            - teacher
+            - principal
+            - student
+            - guardian
+        account:
+          default: 1
+          anyOf:
+            - type: number
+              const: 1
+            - type: number
+              const: 2
+      required:
+        - school
+        - role
+      additionalProperties: false
+    me:
+      type: object
+      properties:
+        actor:
+          type: object
+          properties:
+            ownerId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            schoolId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            membershipId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            role:
+              type: string
+              enum:
+                - teacher
+                - principal
+                - student
+                - guardian
+            displayName:
+              type: string
+            classes:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  name:
+                    type: string
+                required:
+                  - id
+                  - name
+            children:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  displayName:
+                    type: string
+                required:
+                  - id
+                  - displayName
+          required:
+            - ownerId
+            - schoolId
+            - membershipId
+            - role
+            - displayName
+            - classes
+            - children
+        memberships:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              schoolId:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              schoolName:
+                type: string
+              role:
+                type: string
+                enum:
+                  - teacher
+                  - principal
+                  - student
+                  - guardian
+            required:
+              - id
+              - schoolId
+              - schoolName
+              - role
+      required:
+        - actor
+        - memberships
+    membership:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        schoolId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        schoolName:
+          type: string
+        role:
+          type: string
+          enum:
+            - teacher
+            - principal
+            - student
+            - guardian
+      required:
+        - id
+        - schoolId
+        - schoolName
+        - role
+    schoolActor:
+      type: object
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        schoolId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        membershipId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        role:
+          type: string
+          enum:
+            - teacher
+            - principal
+            - student
+            - guardian
+        displayName:
+          type: string
+        classes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+            required:
+              - id
+              - name
+        children:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              displayName:
+                type: string
+            required:
+              - id
+              - displayName
+      required:
+        - ownerId
+        - schoolId
+        - membershipId
+        - role
+        - displayName
+        - classes
+        - children
+    schoolRole:
+      type: string
+      enum:
+        - teacher
+        - principal
+        - student
+        - guardian
+    selectMembership:
+      type: object
+      properties:
+        membershipId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      required:
+        - membershipId
+      additionalProperties: false
+    agentId:
+      type: string
+      enum:
+        - jaew
+        - jum
+        - jeng
+        - porn
+        - nun
+        - rungchao
+        - lekha_por
+    createRun:
+      type: object
+      properties:
+        clientRequestId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        classId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      required:
+        - clientRequestId
+        - prompt
+      additionalProperties: false
+    runEvent:
+      oneOf:
+        - type: object
+          properties:
+            type:
+              type: string
+              const: status
+            status:
+              type: string
+              enum:
+                - queued
+                - running
+                - succeeded
+                - failed
+                - interrupted
+                - cancelled
+          required:
+            - type
+            - status
+        - type: object
+          properties:
+            type:
+              type: string
+              const: delta
+            text:
+              type: string
+          required:
+            - type
+            - text
+        - type: object
+          properties:
+            type:
+              type: string
+              const: approval
+            kind:
+              type: string
+              const: memory
+            proposalId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          required:
+            - type
+            - kind
+            - proposalId
+        - type: object
+          properties:
+            type:
+              type: string
+              const: done
+            elapsedMs:
+              type: number
+          required:
+            - type
+            - elapsedMs
+        - type: object
+          properties:
+            type:
+              type: string
+              const: error
+            code:
+              type: string
+              maxLength: 128
+          required:
+            - type
+            - code
+        - type: object
+          properties:
+            type:
+              type: string
+              const: tool
+            name:
+              type: string
+            id:
+              type: string
+            status:
+              type: string
+              enum:
+                - started
+                - failed
+                - success
+            bridgeElapsedMs:
+              type: number
+          required:
+            - type
+            - name
+            - id
+            - status
+    runStatus:
+      type: string
+      enum:
+        - queued
+        - running
+        - succeeded
+        - failed
+        - interrupted
+        - cancelled
+    assessmentContent:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        grade:
+          type: string
+          minLength: 1
+          maxLength: 500
+        topic:
+          type: string
+          minLength: 1
+          maxLength: 500
+        expectedCount:
+          type: integer
+          minimum: 1
+          maximum: 30
+        questions:
+          minItems: 1
+          maxItems: 30
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 500
+              text:
+                type: string
+                minLength: 1
+                maxLength: 8000
+              topic:
+                type: string
+                minLength: 1
+                maxLength: 500
+              choices:
+                minItems: 2
+                maxItems: 30
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 2048
+                  required:
+                    - id
+                    - text
+              correctChoiceId:
+                type: string
+                minLength: 1
+                maxLength: 500
+              indicator:
+                type: string
+                minLength: 1
+                maxLength: 500
+              explanation:
+                type: string
+                maxLength: 8000
+              verify:
+                type: object
+                properties:
+                  expr:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
+                  expected:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
+                required:
+                  - expr
+                  - expected
+            required:
+              - id
+              - text
+              - topic
+              - choices
+              - correctChoiceId
+      required:
+        - title
+        - grade
+        - topic
+        - questions
+    briefDate:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+    routine:
+      type: object
+      properties:
+        classId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+      required:
+        - classId
+        - hour
+        - minute
+      additionalProperties: false
+    routineUpdate:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+      required:
+        - enabled
+      additionalProperties: false
+    saveWorksheet:
+      type: object
+      properties:
+        assessment:
+          type: object
+          properties:
+            title:
+              type: string
+              minLength: 1
+              maxLength: 500
+            grade:
+              type: string
+              minLength: 1
+              maxLength: 500
+            topic:
+              type: string
+              minLength: 1
+              maxLength: 500
+            expectedCount:
+              type: integer
+              minimum: 1
+              maximum: 30
+            questions:
+              minItems: 1
+              maxItems: 30
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+                  text:
+                    type: string
+                    minLength: 1
+                    maxLength: 8000
+                  topic:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+                  choices:
+                    minItems: 2
+                    maxItems: 30
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        text:
+                          type: string
+                          minLength: 1
+                          maxLength: 2048
+                      required:
+                        - id
+                        - text
+                  correctChoiceId:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+                  indicator:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+                  explanation:
+                    type: string
+                    maxLength: 8000
+                  verify:
+                    type: object
+                    properties:
+                      expr:
+                        type: string
+                        minLength: 1
+                        maxLength: 256
+                      expected:
+                        type: string
+                        minLength: 1
+                        maxLength: 256
+                    required:
+                      - expr
+                      - expected
+                required:
+                  - id
+                  - text
+                  - topic
+                  - choices
+                  - correctChoiceId
+          required:
+            - title
+            - grade
+            - topic
+            - questions
+        invocationId:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+        - assessment
+        - invocationId
+    submission:
+      type: object
+      properties:
+        answers:
+          type: object
+          propertyNames:
+            type: string
+            minLength: 1
+            maxLength: 500
+          additionalProperties:
+            type: string
+            minLength: 1
+            maxLength: 500
+      required:
+        - answers
+      additionalProperties: false
+    approvalId:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      required:
+        - id
+      additionalProperties: false
+    budgetClaim:
+      type: object
+      properties:
+        clientRequestId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        date:
+          type: string
+          format: date
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+        budgetCode:
+          type: string
+          minLength: 1
+          maxLength: 80
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        items:
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 160
+              quantity:
+                type: integer
+                minimum: 1
+                maximum: 10000
+              unitPriceSatang:
+                type: integer
+                minimum: 1
+                maximum: 100000000
+            required:
+              - name
+              - quantity
+              - unitPriceSatang
+            additionalProperties: false
+      required:
+        - clientRequestId
+        - date
+        - budgetCode
+        - purpose
+        - items
+      additionalProperties: false
+    claimDecision:
+      oneOf:
+        - type: object
+          properties:
+            decision:
+              type: string
+              const: approve
+            reason:
+              type: string
+              maxLength: 1000
+          required:
+            - decision
+          additionalProperties: false
+        - type: object
+          properties:
+            decision:
+              type: string
+              const: return
+            reason:
+              type: string
+              minLength: 1
+              maxLength: 1000
+          required:
+            - decision
+            - reason
+          additionalProperties: false
+    getApprovalTool:
+      type: object
+      properties:
+        approvalId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      required:
+        - approvalId
+      additionalProperties: false
+    healthResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        env:
+          type: string
+        time:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+      required:
+        - ok
+        - env
+        - time
+    createNote:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        body:
+          type: string
+          maxLength: 5000
+      required:
+        - title
+    noteIdParam:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      required:
+        - id
+    noteList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              title:
+                type: string
+              body:
+                type:
+                  - string
+                  - 'null'
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+            required:
+              - id
+              - title
+              - body
+              - createdAt
+      required:
+        - items
+    note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        title:
+          type: string
+        body:
+          type:
+            - string
+            - 'null'
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+      required:
+        - id
+        - title
+        - body
+        - createdAt
+    errorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+          required:
+            - code
+            - message
+      required:
+        - error
+    run:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agentId:
+          $ref: '#/components/schemas/agentId'
+        classId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        prompt:
+          type: string
+        status:
+          $ref: '#/components/schemas/runStatus'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - agentId
+        - classId
+        - prompt
+        - status
+        - createdAt
+    historicRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agentId:
+          $ref: '#/components/schemas/agentId'
+        classId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        prompt:
+          type: string
+        status:
+          $ref: '#/components/schemas/runStatus'
+        createdAt:
+          type: string
+          format: date-time
+        worksheetIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - id
+        - agentId
+        - classId
+        - prompt
+        - status
+        - createdAt
+        - worksheetIds
+    agent:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/agentId'
+        name:
+          type: string
+      required:
+        - id
+        - name
+    memoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - text
+        - updatedAt
+    memoryProposal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        approved:
+          type: boolean
+      required:
+        - id
+        - text
+        - approved
+    artifactLink:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        worksheetUrl:
+          type: string
+        formUrl:
+          type: string
+      required:
+        - id
+        - title
+        - worksheetUrl
+        - formUrl
+    studentGrade:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        score:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        maxScore:
+          anyOf:
+            - type: integer
+            - type: 'null'
+      required:
+        - id
+        - name
+        - score
+        - maxScore
+    gradebook:
+      type: object
+      properties:
+        classId:
+          type: string
+          format: uuid
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/studentGrade'
+        assessments:
+          type: array
+          items:
+            $ref: '#/components/schemas/artifactLink'
+      required:
+        - classId
+        - students
+        - assessments
+    worksheet:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        grade:
+          type: string
+          minLength: 1
+          maxLength: 500
+        topic:
+          type: string
+          minLength: 1
+          maxLength: 500
+        expectedCount:
+          type: integer
+          minimum: 1
+          maximum: 30
+        questions:
+          minItems: 1
+          maxItems: 30
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 500
+              text:
+                type: string
+                minLength: 1
+                maxLength: 8000
+              topic:
+                type: string
+                minLength: 1
+                maxLength: 500
+              choices:
+                minItems: 2
+                maxItems: 30
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 2048
+                  required:
+                    - id
+                    - text
+              correctChoiceId:
+                type: string
+                minLength: 1
+                maxLength: 500
+              indicator:
+                type: string
+                minLength: 1
+                maxLength: 500
+              explanation:
+                type: string
+                maxLength: 8000
+              verify:
+                type: object
+                properties:
+                  expr:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
+                  expected:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
+                required:
+                  - expr
+                  - expected
+            required:
+              - id
+              - text
+              - topic
+              - choices
+              - correctChoiceId
+        id:
+          type: string
+          format: uuid
+        formUrl:
+          type: string
+      required:
+        - title
+        - grade
+        - topic
+        - questions
+        - id
+        - formUrl
+    quiz:
+      type: object
+      properties:
+        title:
+          type: string
+        questions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+              choices:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    text:
+                      type: string
+                  required:
+                    - id
+                    - text
+            required:
+              - id
+              - text
+              - choices
+      required:
+        - title
+        - questions
+    result:
+      type: object
+      properties:
+        score:
+          type: integer
+        maxScore:
+          type: integer
+      required:
+        - score
+        - maxScore
+    routineRecord:
+      type: object
+      properties:
+        classId:
+          type: string
+          format: uuid
+          pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+        id:
+          type: string
+          format: uuid
+        schoolId:
+          type: string
+          format: uuid
+        teacherId:
+          type: string
+          format: uuid
+        enabled:
+          type: boolean
+        nextRunAt:
+          type: string
+          format: date-time
+      required:
+        - classId
+        - hour
+        - minute
+        - id
+        - schoolId
+        - teacherId
+        - enabled
+        - nextRunAt
+    report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentName:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - studentName
+        - subject
+        - body
+        - status
+        - createdAt
+    brief:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        classes:
+          type: integer
+        students:
+          type: integer
+        submissions:
+          type: integer
+        averagePercent:
+          anyOf:
+            - type: integer
+            - type: 'null'
+        reports:
+          type: integer
+      required:
+        - date
+        - classes
+        - students
+        - submissions
+        - averagePercent
+        - reports
+    claim:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))$
+        budgetCode:
+          type: string
+          minLength: 1
+          maxLength: 80
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        items:
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 160
+              quantity:
+                type: integer
+                minimum: 1
+                maximum: 10000
+              unitPriceSatang:
+                type: integer
+                minimum: 1
+                maximum: 100000000
+            required:
+              - name
+              - quantity
+              - unitPriceSatang
+            additionalProperties: false
+        id:
+          type: string
+          format: uuid
+        schoolId:
+          type: string
+          format: uuid
+        teacherId:
+          type: string
+          format: uuid
+        totalSatang:
+          type: integer
+        status:
+          type: string
+          enum:
+            - pending
+            - approved
+            - returned
+        decidedBy:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        reason:
+          anyOf:
+            - type: string
+            - type: 'null'
+        decidedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        submittedAt:
+          type: string
+          format: date-time
+      required:
+        - date
+        - budgetCode
+        - purpose
+        - items
+        - id
+        - schoolId
+        - teacherId
+        - totalSatang
+        - status
+        - decidedBy
+        - reason
+        - decidedAt
+        - submittedAt
+    notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        claimId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - approved
+            - returned
+        reason:
+          anyOf:
+            - type: string
+            - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        purpose:
+          type: string
+      required:
+        - id
+        - claimId
+        - status
+        - reason
+        - createdAt
+        - purpose

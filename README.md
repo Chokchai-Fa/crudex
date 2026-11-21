@@ -1,52 +1,36 @@
-# crudex
+# Crudex
 
-A full-stack TypeScript monorepo that runs **entirely on free-tier cloud services that need no
-credit card**: one Cloudflare Worker serving a React SPA and a Hono API, Neon Postgres, Upstash
-Redis and Cloudflare Queues, all provisioned by Terraform and deployed by GitHub Actions.
+Crudex is a Thai-language AI assistant for school staff. A teacher can ask Jaew (น้องแจ๋ว) for a fractions worksheet. Jaew delegates to Jum (น้องจ๋ำ), whose tools check the answer key before publication. Other assistants help with teaching media, administrative paperwork and student insights.
 
-| Part | What's in it |
-|------|--------------|
-| `apps/web` | Vite + React 19, TanStack Router + Query, Tailwind v4 + shadcn/ui, light/dark theme |
-| `apps/api` | Hono on Workers, layered routes → services → repositories, Drizzle + Neon HTTP, Upstash REST, a Queues consumer, Vitest in the Workers runtime |
-| `packages/shared` | zod schemas = the API contract, used by both apps |
-| `infra/` | Terraform modules for Neon, Upstash and the queue; state in HCP Terraform (free) |
-| `.github/` | `ci` (lint/typecheck/test/build + plan comment), `deploy`, weekly `drift` check, manual `destroy` |
-| `skills/` | Agent skills (one folder; `.claude/skills` and `.agents/skills` symlink to it): `design-system` (UI rules + UX checklist), `manage-secrets` and `infra` |
+[Read the Crudex documentation](https://chokchai-fa.github.io/crudex/) · [Write or preview documentation](skills/write-docusaurus-docs/SKILL.md)
 
-The one example feature, **notes**, goes through every layer. Copy its shape for your own
-features, then delete it. `CLAUDE.md` has the architecture rules.
+## What works today
 
-## Start a new project
+The passcode-protected agent demo uses synthetic school data. It has five teacher agents, delegated chat with streamed responses, assessment checking, and a Google Forms integration when configured. OpenCode runs on Node 24 in a disposable Vercel Sandbox and calls OpenAI with a server-side key. A replacement sandbox starts a fresh session. [Gateway API and streaming guide](docs/site/docs/integrations/demo-gateway.md)
 
-1. Create a repo from this template (GitHub → **Use this template**) and clone it.
-2. Rename the placeholders and commit:
-   ```bash
-   scripts/init-template.sh my-app my-workers-subdomain my-hcp-org
-   git diff && git commit -am "chore: initialise from crudex"
-   ```
-3. Do the one-time account setup in **`infra/README.md` §1** (Cloudflare, HCP Terraform, Neon,
-   Upstash), put your Neon org ID in `infra/envs/prod/terraform.tfvars`, then set the GitHub
-   secrets with `scripts/verify-credentials.py` and `scripts/setup-github-secrets.sh`.
-4. Push to `main`. `deploy.yml` creates the infrastructure, runs migrations and deploys to
-   `https://app.crudex.workers.dev`.
+The school API authenticates teachers, students, guardians and principals. A teacher can start a worksheet run, reconnect to its event stream, and reopen the saved worksheet after the sandbox stops. Students submit quizzes for server-side grading. Teachers can read gradebooks and schedule family report drafts. Principals can review school totals and decide budget claims. Frontend integration and external report delivery are pending.
+
+[API guide](docs/site/docs/integrations/school-api.md) · [OpenAPI specification](docs/site/static/openapi.yaml) · [Database schema](docs/site/docs/reference/database.md) · [Backend implementation plan](PLAN.md) · [Screen designs](docs/design/README.md)
+
+## Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| `apps/web` | React application served by Cloudflare Workers Static Assets. |
+| `apps/api` | Hono application Worker for school identity, agent runs, classroom workflows and approvals, backed by Neon, a queue consumer and scheduled jobs. |
+| `apps/agent-gateway` | Cloudflare Worker for trusted school dispatch, the passcode-protected demo, sandbox lifecycle and demo morning briefs. |
+| `apps/agent-runtime` | OpenCode host, agent definitions, school tools, embedded skills and scripted-model tests. |
+| `packages/shared` | Zod contracts shared by application callers and the API. |
+| `infra` and `.github/workflows` | Terraform resources, CI and separate application and agent release workflows. |
+
+The [backend architecture](docs/site/docs/architecture/run-lifecycle.md) traces an AI request. The [cloud architecture](docs/site/docs/architecture/cloud-services.md) maps each component to its provider and data store.
 
 ## Develop locally
 
-Needs Node 22 (`.nvmrc`), pnpm (`corepack enable`) and Docker.
+Follow [Run Crudex locally](docs/site/docs/getting-started/local-development.md) for prerequisites, migrations, local services and the school workflow checks.
 
-```bash
-pnpm install
-docker compose up -d                                  # Postgres + Redis with Neon/Upstash-style proxies
-cp apps/api/.dev.vars.example apps/api/.dev.vars
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/main pnpm --filter api db:migrate
-pnpm dev                                              # http://localhost:5173 (API proxied to :8787)
-```
+## Verification and operations
 
-`pnpm build | lint | typecheck | test` run across all packages. After changing a Drizzle table,
-run `pnpm --filter api db:generate` and commit the new migration.
+Run `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build` from the repository root. After changing a Drizzle table, generate and review the migration with `pnpm --filter api db:generate`.
 
-## Tear down
-
-Actions → **Terraform destroy** → Run workflow. With the defaults it only plans. To actually
-destroy, tick **apply** and type the project name in **confirm**. The database is kept unless
-**include_database** is ticked.
+Hosted infrastructure must stay within the repo’s no-credit-card constraint. The infrastructure guide covers account setup, credentials, migrations and deployments. [Infrastructure guide](infra/README.md) · [Repository conventions](CLAUDE.md)

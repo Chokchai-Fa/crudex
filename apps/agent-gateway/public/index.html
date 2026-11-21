@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Crudex Agent</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font:
+          1rem system-ui,
+          sans-serif;
+        color: #18263a;
+        background: #f5f7fa;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px;
+      }
+      header,
+      .status-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 5vw, 2rem);
+        letter-spacing: -0.035em;
+      }
+      h2 {
+        margin: 0 0 12px;
+        font-size: 1rem;
+      }
+      .layout {
+        display: grid;
+        gap: 16px;
+        margin-top: 20px;
+      }
+      .card {
+        min-width: 0;
+        padding: 16px;
+        background: #fff;
+        border: 1px solid #d9e0ea;
+        border-radius: 12px;
+      }
+      form {
+        margin: 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+      select,
+      textarea,
+      button {
+        font: inherit;
+        min-height: 44px;
+        border-radius: 8px;
+      }
+      select,
+      textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #64748b;
+        background: #fff;
+        color: inherit;
+      }
+      textarea {
+        display: block;
+        resize: vertical;
+      }
+      #description {
+        min-height: 20px;
+        margin: 6px 0 16px;
+        color: #475569;
+        font-size: 0.875rem;
+      }
+      button {
+        padding: 6px 14px;
+        border: 1px solid #64748b;
+        color: inherit;
+        background: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      #send {
+        margin-top: 12px;
+        border-color: #254f9a;
+        background: #254f9a;
+        color: #fff;
+      }
+      :focus-visible {
+        outline: 2px solid #254f9a;
+        outline-offset: 3px;
+      }
+      #answer {
+        min-height: 72px;
+        margin: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        line-height: 1.65;
+      }
+      #feedback {
+        margin: 8px 0 0;
+        color: #475569;
+        overflow-wrap: anywhere;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 6px;
+        margin: 0;
+        font-size: 0.875rem;
+      }
+      dt {
+        color: #475569;
+      }
+      dd {
+        margin: 0;
+        text-align: right;
+        overflow-wrap: anywhere;
+      }
+      #events {
+        margin: 0;
+        padding-left: 20px;
+        overflow-wrap: anywhere;
+        font-size: 0.875rem;
+      }
+      .side {
+        display: grid;
+        align-content: start;
+        gap: 16px;
+      }
+      @media (min-width: 720px) {
+        main {
+          padding: 40px 24px;
+        }
+        .layout {
+          grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+        }
+        .chat {
+          grid-row: span 2;
+        }
+        .side {
+          grid-column: 2;
+          grid-row: 1 / span 2;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Crudex Agent</h1>
+        <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+      </header>
+      <div class="layout">
+        <section class="card chat" aria-label="Chat">
+          <label for="role">บทบาทเดโม</label>
+          <select id="role">
+            <option value="teacher">ครู</option>
+            <option value="principal">ผู้อำนวยการ</option>
+          </select>
+          <form id="chat">
+            <label for="agent">ผู้ช่วย</label>
+            <select id="agent" aria-describedby="description" required disabled>
+              <option>กำลังโหลดรายชื่อผู้ช่วย…</option>
+            </select>
+            <p id="description"></p>
+            <label for="prompt">Message</label>
+            <textarea
+              id="prompt"
+              rows="4"
+              maxlength="4000"
+              placeholder="ช่วยเตรียมใบงานเศษส่วน 3 ข้อให้ห้อง ป.5/2"
+              required
+            ></textarea>
+            <button id="send" type="submit" disabled>Send</button>
+          </form>
+          <p id="feedback" role="status"></p>
+          <hr />
+          <h2>Answer</h2>
+          <p id="answer" lang="th" aria-live="polite">Your answer will appear here.</p>
+        </section>
+        <aside class="side" aria-label="Runtime details">
+          <section id="brief-panel" class="card" hidden>
+            <h2>สรุปเช้า ผอ.</h2>
+            <p id="brief-text" style="white-space: pre-line" aria-live="polite"></p>
+            <p id="brief-time"></p>
+            <button type="button" id="brief-run">รันตอนนี้</button>
+            <p id="brief-status" role="status"></p>
+          </section>
+          <section class="card">
+            <h2>Sandbox status</h2>
+            <dl>
+              <dt>Sandbox</dt>
+              <dd id="sandbox">Checking…</dd>
+              <dt>Runs today</dt>
+              <dd id="quota">—</dd>
+              <dt>Started</dt>
+              <dd id="started-at">—</dd>
+              <dt>Last used</dt>
+              <dd id="last-used-at">—</dd>
+            </dl>
+          </section>
+          <section class="card">
+            <h2>Tool events</h2>
+            <p id="empty-events">Tool calls will appear here.</p>
+            <ul id="events" aria-live="polite"></ul>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <script type="module">
+      const get = (id) => document.getElementById(id);
+      const agent = get('agent');
+      const role = get('role');
+      const send = get('send');
+      const answer = get('answer');
+      const feedback = get('feedback');
+      const toolEvents = get('events');
+      let sessionId;
+      let agents = [];
+
+      async function api(path, options) {
+        const response = await fetch(path, options);
+        if (response.status === 401) {
+          window.location.assign('/login');
+          throw new Error('Sign in to continue.');
+        }
+        if (!response.ok) {
+          const { error } = await response.json().catch(() => ({}));
+          const messages = {
+            daily_limit: 'The daily run limit has been reached.',
+            sandbox_unavailable: 'The sandbox could not start. Try again in a moment.',
+            invalid_chat: 'Enter a message between 1 and 4,000 characters.',
+          };
+          throw new Error(messages[error] ?? `Request failed (HTTP ${response.status}).`);
+        }
+        return response;
+      }
+
+      const localTime = (timestamp) => (timestamp ? new Date(timestamp).toLocaleTimeString() : '—');
+      async function refreshStatus() {
+        try {
+          const status = await (await api('/api/status')).json();
+          get('sandbox').textContent = status.sandbox;
+          get('quota').textContent = `${status.runsToday} / ${status.limit}`;
+          get('started-at').textContent = localTime(status.startedAt);
+          get('last-used-at').textContent = localTime(status.lastUsedAt);
+        } catch {
+          get('sandbox').textContent = 'Unavailable';
+        }
+      }
+
+      function showDescription() {
+        get('description').textContent =
+          agents.find(({ id }) => id === agent.value)?.description ?? '';
+      }
+
+      async function updateBrief(run) {
+        const button = get('brief-run');
+        button.disabled = true;
+        get('brief-status').textContent = run ? 'กำลังจัดทำสรุป…' : 'กำลังโหลด…';
+        try {
+          const response = run
+            ? await api('/api/brief/run', { method: 'POST' })
+            : await api('/api/brief');
+          const { latest, nextRunAt } = await response.json();
+          const thaiTime = (date) =>
+            new Date(date).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+          get('brief-text').textContent = latest?.text ?? 'ยังไม่มีสรุปเช้า';
+          get('brief-time').textContent = [
+            latest && 'สรุปล่าสุด ' + thaiTime(latest.generatedAt),
+            nextRunAt && 'รอบถัดไป ' + thaiTime(nextRunAt),
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          get('brief-status').textContent = '';
+        } catch (error) {
+          get('brief-status').textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      }
+      get('brief-run').addEventListener('click', () => void updateBrief(true));
+
+      async function loadAgents() {
+        agent.disabled = send.disabled = role.disabled = true;
+        try {
+          agents = await (await api('/api/agents?role=' + role.value)).json();
+          agent.replaceChildren(...agents.map(({ id, name }) => new Option(name, id)));
+          agent.disabled = agents.length === 0;
+          send.disabled = agent.disabled;
+          showDescription();
+          if (!agents.length) feedback.textContent = 'No agents are registered.';
+        } catch (error) {
+          agent.replaceChildren(new Option('Agents unavailable'));
+          feedback.textContent = error.message;
+        } finally {
+          role.disabled = false;
+          void refreshStatus();
+        }
+      }
+
+      role.addEventListener('change', () => {
+        sessionId = undefined;
+        agents = [];
+        agent.replaceChildren();
+        showDescription();
+        answer.textContent = feedback.textContent = get('prompt').value = '';
+        toolEvents.replaceChildren();
+        get('empty-events').hidden = false;
+        const principal = role.value === 'principal';
+        get('prompt').placeholder = principal
+          ? 'วันนี้มีเรื่องไหนต้องตัดสินใจบ้าง'
+          : 'ช่วยเตรียมใบงานเศษส่วน 3 ข้อให้ห้อง ป.5/2';
+        get('brief-panel').hidden = !principal;
+        if (principal && !get('brief-run').disabled) void updateBrief(false);
+        void loadAgents();
+      });
+
+      agent.addEventListener('change', () => {
+        sessionId = undefined;
+        showDescription();
+      });
+
+      get('chat').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const text = get('prompt').value.trim();
+        if (!text) {
+          feedback.textContent = 'Enter a message.';
+          return;
+        }
+        send.disabled = agent.disabled = role.disabled = true;
+        answer.textContent = '';
+        feedback.textContent = 'Waiting for the agent…';
+        toolEvents.replaceChildren();
+        get('empty-events').hidden = false;
+        let finished = false;
+        let publishedBrief = false;
+        try {
+          const response = await api('/api/chat?role=' + role.value, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ agentId: agent.value, text, sessionId }),
+          });
+          const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+          let buffer = '';
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += value;
+            let boundary;
+            while ((boundary = buffer.indexOf('\n\n')) !== -1) {
+              const frame = buffer.slice(0, boundary);
+              buffer = buffer.slice(boundary + 2);
+              if (!frame.startsWith('data: ')) continue;
+              const item = JSON.parse(frame.slice(6));
+              switch (item.type) {
+                case 'session':
+                  sessionId = item.sessionId;
+                  break;
+                case 'delta':
+                  feedback.textContent = 'Receiving answer…';
+                  if (!publishedBrief) answer.append(item.text);
+                  break;
+                case 'principal_brief':
+                  publishedBrief = true;
+                  answer.textContent = item.text;
+                  break;
+                case 'tool': {
+                  get('empty-events').hidden = true;
+                  const entry = document.createElement('li');
+                  entry.textContent = `${item.name} · ${item.status}`;
+                  toolEvents.append(entry);
+                  break;
+                }
+                case 'done':
+                  finished = true;
+                  feedback.textContent = `Finished in ${(item.elapsedMs / 1000).toFixed(1)} s.`;
+                  break;
+                case 'error':
+                  throw new Error(`Turn failed: ${item.code}.`);
+              }
+            }
+          }
+          if (!finished) throw new Error('The stream ended before the turn finished.');
+        } catch (error) {
+          feedback.textContent = error.message;
+        } finally {
+          send.disabled = agent.disabled = role.disabled = false;
+          void refreshStatus();
+        }
+      });
+
+      void refreshStatus();
+      void loadAgents();
+      setInterval(refreshStatus, 5000);
+    </script>
+  </body>
+</html>

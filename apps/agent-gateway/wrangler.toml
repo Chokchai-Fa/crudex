@@ -1,0 +1,33 @@
+name = "crudex-agent"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[vars]
+DAILY_RUN_LIMIT = "60"
+IDLE_STOP_MINUTES = "10"
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+run_worker_first = true
+
+[secrets]
+required = ["PASSCODE", "OPENAI_API_KEY", "VERCEL_TOKEN", "VERCEL_TEAM_ID", "VERCEL_PROJECT_ID"]
+
+[[durable_objects.bindings]]
+name = "SANDBOX"
+class_name = "SandboxManager"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SandboxManager"]
+
+[[durable_objects.bindings]]
+name = "BRIEFS"
+class_name = "MorningBrief"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["MorningBrief"]

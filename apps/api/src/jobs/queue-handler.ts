@@ -1,3 +1,5 @@
+import { draftReports } from '../services/classroom.service';
+import { dispatchRun } from '../services/runs.service';
 import { createDeps } from '../middleware/deps';
 import { handleNoteCreated } from '../services/notes.service';
 import type { Deps } from '../types/deps';
@@ -12,6 +14,10 @@ export type JobRunner = (deps: Deps, job: JobMessage) => Promise<void>;
 /** Dispatches one validated message to its service. Add a case per job type. */
 export async function runJob(deps: Deps, job: JobMessage): Promise<void> {
   switch (job.type) {
+    case 'dispatch-run':
+      return dispatchRun(deps, job.runId);
+    case 'draft-reports':
+      return draftReports(deps, job.routineId, job.occurrence);
     case 'ping':
       console.log('ping job received', { sentAt: job.sentAt });
       return;
@@ -40,13 +46,12 @@ export function createQueueHandler(makeDeps: (env: Env) => Deps, run: JobRunner 
       try {
         await run(deps, parsed.data);
         message.ack();
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : 'unknown';
+      } catch {
         if (message.attempts >= MAX_ATTEMPTS) {
-          console.error('Job gave up', { type: parsed.data.type, error: detail });
+          console.error('Job gave up', { type: parsed.data.type, id: message.id });
           message.ack();
         } else {
-          console.warn('Job will retry', { type: parsed.data.type, error: detail });
+          console.warn('Job will retry', { type: parsed.data.type, id: message.id });
           message.retry({ delaySeconds: RETRY_BASE_SECONDS * 2 ** (message.attempts - 1) });
         }
       }

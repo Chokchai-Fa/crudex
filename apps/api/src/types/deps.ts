@@ -6,6 +6,7 @@ import type { JobQueue } from '../lib/queue';
 /** Everything services need, passed explicitly as their first argument. */
 export interface Deps {
   config: Config;
+  agentGateway?: Fetcher;
   db: Db;
   cache: Cache;
   queue: JobQueue;

@@ -32,6 +32,6 @@ describe('scheduled keep-alive', () => {
     );
     await expect(
       handler(createScheduledController({ cron: '17 3 * * *' }), env, createExecutionContext()),
-    ).rejects.toThrow('upstash unavailable');
+    ).rejects.toThrow('Scheduled job failed');
   });
 });

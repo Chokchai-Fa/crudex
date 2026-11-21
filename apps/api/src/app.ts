@@ -1,10 +1,17 @@
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { requestId } from 'hono/request-id';
 import type { ErrorResponse } from '@repo/shared';
 import { AppError } from './lib/errors';
 import { depsMiddleware } from './middleware/deps';
+import { memoryRoutes } from './routes/memory.routes';
+import { meRoutes } from './routes/me.routes';
+import { runRoutes } from './routes/runs.routes';
+import { agentDirectoryRoutes } from './routes/agents.routes';
+import { approvalRoutes } from './routes/approvals.routes';
+import { classroomRoutes } from './routes/classroom.routes';
 import { healthRoutes } from './routes/health.routes';
 import { notesRoutes } from './routes/notes.routes';
 import type { AppEnv } from './types/app';
@@ -12,6 +19,7 @@ import type { AppEnv } from './types/app';
 /** The only place AppError codes become HTTP statuses. */
 const errorStatus: Record<string, ContentfulStatusCode> = {
   validation_error: 400,
+  unauthorized: 401,
   forbidden: 403,
   not_found: 404,
   conflict: 409,
@@ -24,7 +32,13 @@ export function handleError(err: Error, c: Context<AppEnv>) {
     const status = errorStatus[err.code] ?? 400;
     return c.json<ErrorResponse>({ error: { code: err.code, message: err.message } }, status);
   }
-  console.error('Unhandled error', { requestId: c.get('requestId'), error: err });
+  if (err instanceof HTTPException && err.status === 400) {
+    return c.json<ErrorResponse>(
+      { error: { code: 'validation_error', message: 'Invalid request body' } },
+      400,
+    );
+  }
+  console.error('Unhandled error', { requestId: c.get('requestId') });
   return c.json<ErrorResponse>(
     { error: { code: 'internal_error', message: 'Something went wrong' } },
     500,
@@ -38,6 +52,12 @@ const app = new Hono<AppEnv>()
   .use(requestId())
   .use(logger())
   .use(depsMiddleware)
+  .route('/', memoryRoutes)
+  .route('/', meRoutes)
+  .route('/', runRoutes)
+  .route('/', classroomRoutes)
+  .route('/', approvalRoutes)
+  .route('/', agentDirectoryRoutes)
   .route('/health', healthRoutes)
   .route('/notes', notesRoutes)
   .notFound((c) =>

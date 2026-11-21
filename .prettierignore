@@ -9,3 +9,9 @@ apps/api/drizzle
 *.md
 .github
 infra
+
+# Keep the generated Paper design references in their exported form.
+docs/design/paper-export/
+docs/site/.docusaurus/
+docs/site/build/
+docs/site/pnpm-lock.yaml

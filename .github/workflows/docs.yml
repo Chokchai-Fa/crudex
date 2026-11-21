@@ -1,0 +1,54 @@
+name: Deploy documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/site/**'
+      - 'docs/design/pages/**'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/docs-build.yml'
+      - '.nvmrc'
+
+permissions:
+  contents: read
+
+jobs:
+  merged-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      merged: ${{ steps.check.outputs.merged }}
+    steps:
+      - name: Check that this revision came from a merged PR
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          merged=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq "any(.[]; .base.ref == \"main\" and .merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\")")
+          echo "merged=$merged" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: merged-pr
+    if: needs.merged-pr.outputs.merged == 'true'
+    uses: ./.github/workflows/docs-build.yml
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    steps:
+      - name: Publish documentation
+        id: deployment
+        uses: actions/deploy-pages@v4

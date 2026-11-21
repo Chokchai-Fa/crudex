@@ -2,6 +2,10 @@
 
 Guidance for Claude Code working in this monorepo.
 
+## Before every task
+
+Run the [rebase-before-task skill](skills/rebase-before-task/SKILL.md) before planning, reviewing or editing so the task starts with the latest development branch and repository context.
+
 ## Project goal
 
 A full-stack TypeScript monorepo (frontend + backend + infrastructure) that runs **entirely on
@@ -18,8 +22,14 @@ a queue job), that runs through every layer: `packages/shared/src/notes.schema.t
 `db/schema/notes.ts`, and `features/notes/` on the web. Copy its shape for new features, then
 delete it. Rename the project once with `scripts/init-template.sh` (see `README.md`).
 
-When the app has a spec, put it in `docs/` (e.g. `docs/PRODUCT.md`: flow, data model, API,
+When the app has a spec, put it in `docs/` (e.g. `docs/site/docs/product/workflows.md`: flow, data model, API,
 responsive layouts) and a step-by-step plan in `PLAN.md`, and keep both updated.
+
+Use the [Docusaurus authoring skill](skills/write-docusaurus-docs/SKILL.md) when editing the published handbook.
+
+## School backend
+
+The application Worker authenticates school memberships, stores business records in Neon and dispatches queued AI runs through the agent gateway’s private service binding. The separate gateway owns sandbox lifecycle and the OpenCode runtime. Notes remain a small layering example. Consult the [school API](docs/site/docs/integrations/school-api.md), [database schema](docs/site/docs/reference/database.md) and [cloud architecture](docs/site/docs/architecture/cloud-services.md) for the implemented school workflows.
 
 ## Service stack (free tier, no credit card — checked Nov 2026)
 
@@ -70,6 +80,20 @@ Do **not** use:
 ├── turbo.json
 └── CLAUDE.md
 ```
+
+## Agent harness
+
+The agent harness has a separate `crudex-agent` Worker in `apps/agent-gateway`.
+One SQLite-backed Durable Object tracks the daily Bangkok run cap and sandbox
+lifecycle. The Worker serves the passcode-gated test page and proxies SSE to
+`apps/agent-runtime`, which runs OpenCode on Node 24 in a Vercel Hobby Sandbox.
+The runtime stores sessions in the sandbox's local SQLite database.
+
+The `deploy-agent.yml` workflow runs when a PR with agent changes merges into `main` or by
+manual dispatch. It reuses the Vercel project and runs two smoke turns after
+deploy. Its GitHub secrets are `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE`
+and `AGENT_OPENAI_API_KEY`. See [the runtime README](apps/agent-runtime/README.md)
+for local checks and extension steps.
 
 ## Tooling
 
@@ -304,7 +328,7 @@ Rules:
 
 - Change detection uses `dorny/paths-filter`: any `apps/**`, `packages/**`, or lockfile change
   deploys the app (web + api ship together); infra changes also redeploy it (bindings may have
-  changed); docs-only changes skip all.
+  changed). Published handbook changes run the separate Documentation workflow.
 - Shared setup (pnpm + Node from `.nvmrc` + cached install) is the composite action
   `.github/actions/setup` — reuse it instead of repeating steps.
 - All Terraform jobs share the `terraform-prod` concurrency group; deploys share `deploy-main`

@@ -1,0 +1,96 @@
+name: Deploy agent gateway
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths:
+      - 'apps/agent-*/**'
+      - 'packages/shared/src/**'
+      - '.github/workflows/deploy-agent.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-agent
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - name: Test agent packages
+        run: pnpm --filter agent-runtime --filter agent-gateway test
+
+      - name: Bundle the sandbox runtime
+        run: |
+          node apps/agent-runtime/scripts/bundle.mjs
+          mkdir -p apps/agent-gateway/public/__sandbox
+          cp apps/agent-runtime/dist/app.tgz apps/agent-gateway/public/__sandbox/app.tgz
+
+      - name: Resolve Cloudflare and Vercel resources
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cloudflare=https://api.cloudflare.com/client/v4
+          vercel=https://api.vercel.com
+          account=$(curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$cloudflare/accounts" |
+            jq -er '.result[0].id | select(type == "string" and length > 0)')
+          printf '::add-mask::%s\n' "$account"
+          subdomain=$(curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "$cloudflare/accounts/$account/workers/subdomain" |
+            jq -er '.result.subdomain | select(type == "string" and length > 0)')
+          team=$(curl -fsS --max-time 30 -H "Authorization: Bearer $VERCEL_TOKEN" "$vercel/v2/teams" |
+            jq -er '.teams[0].id | select(type == "string" and length > 0)')
+          printf '::add-mask::%s\n' "$team"
+          project=$(curl -fsS --max-time 30 -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "$vercel/v10/projects?teamId=$team&limit=100" |
+            jq -ce '([.projects[] | select(.name == "crudex")] + .projects)[0] // error("No Vercel project")')
+          project_id=$(jq -er '.id | select(type == "string" and length > 0)' <<< "$project")
+          printf '::add-mask::%s\n' "$project_id"
+          printf 'Using Vercel project %s\n' "$(jq -r '.name' <<< "$project")"
+          {
+            printf 'CLOUDFLARE_ACCOUNT_ID=%s\n' "$account"
+            printf 'VERCEL_TEAM_ID=%s\n' "$team"
+            printf 'VERCEL_PROJECT_ID=%s\n' "$project_id"
+            printf 'AGENT_URL=https://crudex-agent.%s.workers.dev\n' "$subdomain"
+          } >> "$GITHUB_ENV"
+
+      - name: Deploy crudex-agent
+        working-directory: apps/agent-gateway
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          AGENT_PASSCODE: ${{ secrets.AGENT_PASSCODE }}
+          AGENT_OPENAI_API_KEY: ${{ secrets.AGENT_OPENAI_API_KEY }}
+          AGENT_APPS_SCRIPT_URL: ${{ secrets.AGENT_APPS_SCRIPT_URL }}
+          KAHOOT_MCP_ENABLED: ${{ vars.KAHOOT_MCP_ENABLED || 'false' }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          test -n "$AGENT_PASSCODE"
+          test -n "$AGENT_OPENAI_API_KEY"
+          test -n "$VERCEL_TOKEN"
+          secret_file=$(mktemp)
+          trap 'rm -- "$secret_file"' EXIT
+          jq -n '{
+            PASSCODE: env.AGENT_PASSCODE,
+            OPENAI_API_KEY: env.AGENT_OPENAI_API_KEY,
+            VERCEL_TOKEN: env.VERCEL_TOKEN,
+            VERCEL_TEAM_ID: env.VERCEL_TEAM_ID,
+            VERCEL_PROJECT_ID: env.VERCEL_PROJECT_ID
+          } + (if (env.AGENT_APPS_SCRIPT_URL // "") != "" then
+            {SCHOOL_BOT_APPS_SCRIPT_URL: env.AGENT_APPS_SCRIPT_URL}
+          else {} end)' > "$secret_file"
+          pnpm exec wrangler deploy --config wrangler.toml --var "RUNTIME_REVISION:$GITHUB_SHA" --var "KAHOOT_MCP_ENABLED:$KAHOOT_MCP_ENABLED" --secrets-file "$secret_file"
+
+      - name: Smoke test the deployed Worker
+        env:
+          AGENT_PASSCODE: ${{ secrets.AGENT_PASSCODE }}
+        run: node apps/agent-gateway/scripts/smoke.mjs

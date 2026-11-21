@@ -3,18 +3,30 @@
 Guide for coding agents (Codex, Claude Code, Cursor…) working in this repo. **`CLAUDE.md` is the
 full architecture reference — read it before changing anything**; this file is the short version.
 
+## Before every task
+
+Run the [rebase-before-task skill](skills/rebase-before-task/SKILL.md) before planning, reviewing or editing so the task starts with the latest development branch and repository context.
+
 ## What this is
 A full-stack TypeScript monorepo that runs entirely on free-tier cloud services with **no credit
 card**: one Cloudflare Worker serves a React SPA and a Hono API, backed by Neon Postgres, Upstash
 Redis and Cloudflare Queues (plus a Workers KV namespace and a Vercel project). Everything is
 declared in Terraform under `infra/` and deployed by GitHub Actions. It was created from
-`app-template`; the one example feature, **notes**, goes through every layer — copy its shape,
-then delete it.
+`app-template`; the **notes** example illustrates each application layer.
+
+The `agent-design` harness uses a separate `crudex-agent` Worker. OpenCode runs on Node 24 in
+a Vercel Hobby Sandbox, with the Worker handling authentication, quota and SSE proxying.
+
+## School backend
+
+The application Worker authenticates school memberships, stores business records in Neon and dispatches queued AI runs through the agent gateway’s private service binding. The separate gateway owns sandbox lifecycle and the OpenCode runtime. Notes remain a small layering example. Consult the [school API](docs/site/docs/integrations/school-api.md), [database schema](docs/site/docs/reference/database.md) and [cloud architecture](docs/site/docs/architecture/cloud-services.md) for the implemented school workflows.
 
 ## Layout
 ```
 apps/web        Vite + React 19, TanStack Router + Query, Tailwind v4 + shadcn/ui
 apps/api        Hono on Workers: routes → services → repositories, Drizzle + Neon HTTP, Upstash REST, Queues consumer
+apps/agent-runtime  Node 24 + OpenCode in Vercel Sandbox
+apps/agent-gateway  crudex-agent Worker + sandbox lifecycle Durable Object
 packages/shared zod schemas = the API contract, used by both apps
 infra/          Terraform (Neon, Upstash, Queue, KV, Vercel project); state in HCP Terraform
 .github/        ci, deploy, drift (weekly), destroy (manual)
@@ -37,6 +49,7 @@ Skills live in `skills/<name>/SKILL.md`. Claude Code reads them via `.claude/ski
 
 | Skill | Use when touching |
 |-------|-------------------|
+| [write-docusaurus-docs](skills/write-docusaurus-docs/SKILL.md) | published guides, navigation and OpenAPI downloads under `docs/site/` |
 | `infra` | `infra/**`, `apps/api/wrangler.toml`, `.github/workflows/**`, any cloud resource or binding |
 | `manage-secrets` | adding, removing or rotating any secret or env var |
 | `design-system` | `apps/web/**` UI: components, theming, UX checklist |
