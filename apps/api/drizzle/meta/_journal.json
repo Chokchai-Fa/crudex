@@ -8,6 +8,34 @@
       "when": 1794759387573,
       "tag": "0000_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795238067423,
+      "tag": "0001_school_backend",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795238135354,
+      "tag": "0002_run_memory",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795238394463,
+      "tag": "0003_school_approvals",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795238446411,
+      "tag": "0004_owner_quota",
+      "breakpoints": true
     }
   ]
 }

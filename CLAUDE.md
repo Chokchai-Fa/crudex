@@ -2,6 +2,10 @@
 
 Guidance for Claude Code working in this monorepo.
 
+## Before every task
+
+Run the [rebase-before-task skill](skills/rebase-before-task/SKILL.md) before planning, reviewing or editing so the task starts with the latest development branch and repository context.
+
 ## Project goal
 
 A full-stack TypeScript monorepo (frontend + backend + infrastructure) that runs **entirely on
@@ -20,6 +24,10 @@ delete it. Rename the project once with `scripts/init-template.sh` (see `README.
 
 When the app has a spec, put it in `docs/` (e.g. `docs/PRODUCT.md`: flow, data model, API,
 responsive layouts) and a step-by-step plan in `PLAN.md`, and keep both updated.
+
+## School backend
+
+The application Worker authenticates school memberships, stores business records in Neon and dispatches queued AI runs through the agent gateway’s private service binding. The separate gateway owns sandbox lifecycle and the OpenCode runtime. Notes remain a small layering example. Consult the [school API](docs/API.md), [database schema](docs/DATABASE.md) and [cloud architecture](docs/CLOUD-ARCHITECTURE.md) for the implemented school workflows.
 
 ## Service stack (free tier, no credit card — checked Nov 2026)
 
@@ -79,7 +87,7 @@ lifecycle. The Worker serves the passcode-gated test page and proxies SSE to
 `apps/agent-runtime`, which runs OpenCode on Node 24 in a Vercel Hobby Sandbox.
 The runtime stores sessions in the sandbox's local SQLite database.
 
-The `deploy-agent.yml` workflow runs on agent changes pushed to `agent-design` or by
+The `deploy-agent.yml` workflow runs when a PR with agent changes merges into `main` or by
 manual dispatch. It reuses the Vercel project and runs two smoke turns after
 deploy. Its GitHub secrets are `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE`
 and `AGENT_OPENAI_API_KEY`. See [the runtime README](apps/agent-runtime/README.md)

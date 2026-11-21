@@ -1,8 +1,10 @@
+import type { SchoolScope } from '../school';
 import type { Plugin } from '@opencode/plugin';
 
 type ToolEditor = Parameters<Parameters<Plugin.Context['tool']['transform']>[0]>[0];
 
 export interface ToolContext {
+  scope?: SchoolScope;
   count: number;
   signal: AbortSignal;
   agent?: string;

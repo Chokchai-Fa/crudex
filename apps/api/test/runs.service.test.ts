@@ -1,0 +1,99 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import { dispatchRun, replay, startRun } from '../src/services/runs.service';
+import * as repo from '../src/repositories/runs.repository';
+import { loadSchoolActor } from '../src/services/identity.service';
+import { makeFakeDeps } from './support/fake-deps';
+import type { SchoolActor } from '@repo/shared';
+vi.mock('../src/repositories/runs.repository');
+vi.mock('../src/services/identity.service');
+const a: SchoolActor = {
+  schoolId: crypto.randomUUID(),
+  ownerId: crypto.randomUUID(),
+  membershipId: crypto.randomUUID(),
+  role: 'teacher',
+  displayName: 'Synthetic teacher',
+  classes: [],
+  children: [],
+};
+const r = {
+  id: crypto.randomUUID(),
+  schoolId: a.schoolId,
+  ownerId: a.ownerId,
+  membershipId: a.membershipId,
+  role: 'teacher',
+  agentId: 'jum',
+  classId: null,
+  requestId: crypto.randomUUID(),
+  prompt: 'worksheet',
+  status: 'queued',
+  attemptId: null,
+  credentialHash: null,
+  leaseUntil: new Date(Date.now() + 720000),
+  createdAt: new Date(),
+} as const;
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(loadSchoolActor).mockResolvedValue(a);
+  vi.mocked(repo.claim).mockResolvedValue(r);
+});
+function consumer(body: string, status = 200) {
+  const d = makeFakeDeps().deps;
+  const fetch = vi.fn(async () => new Response(body, { status }));
+  return {
+    deps: {
+      ...d,
+      config: { ...d.config, APP_URL: 'https://app.example.com' },
+      agentGateway: { fetch } as unknown as Fetcher,
+    },
+    fetch,
+  };
+}
+it('skips a repeated queue message and interrupts an acknowledged stream without completion', async () => {
+  const { deps, fetch } = consumer('data: {"type":"delta","text":"partial"}\n\n');
+  vi.mocked(repo.claim).mockResolvedValueOnce(r).mockResolvedValueOnce(undefined);
+  await dispatchRun(deps, r.id);
+  await dispatchRun(deps, r.id);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(repo.append).toHaveBeenCalledWith(deps.db, r.id, expect.any(String), [
+    { type: 'delta', text: 'partial' },
+  ]);
+  expect(repo.finish).toHaveBeenCalledWith(deps.db, r.id, expect.any(String), 'interrupted', {
+    type: 'error',
+    code: 'interrupted',
+  });
+});
+it('denies a different class and principal agent before reservation and rejects request ID conflicts', async () => {
+  const { deps } = consumer('');
+  const input = { prompt: r.prompt, clientRequestId: r.requestId };
+  await expect(
+    startRun(deps, a, 'jum', { ...input, classId: crypto.randomUUID() }),
+  ).rejects.toMatchObject({ code: 'forbidden' });
+  await expect(startRun(deps, a, 'rungchao', input)).rejects.toMatchObject({ code: 'forbidden' });
+  expect(repo.accept).not.toHaveBeenCalled();
+  vi.mocked(repo.accept).mockResolvedValue(r);
+  await expect(startRun(deps, a, 'jum', { ...input, prompt: 'changed' })).rejects.toMatchObject({
+    code: 'conflict',
+  });
+});
+it('requires continued membership before dispatch and ownership before replay', async () => {
+  const { deps, fetch } = consumer('');
+  vi.mocked(loadSchoolActor).mockRejectedValueOnce(new Error('expired'));
+  await dispatchRun(deps, r.id);
+  expect(fetch).not.toHaveBeenCalled();
+  await expect(replay(deps, a, r.id, 0)).rejects.toMatchObject({ code: 'not_found' });
+  expect(repo.events).not.toHaveBeenCalled();
+});
+it('maps gateway capacity exhaustion and provider errors to terminal events', async () => {
+  const limited = consumer('quota', 429);
+  await dispatchRun(limited.deps, r.id);
+  expect(repo.finish).toHaveBeenCalledWith(limited.deps.db, r.id, expect.any(String), 'failed', {
+    type: 'error',
+    code: 'capacity_exhausted',
+  });
+  const timeout = consumer('data: {"type":"error","code":"timeout"}\n\n');
+  await dispatchRun(timeout.deps, r.id);
+  expect(repo.finish).toHaveBeenCalledWith(timeout.deps.db, r.id, expect.any(String), 'failed', {
+    type: 'error',
+    code: 'timeout',
+  });
+});

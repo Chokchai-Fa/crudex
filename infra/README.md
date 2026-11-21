@@ -10,6 +10,12 @@ credit card**.
 
 ---
 
+## School API rollout
+
+The application Worker uses the `SCHOOL_GATEWAY` service binding to call the `SchoolDispatch` entrypoint on `crudex-agent`. For first rollout, release the gateway revision exporting that entrypoint before releasing the application Worker. The application release runs additive migrations before shipping the Worker. Its queue consumes one message per batch. A five-minute cron recovers run dispatch and enqueues due school report drafts alongside the existing daily Redis keepalive.
+
+[Worker bindings](../apps/api/wrangler.toml) · [Database migrations and schema](../docs/DATABASE.md) · [API contract](../docs/API.md)
+
 ## 0. Overview — who creates what
 
 | Thing | Created by | Why not Terraform |
@@ -311,3 +317,14 @@ docker compose up -d
 pnpm --filter api db:migrate
 pnpm dev            # Vite :5173 (proxies /api + WebSockets) + wrangler dev :8787
 ```
+
+### School agent service binding
+
+The app Worker binds `SCHOOL_GATEWAY` to the `SchoolDispatch` entrypoint on
+`crudex-agent`. The gateway must already expose that entrypoint before the app
+deployment. The existing agent deployment workflow bundles the runtime and checks
+the public demo. This binding shares the existing one-sandbox capacity and
+Bangkok daily allowance. Switching owners drains and replaces the sandbox.
+The queue consumer authenticates callbacks with an expiring per-attempt token
+whose hash is stored in Postgres. The gateway signs the turn with the sandbox's
+ephemeral boot credential. Neither credential needs a CI secret.

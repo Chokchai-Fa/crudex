@@ -7,6 +7,7 @@ import { agents, teacherAgents } from './agents';
 import { validLoginId } from './demo-session';
 import { createHarness } from './harness';
 import { createTurnRunner } from './run';
+import { schoolScopeSchema, validSchoolTurn } from './school';
 import { tools } from './tools';
 
 const config = z
@@ -28,11 +29,15 @@ if (!config.success) {
 
 const { UPSTREAM_TOKEN, DATA_DIR, PORT, HOST } = config.data;
 const expectedToken = Buffer.from(UPSTREAM_TOKEN);
-const { host, directory, toolCalls } = await createHarness(resolve(DATA_DIR));
+const { host, directory, toolCalls, scopes } = await createHarness(resolve(DATA_DIR));
 const runTurn = createTurnRunner(host);
+const sessions = new Map<string, string>();
+const inFlight = new Set<string>();
+const acceptedAttempts = new Set<string>();
 const chatBody = z.object({
   agentId: z.string().min(1).max(100),
   text: z.string().max(4_000).trim().min(1),
+  scope: schoolScopeSchema.optional(),
   sessionId: z.string().min(1).max(256).optional(),
 });
 
@@ -100,13 +105,41 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
 
   const body = await readChat(request);
   if (!body?.success) return json(response, 400, { error: 'invalid_chat' });
-  const { agentId, text, sessionId } = body.data;
+  const { agentId, text, scope } = body.data;
+  const owner = process.env.SCHOOL_OWNER;
+  if (
+    owner
+      ? !scope ||
+        !validSchoolTurn(
+          scope,
+          text,
+          request.headers['x-school-signature'],
+          owner,
+          UPSTREAM_TOKEN,
+        ) ||
+        scope.agentId !== agentId ||
+        scope.role !== role ||
+        scope.expiresAt <= Date.now() ||
+        body.data.sessionId
+      : scope
+  )
+    return json(response, 403, { error: 'invalid_scope' });
+  const key = scope ? [scope.schoolId, scope.ownerId, scope.classId, agentId].join('/') : undefined;
+  if (key && inFlight.has(key)) return json(response, 409, { error: 'session_busy' });
+  if (key && scope?.freshSession) sessions.delete(key);
+  const sessionId = key ? sessions.get(key) : body.data.sessionId;
   const agent = visibleAgents.find(({ id }) => id === agentId);
   if (!agent) return json(response, 400, { error: 'unknown_agent' });
 
-  const loginId = request.headers['x-crudex-login-id'];
-  if (!validLoginId(loginId, agent.id)) return json(response, 401, { error: 'invalid_session' });
+  const loginId = scope?.ownerId ?? request.headers['x-crudex-login-id'];
+  if (typeof loginId !== 'string' || (!scope && !validLoginId(loginId, agent.id)))
+    return json(response, 401, { error: 'invalid_session' });
 
+  if (scope) {
+    if (acceptedAttempts.has(scope.attemptId))
+      return json(response, 409, { error: 'attempt_already_accepted' });
+    acceptedAttempts.add(scope.attemptId);
+  }
   const abort = new AbortController();
   response.once('close', () => {
     if (!response.writableFinished) abort.abort();
@@ -117,11 +150,35 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     'x-accel-buffering': 'no',
   });
   response.flushHeaders();
-  const events = runTurn({ agent, directory, text, sessionId, loginId, signal: abort.signal });
+  if (key) inFlight.add(key);
+  let currentSession: string | undefined;
+  const events = runTurn({
+    agent,
+    directory,
+    text,
+    sessionId,
+    loginId,
+    signal: abort.signal,
+    school: Boolean(scope),
+  });
   async function* encode() {
-    for await (const event of events) yield `data: ${JSON.stringify(event)}\n\n`;
+    for await (const event of events) {
+      if (key && scope && event.type === 'session') {
+        currentSession = event.sessionId;
+        sessions.set(key, event.sessionId);
+        scopes.set(event.sessionId, scope);
+      }
+      if (key && event.type === 'error') sessions.delete(key);
+      yield `data: ${JSON.stringify(event)}\n\n`;
+    }
   }
-  await pipeline(encode(), response, { signal: abort.signal });
+  try {
+    await pipeline(encode(), response, { signal: abort.signal });
+  } finally {
+    if (key) inFlight.delete(key);
+    if (currentSession) scopes.delete(currentSession);
+    if (key && abort.signal.aborted) sessions.delete(key);
+  }
 }
 
 const server = createServer((request, response) => {

@@ -147,3 +147,5 @@ export default {
     return Response.json({ error: 'not_found' }, { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
+
+export { SchoolDispatch } from './school-dispatch';

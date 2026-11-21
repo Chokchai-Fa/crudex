@@ -1,3 +1,5 @@
+import { enqueueDueReports } from '../services/classroom.service';
+import { recoverRuns } from '../services/runs.service';
 import { createDeps } from '../middleware/deps';
 import { keepCacheAlive } from '../services/keepalive.service';
 import type { Deps } from '../types/deps';
@@ -14,13 +16,14 @@ export function createScheduledHandler(makeDeps: (env: Env) => Deps) {
     _ctx: ExecutionContext,
   ) {
     try {
-      await keepCacheAlive(makeDeps(env));
-    } catch (error) {
-      console.error('Scheduled keep-alive failed', {
-        cron: controller.cron,
-        error: error instanceof Error ? error.message : 'unknown',
-      });
-      throw error;
+      const deps = makeDeps(env);
+      if (controller.cron === '*/5 * * * *') {
+        await Promise.all([enqueueDueReports(deps), recoverRuns(deps)]);
+      } else {
+        await keepCacheAlive(deps);
+      }
+    } catch {
+      throw new Error('Scheduled job failed for cron ' + controller.cron);
     }
   };
 }

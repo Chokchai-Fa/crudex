@@ -23,6 +23,7 @@ interface Turn {
   text: string;
   sessionId?: string;
   signal: AbortSignal;
+  school?: boolean;
 }
 
 async function findSession(host: Host, sessionID: string, signal: AbortSignal) {
@@ -100,6 +101,8 @@ export function createTurnRunner(host: Host) {
       const renderedWorksheets = new Set<string>();
       let rootDone = false;
       let rootText = '';
+      let toolSteps = 0;
+      let outputCharacters = 0;
       for await (const event of host.event.subscribe(opts)) {
         if (event.type === 'server.connected') {
           promptSent = true;
@@ -128,6 +131,14 @@ export function createTurnRunner(host: Host) {
           children.set(source, { text: '' });
         }
         const child = children.get(source);
+        if (turn.school) {
+          if (event.type === 'session.tool.input.started') toolSteps++;
+          if (event.type === 'session.text.delta') outputCharacters += event.data.delta.length;
+          if (toolSteps > 32 || outputCharacters > 64_000) {
+            yield { type: 'error', code: 'turn_limit' };
+            return;
+          }
+        }
 
         switch (event.type) {
           case 'session.text.delta':
@@ -172,7 +183,7 @@ export function createTurnRunner(host: Host) {
                     if (part.type !== 'text') continue;
                     const output = JSON.parse(part.text);
                     if (
-                      output.mode === 'apps-script' &&
+                      (output.mode === 'apps-script' || output.mode === 'school') &&
                       typeof output.worksheet === 'string' &&
                       !renderedWorksheets.has(output.formUrl)
                     ) {
@@ -187,7 +198,10 @@ export function createTurnRunner(host: Host) {
                   for (const part of event.data.content) {
                     if (part.type !== 'text') continue;
                     const result = JSON.parse(part.text);
-                    if (result.mode === 'apps-script' && typeof result.formUrl === 'string')
+                    if (
+                      (result.mode === 'apps-script' || result.mode === 'school') &&
+                      typeof result.formUrl === 'string'
+                    )
                       child.formUrl = result.formUrl;
                   }
                 }

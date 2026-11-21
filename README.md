@@ -6,17 +6,17 @@ Crudex is a Thai-language AI assistant for school staff. A teacher can ask Jaew 
 
 The passcode-protected agent demo uses synthetic school data. It has five teacher agents, delegated chat with streamed responses, assessment checking, and a Google Forms integration when configured. OpenCode runs on Node 24 in a disposable Vercel Sandbox and calls OpenAI with a server-side key. A replacement sandbox starts a fresh session. [Gateway API and streaming guide](docs/agent-gateway.md)
 
-The gateway also exposes principal chat and morning-brief endpoints. At revision `1724d2b`, the runtime registry is missing the principal agents those endpoints select. The implementation plan starts with a scripted test of this path. [Backend plan](PLAN.md)
+The school API authenticates teachers, students, guardians and principals. A teacher can start a worksheet run, reconnect to its event stream, and reopen the saved worksheet after the sandbox stops. Students submit quizzes for server-side grading. Teachers can read gradebooks and schedule family report drafts. Principals can review school totals and decide budget claims. Frontend integration and external report delivery are pending.
 
-The school backend is under development. Its first milestone for teachers is a verified worksheet they can reopen after the sandbox stops. Later workflows use saved assessments for quizzes and gradebooks, and authorized school records for parent reports and principal briefs. [Product specification](docs/PRODUCT.md) · [Screen designs](docs/design/README.md)
+[API guide](docs/API.md) · [OpenAPI specification](docs/openapi.yaml) · [Database schema](docs/DATABASE.md) · [Backend implementation plan](PLAN.md) · [Screen designs](docs/design/README.md)
 
 ## Repository map
 
 | Path | Responsibility |
 | --- | --- |
 | `apps/web` | React application served by Cloudflare Workers Static Assets. |
-| `apps/api` | Hono application Worker with health and notes routes, Neon repositories, Redis access, a queue consumer and a scheduled handler. School API features belong here. |
-| `apps/agent-gateway` | Separate Cloudflare Worker for the agent demo, passcode sessions, sandbox lifecycle, daily quota and morning briefs. |
+| `apps/api` | Hono application Worker for school identity, agent runs, classroom workflows and approvals, backed by Neon, a queue consumer and scheduled jobs. |
+| `apps/agent-gateway` | Cloudflare Worker for trusted school dispatch, the passcode-protected demo, sandbox lifecycle and demo morning briefs. |
 | `apps/agent-runtime` | OpenCode host, agent definitions, school tools, embedded skills and scripted-model tests. |
 | `packages/shared` | Zod contracts shared by application callers and the API. |
 | `infra` and `.github/workflows` | Terraform resources, CI and separate application and agent release workflows. |
