@@ -5,6 +5,7 @@ import {
   teacherClasses,
   type ClassHistory,
 } from '../data/class-history';
+import { pastAssessments, type PastAssessment } from '../data/class-score-history';
 import { classOf, ownerOf, ToolError } from './identity';
 import { validatedTool } from './validated';
 
@@ -55,6 +56,38 @@ function summarize({ assessment, questionTopics, results }: ClassHistory) {
   };
 }
 
+/** Short summary of every past assessment (oldest first) and students below threshold in two or more. */
+function historyOf(classId: string) {
+  const past: readonly PastAssessment[] = pastAssessments[classId] ?? [];
+  const below = new Map<string, { studentId: string; displayName: string; times: number }>();
+  const history = past.map((item) => {
+    const s = summarize(item);
+    for (const { studentId, displayName } of s.belowThreshold) {
+      const entry = below.get(studentId) ?? { studentId, displayName, times: 0 };
+      entry.times++;
+      below.set(studentId, entry);
+    }
+    return {
+      assessmentId: s.assessmentId,
+      date: item.date,
+      title: s.title,
+      topic: s.topic,
+      indicator: s.indicator,
+      maxScore: s.maxScore,
+      n: s.n,
+      mean: s.mean,
+      belowThresholdCount: s.belowThreshold.length,
+      wrongByTopic: s.wrongByTopic,
+    };
+  });
+  return {
+    history,
+    repeatedlyBelowThreshold: [...below.values()]
+      .filter((s) => s.times >= 2)
+      .sort((a, b) => b.times - a.times || a.studentId.localeCompare(b.studentId)),
+  };
+}
+
 function normalizeLabel(label: string) {
   return label
     .trim()
@@ -65,7 +98,7 @@ function normalizeLabel(label: string) {
 export const getScores = validatedTool(z.strictObject({ classLabel: z.string().optional() }), {
   name: 'get_scores',
   description:
-    'ดูคะแนนตัวอย่างของห้องที่ครูสอน ระบุ classLabel เป็นชื่อห้อง เช่น ม.2/1 หรือรหัสห้องได้ ถ้าไม่ระบุจะใช้ห้องในเซสชันหรือห้องแรกที่ครูสอน คืนค่าเฉลี่ย รายชื่อต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบตั้ง) หัวข้อที่ผิดมากสุด และคะแนนรายคน ตัวเลขทุกตัวคำนวณโดยระบบ',
+    'ดูคะแนนตัวอย่างของห้องที่ครูสอน ระบุ classLabel เป็นชื่อห้อง เช่น ม.2/1 หรือรหัสห้องได้ ถ้าไม่ระบุจะใช้ห้องในเซสชันหรือห้องแรกที่ครูสอน คืนค่าเฉลี่ย รายชื่อต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบตั้ง) หัวข้อที่ผิดมากสุด และคะแนนรายคนของครั้งล่าสุด พร้อม history สรุปทุกครั้งที่ผ่านมา (เก่าไปใหม่) และ repeatedlyBelowThreshold นักเรียนที่ต่ำกว่าเกณฑ์ตั้งแต่ 2 ครั้ง ตัวเลขทุกตัวคำนวณโดยระบบ',
   gate: 'allow',
   execute: ({ classLabel }, context) => {
     const ownerId = ownerOf(context).id;
@@ -93,6 +126,6 @@ export const getScores = validatedTool(z.strictObject({ classLabel: z.string().o
     if (!history) {
       return { hasData: false, classId, label, message: 'ยังไม่มีข้อมูลคะแนนของห้องนี้' };
     }
-    return { hasData: true, classId, label, ...summarize(history) };
+    return { hasData: true, classId, label, ...summarize(history), ...historyOf(classId) };
   },
 });
