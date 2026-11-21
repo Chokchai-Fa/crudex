@@ -1,52 +1,45 @@
-# crudex
+# Crudex
 
-A full-stack TypeScript monorepo that runs **entirely on free-tier cloud services that need no
-credit card**: one Cloudflare Worker serving a React SPA and a Hono API, Neon Postgres, Upstash
-Redis and Cloudflare Queues, all provisioned by Terraform and deployed by GitHub Actions.
+Crudex is a Thai-language AI assistant for school staff. A teacher can ask Jaew (น้องแจ๋ว) for a fractions worksheet. Jaew delegates to Jum (น้องจ๋ำ), whose tools check the answer key before publication. Other assistants help with teaching media, administrative paperwork and student insights.
 
-| Part | What's in it |
-|------|--------------|
-| `apps/web` | Vite + React 19, TanStack Router + Query, Tailwind v4 + shadcn/ui, light/dark theme |
-| `apps/api` | Hono on Workers, layered routes → services → repositories, Drizzle + Neon HTTP, Upstash REST, a Queues consumer, Vitest in the Workers runtime |
-| `packages/shared` | zod schemas = the API contract, used by both apps |
-| `infra/` | Terraform modules for Neon, Upstash and the queue; state in HCP Terraform (free) |
-| `.github/` | `ci` (lint/typecheck/test/build + plan comment), `deploy`, weekly `drift` check, manual `destroy` |
-| `skills/` | Agent skills (one folder; `.claude/skills` and `.agents/skills` symlink to it): `design-system` (UI rules + UX checklist), `manage-secrets` and `infra` |
+## What works today
 
-The one example feature, **notes**, goes through every layer. Copy its shape for your own
-features, then delete it. `CLAUDE.md` has the architecture rules.
+The passcode-protected agent demo uses synthetic school data. It has five teacher agents, delegated chat with streamed responses, assessment checking, and a Google Forms integration when configured. OpenCode runs on Node 24 in a disposable Vercel Sandbox and calls OpenAI with a server-side key. A replacement sandbox starts a fresh session. [Gateway API and streaming guide](docs/agent-gateway.md)
 
-## Start a new project
+The gateway also exposes principal chat and morning-brief endpoints. At revision `1724d2b`, the runtime registry is missing the principal agents those endpoints select. The implementation plan starts with a scripted test of this path. [Backend plan](PLAN.md)
 
-1. Create a repo from this template (GitHub → **Use this template**) and clone it.
-2. Rename the placeholders and commit:
-   ```bash
-   scripts/init-template.sh my-app my-workers-subdomain my-hcp-org
-   git diff && git commit -am "chore: initialise from crudex"
-   ```
-3. Do the one-time account setup in **`infra/README.md` §1** (Cloudflare, HCP Terraform, Neon,
-   Upstash), put your Neon org ID in `infra/envs/prod/terraform.tfvars`, then set the GitHub
-   secrets with `scripts/verify-credentials.py` and `scripts/setup-github-secrets.sh`.
-4. Push to `main`. `deploy.yml` creates the infrastructure, runs migrations and deploys to
-   `https://app.crudex.workers.dev`.
+The school backend is under development. Its first milestone for teachers is a verified worksheet they can reopen after the sandbox stops. Later workflows use saved assessments for quizzes and gradebooks, and authorized school records for parent reports and principal briefs. [Product specification](docs/PRODUCT.md) · [Screen designs](docs/design/README.md)
+
+## Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| `apps/web` | React application served by Cloudflare Workers Static Assets. |
+| `apps/api` | Hono application Worker with health and notes routes, Neon repositories, Redis access, a queue consumer and a scheduled handler. School API features belong here. |
+| `apps/agent-gateway` | Separate Cloudflare Worker for the agent demo, passcode sessions, sandbox lifecycle, daily quota and morning briefs. |
+| `apps/agent-runtime` | OpenCode host, agent definitions, school tools, embedded skills and scripted-model tests. |
+| `packages/shared` | Zod contracts shared by application callers and the API. |
+| `infra` and `.github/workflows` | Terraform resources, CI and separate application and agent release workflows. |
+
+The [backend architecture](docs/ARCHITECTURE.md) traces an AI request. The [cloud architecture](docs/CLOUD-ARCHITECTURE.md) maps each component to its provider and data store.
 
 ## Develop locally
 
-Needs Node 22 (`.nvmrc`), pnpm (`corepack enable`) and Docker.
+Use Node 22 for the application workspace, pnpm through Corepack, and Docker for local Postgres, Redis and their HTTP proxies. From the repository root, run the following on first setup.
 
-```bash
-pnpm install
-docker compose up -d                                  # Postgres + Redis with Neon/Upstash-style proxies
-cp apps/api/.dev.vars.example apps/api/.dev.vars
+```sh
+corepack enable
+pnpm install --frozen-lockfile
+docker compose up -d --wait
+cp -n apps/api/.dev.vars.example apps/api/.dev.vars
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/main pnpm --filter api db:migrate
-pnpm dev                                              # http://localhost:5173 (API proxied to :8787)
+pnpm dev --filter web --filter api
 ```
 
-`pnpm build | lint | typecheck | test` run across all packages. After changing a Drizzle table,
-run `pnpm --filter api db:generate` and commit the new migration.
+Open the [local web app](http://localhost:5173). Vite proxies API requests to the [local API](http://localhost:8787/api/health). For a local AI turn, use Node 24 and follow the runtime guide to bundle and launch the separate agent server. Live model calls require an authorized OpenAI key. The scripted-model suite runs offline. [Agent runtime setup](apps/agent-runtime/README.md)
 
-## Tear down
+## Verification and operations
 
-Actions → **Terraform destroy** → Run workflow. With the defaults it only plans. To actually
-destroy, tick **apply** and type the project name in **confirm**. The database is kept unless
-**include_database** is ticked.
+Run `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build` from the repository root. After changing a Drizzle table, generate and review the migration with `pnpm --filter api db:generate`.
+
+Hosted infrastructure must stay within the repo’s no-credit-card constraint. The infrastructure guide covers account setup, credentials, migrations and deployments. [Infrastructure guide](infra/README.md) · [Repository conventions](CLAUDE.md)
