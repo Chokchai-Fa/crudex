@@ -1,34 +1,16 @@
-import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { InvitationForm } from '@/features/school-access/invitation-form';
 import { useSchoolLogin } from './api/school';
 import { BrandLogo } from '@/components/brand-logo';
 export function SchoolLogin() {
   const login = useSchoolLogin();
-  const [invitation, setInvitation] = useState('');
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5">
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          login.mutate({ credential: invitation.trim() });
-          setInvitation('');
-        }}
-      >
-        <label htmlFor="school-invite">รหัสเชิญจากโรงเรียน</label>
-        <Input
-          id="school-invite"
-          type="password"
-          autoComplete="off"
-          required
-          value={invitation}
-          onChange={(e) => setInvitation(e.target.value)}
-        />
-        <Button disabled={login.isPending}>เข้าใช้พื้นที่โรงเรียน</Button>
-      </form>
-      {login.error && <p role="alert">{login.error.message}</p>}
-    </section>
+    <InvitationForm
+      pending={login.isPending}
+      error={login.error}
+      onSubmit={(credential) => login.mutate({ credential })}
+    />
   );
 }
 
@@ -55,11 +37,13 @@ export function GuestRolePicker() {
   const login = useSchoolLogin();
   return (
     <section className="role-picker">
-      <BrandLogo size={46} />
+      <Link to="/" aria-label="crudex · กลับหน้าแรก">
+        <BrandLogo size={46} />
+      </Link>
       <div className="space-y-1.5 text-center">
-        <h1 className="text-[32px]/10 font-bold">เข้าใช้ในฐานะ</h1>
+        <h1 className="text-[32px]/10 font-bold">เลือกบทบาทสำหรับเดโม</h1>
         <p className="text-[17px] text-muted-foreground">
-          เริ่มต้นด้วยโรงเรียน ห้องเรียน และนักเรียนตัวอย่างของคุณเอง
+          แต่ละบทบาทจะเปิดโรงเรียนตัวอย่างของคุณเอง
         </p>
       </div>
       <div className="role-cards">
@@ -76,16 +60,21 @@ export function GuestRolePicker() {
               onClick={() => login.mutate({ role })}
               className="mt-1 w-full text-[17px] font-bold"
             >
-              {action}
+              {login.isPending &&
+              login.variables &&
+              'role' in login.variables &&
+              login.variables.role === role
+                ? 'กำลังเปิดพื้นที่…'
+                : action}
             </Button>
           </article>
         ))}
       </div>
-      <p className="text-sm text-subtle-foreground">
-        <span className="badge-sample">ข้อมูลตัวอย่าง</span> ทุกบัญชีในเดโมเป็นข้อมูลสมมุติ
-      </p>
+      <Button asChild variant="link">
+        <Link to="/account">มีรหัสเชิญ? เข้าบัญชีโรงเรียน</Link>
+      </Button>
       {login.isPending && <p role="status">กำลังเปิดพื้นที่โรงเรียน…</p>}
-      {login.error && <p role="alert">{login.error.message}</p>}
+      {login.error && <p role="alert">เปิดพื้นที่เดโมไม่สำเร็จ กรุณาเลือกบทบาทอีกครั้ง</p>}
     </section>
   );
 }

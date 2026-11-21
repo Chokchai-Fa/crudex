@@ -1,5 +1,5 @@
 import { Link, Navigate, useNavigate } from '@tanstack/react-router';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowUp,
   LoaderCircle,
@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import type { AgentId, CreateRun, SchoolActor } from '@repo/shared';
 import { ApiError } from '@/lib/api-error';
+import { AppShell } from '@/components/app-shell';
+import { LoadError } from '@/components/load-error';
 import { Button } from '@/components/ui/button';
 import { SchoolTeam, SchoolActivity, AssistantIcon } from './chat-panels';
 import { ChatArtifacts } from './chat-artifacts';
@@ -45,15 +47,35 @@ export function SchoolChat({
   handoff?: string;
 }) {
   const session = useSchoolSession();
-  if (session.error) return <p role="alert">{session.error.message}</p>;
-  if (session.isPending) return <p role="status">กำลังตรวจสอบบัญชี…</p>;
+  if (session.error)
+    return (
+      <AppShell>
+        <LoadError
+          message="เปิดแชตครูไม่สำเร็จ"
+          retry={() => void session.refetch()}
+          busy={session.isFetching}
+        />
+        <Button asChild variant="link">
+          <Link to="/school">กลับพื้นที่โรงเรียน</Link>
+        </Button>
+      </AppShell>
+    );
+  if (session.isPending)
+    return (
+      <AppShell>
+        <p role="status">กำลังตรวจสอบบัญชี…</p>
+      </AppShell>
+    );
   if (!session.data) return <Navigate to="/school" replace />;
   const { actor } = session.data;
   if (actor.role !== 'teacher')
     return (
-      <p>
-        บัญชีนี้ไม่มีสิทธิ์เข้าแชตครู · <Link to="/school">กลับพื้นที่โรงเรียน</Link>
-      </p>
+      <AppShell>
+        <p>แชตนี้สำหรับบัญชีครู</p>
+        <Button asChild variant="link">
+          <Link to="/school">กลับพื้นที่โรงเรียน</Link>
+        </Button>
+      </AppShell>
     );
   return <ClassSelector actor={actor} initialRoom={initialRoom} agent={agent} handoff={handoff} />;
 }
@@ -73,9 +95,12 @@ function ClassSelector({
   const room = actor.classes.find((c) => c.id === initialRoom) ?? actor.classes[0];
   if (!room)
     return (
-      <p>
-        ยังไม่มีห้องเรียนที่ได้รับมอบหมาย · <Link to="/school">พื้นที่โรงเรียน</Link>
-      </p>
+      <AppShell>
+        <p>ยังไม่มีห้องเรียน โปรดติดต่อผู้ดูแลโรงเรียนเพื่อเพิ่มห้องเรียน</p>
+        <Button asChild variant="link">
+          <Link to="/school">กลับพื้นที่โรงเรียน</Link>
+        </Button>
+      </AppShell>
     );
   return (
     <ChatRoom
@@ -129,25 +154,48 @@ function ChatRoom({
     }
   }
   const draftKey = ['crudex.school.draft', actor.membershipId, room.id, agent].join('.');
-  const [draft, setDraft] = useState(() => sessionStorage.getItem(draftKey) ?? '');
+  const [draft, setDraft] = useState(() => {
+    try {
+      return sessionStorage.getItem(draftKey) ?? '';
+    } catch {
+      return '';
+    }
+  });
   function editDraft(value: string) {
     setDraft(value);
-    if (value) sessionStorage.setItem(draftKey, value);
-    else sessionStorage.removeItem(draftKey);
+    try {
+      if (value) sessionStorage.setItem(draftKey, value);
+      else sessionStorage.removeItem(draftKey);
+    } catch {
+      // The draft remains editable when browser storage is unavailable.
+    }
   }
   const teamButton = useRef<HTMLButtonElement>(null);
   const activityButton = useRef<HTMLButtonElement>(null);
+  const closePanel = useCallback(() => {
+    if (panel === 'chat') return;
+    setPanel('chat');
+    (panel === 'team' ? teamButton : activityButton).current?.focus({ preventScroll: true });
+  }, [panel]);
   useLayoutEffect(() => {
     if (panel === 'chat') return;
+    const desktop = matchMedia('(min-width: 1024px)');
+    const resetPanel = () => {
+      if (desktop.matches) setPanel('chat');
+    };
+    desktop.addEventListener('change', resetPanel);
+    document.getElementById('school-' + panel)?.focus({ preventScroll: true });
     function dismiss(event: KeyboardEvent) {
       if (event.key !== 'Escape') return;
       event.preventDefault();
-      setPanel('chat');
-      (panel === 'team' ? teamButton : activityButton).current?.focus({ preventScroll: true });
+      closePanel();
     }
     document.addEventListener('keydown', dismiss);
-    return () => document.removeEventListener('keydown', dismiss);
-  }, [panel]);
+    return () => {
+      desktop.removeEventListener('change', resetPanel);
+      document.removeEventListener('keydown', dismiss);
+    };
+  }, [panel, closePanel]);
 
   const [sheet, setSheet] = useState('');
   const [grades, setGrades] = useState(false);
@@ -266,13 +314,14 @@ function ChatRoom({
       <SchoolTeam
         actor={actor}
         agent={agent}
+        onClose={closePanel}
         onAgent={(id) => {
-          setPanel('chat');
+          closePanel();
           onAgent(id);
         }}
         roomId={room.id}
         onRoom={(id) => {
-          setPanel('chat');
+          closePanel();
           onRoom(id);
         }}
         disabled={sending}
@@ -280,45 +329,53 @@ function ChatRoom({
       <section className="school-conversation">
         <header className="flex items-center gap-3">
           <Button
-            variant="outline"
+            variant="link"
             size="icon"
-            className="lg:hidden"
+            className="chat-panel-toggle lg:hidden"
             ref={teamButton}
+            title="ห้องและผู้ช่วย"
             aria-label="ห้องและผู้ช่วย"
             aria-expanded={panel === 'team'}
             aria-controls="school-team"
             onClick={() => setPanel(panel === 'team' ? 'chat' : 'team')}
           >
-            <Menu />
+            <Menu className="size-5" />
           </Button>
           <AssistantIcon id={agent} />
           <div className="min-w-0">
             <h1 className="text-xl font-bold">{agentName}</h1>
-            <p className="chat-presence">{room.name}</p>
+            <p className="chat-presence truncate" title={room.name}>
+              {room.name}
+            </p>
           </div>
           <Button
-            variant="outline"
+            variant="link"
             size="icon"
-            className="ms-auto hidden lg:inline-flex"
+            className="chat-panel-toggle ms-auto hidden lg:inline-flex"
             aria-label={showActivity ? 'ซ่อนแผงกิจกรรมห้อง' : 'แสดงแผงกิจกรรมห้อง'}
             title={showActivity ? 'ซ่อนแผงกิจกรรมห้อง' : 'แสดงแผงกิจกรรมห้อง'}
             aria-controls="school-activity"
             aria-expanded={showActivity}
             onClick={toggleActivity}
           >
-            {showActivity ? <PanelRightClose /> : <PanelRightOpen />}
+            {showActivity ? (
+              <PanelRightClose className="size-5" />
+            ) : (
+              <PanelRightOpen className="size-5" />
+            )}
           </Button>
           <Button
-            variant="outline"
+            variant="link"
             size="icon"
-            className="ms-auto lg:hidden"
+            className="chat-panel-toggle ms-auto lg:hidden"
             ref={activityButton}
+            title="กิจกรรมห้อง"
             aria-label="กิจกรรมห้อง"
             aria-controls="school-activity"
             aria-expanded={panel === 'activity'}
             onClick={() => setPanel(panel === 'activity' ? 'chat' : 'activity')}
           >
-            <ListChecks />
+            <ListChecks className="size-5" />
           </Button>
         </header>
         <div
@@ -329,16 +386,23 @@ function ChatRoom({
           onScroll={notePosition}
           className="min-h-0 overflow-y-auto overscroll-contain p-3"
         >
-          {history.error && <p role="alert">{history.error.message}</p>}
+          {history.error && (
+            <LoadError
+              message="โหลดประวัติสนทนาไม่สำเร็จ"
+              retry={() => void history.refetch()}
+              busy={history.isFetching}
+            />
+          )}
           <div className="chat-toolbar">
             <Button
               variant="outline"
               size="sm"
+              className="max-w-full"
               aria-expanded={grades}
               onClick={() => setGrades(!grades)}
             >
               <BookOpenCheck />
-              สมุดคะแนน · {room.name}
+              <span className="truncate">สมุดคะแนน · {room.name}</span>
             </Button>
           </div>
           {agent !== 'jaew' && (
@@ -523,6 +587,7 @@ function ChatRoom({
         </form>
       </section>
       <SchoolActivity
+        onClose={closePanel}
         agentName={agentName}
         actor={actor}
         roomId={room.id}

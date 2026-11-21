@@ -1,3 +1,4 @@
+import { BrandLogo } from '@/components/brand-logo';
 import { Link } from '@tanstack/react-router';
 import { Brain, Mail, Star } from 'lucide-react';
 import { rooms, exercises, answerChoices } from './fraction-set';
@@ -31,13 +32,7 @@ export function TeacherTeam({
   return (
     <nav aria-label="พื้นที่ครู" className="team-nav">
       <Link to="/sign-in" aria-label="Crudex · เลือกบทบาท">
-        <img
-          src="/roles/brand.png"
-          width="146"
-          height="32"
-          className="h-8 w-auto dark:rounded dark:bg-white"
-          alt="Crudex"
-        />
+        <BrandLogo size={30} />
       </Link>
       <fieldset>
         <legend>ห้องเรียน</legend>

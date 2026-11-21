@@ -76,20 +76,21 @@ function Mascot({ id, size, className }: { id: AgentId; size: number; className?
 
 function Cta({
   children,
+  to = '/school',
   tone = 'dark',
   className,
 }: {
   children: ReactNode;
-  tone?: 'dark' | 'soft' | 'yellow';
+  to?: '/school' | '/account';
+  tone?: 'dark' | 'yellow';
   className?: string;
 }) {
   return (
     <Link
-      to="/school"
+      to={to}
       className={cn(
-        'm-press inline-flex items-center justify-center rounded-full font-semibold transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6BFF]',
+        'm-press inline-flex items-center justify-center min-h-11 rounded-full font-semibold transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6BFF]',
         tone === 'dark' && 'bg-[#152238] text-white',
-        tone === 'soft' && cn('bg-[#F2F5FB]', ink),
         tone === 'yellow' && cn('bg-[#FFD43B]', ink),
         className,
       )}
@@ -336,12 +337,12 @@ export function LandingPage() {
   return (
     <div className="flex flex-col items-center overflow-x-clip bg-white font-sans antialiased [font-synthesis:none]">
       {/* nav */}
-      <header className="m-nav sticky top-0 z-20 flex h-16 w-full max-w-300 shrink-0 bg-white items-center gap-2.5 px-5 md:h-22 md:gap-7 md:px-0">
+      <header className="m-nav sticky top-0 z-20 flex h-16 w-full max-w-300 shrink-0 bg-white items-center gap-2.5 px-5 md:h-22 md:gap-7 md:px-6 xl:px-0">
         <div className="flex grow basis-0 items-center">
-          <span className="md:hidden">
+          <span className="flex md:hidden">
             <BrandLogo size={21} />
           </span>
-          <span className="hidden md:inline">
+          <span className="hidden md:flex">
             <BrandLogo size={27} />
           </span>
         </div>
@@ -353,11 +354,13 @@ export function LandingPage() {
             วิธีใช้
           </a>
         </nav>
-        <Cta className="px-3.5 py-1.75 text-sm/4.5 md:px-5 md:py-2.5 md:text-base/5">เข้าใช้</Cta>
+        <Cta to="/account" className="px-4 text-sm md:px-5 md:text-base">
+          บัญชีโรงเรียน
+        </Cta>
       </header>
 
       {/* hero */}
-      <section className="m-hero flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-9 pb-8 text-center md:gap-6.5 md:px-0 md:pt-18 md:pb-14">
+      <section className="m-hero flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-9 pb-8 text-center md:gap-6.5 md:px-6 md:pt-18 md:pb-14">
         <div className="inline-flex items-center gap-2 rounded-full bg-[#F2F5FB] px-3 py-1.25 md:px-4 md:py-1.75">
           <span className={cn('text-[13px]/4 md:text-[15px]/4.5', body)}>
             สำหรับครูและผู้บริหารโรงเรียน
@@ -369,8 +372,8 @@ export function LandingPage() {
         </div>
         <h1
           className={cn(
-            'flex flex-col items-center gap-1 font-bold tracking-[-0.04em] md:flex-row md:gap-5.5',
-            'text-[52px]/14.5 md:text-[104px]/28',
+            'flex flex-col items-center gap-1 whitespace-nowrap font-bold tracking-[-0.04em] md:flex-row md:gap-5.5',
+            'text-[52px]/14.5 md:text-7xl/20 lg:text-[96px]/26 xl:text-[104px]/28',
             ink,
           )}
         >
@@ -415,7 +418,7 @@ export function LandingPage() {
       </div>
 
       {/* statement */}
-      <section className="flex w-full max-w-280 flex-wrap items-center gap-x-3.5 gap-y-1.5 px-5 pt-14 pb-10 md:px-0 md:pt-35 md:pb-30">
+      <section className="flex w-full max-w-280 flex-wrap items-center gap-x-3.5 gap-y-1.5 px-5 pt-14 pb-10 md:px-6 xl:px-0 md:pt-35 md:pb-30">
         <h2
           data-scrub-words
           className={cn('text-[32px]/10.5 font-bold tracking-[-0.03em] md:text-6xl/19', ink)}
@@ -482,7 +485,7 @@ export function LandingPage() {
       {/* team */}
       <section
         id="team"
-        className="mx-5 flex w-[calc(100%-40px)] max-w-300 scroll-mt-6 justify-center rounded-[28px] p-3.5 md:rounded-[36px] md:p-16"
+        className="mx-5 flex w-[calc(100%-40px)] max-w-300 scroll-mt-20 md:scroll-mt-24 justify-center rounded-[28px] p-3.5 md:rounded-[36px] md:p-16"
         style={{ backgroundImage: 'linear-gradient(in oklab 180deg, #A9D6FF 0%, #DDF0FF 100%)' }}
       >
         <div className="flex w-full flex-col gap-3 rounded-[22px] bg-white px-4.5 py-7 [box-shadow:#1522381A_0px_12px_40px] md:rounded-[28px] md:px-13 md:py-12">
@@ -520,12 +523,12 @@ export function LandingPage() {
       {/* how it works */}
       <section
         id="how"
-        className="flex w-full max-w-300 scroll-mt-6 flex-col gap-6 px-5 pt-16 pb-4 md:gap-10 md:px-0 md:pt-30 md:pb-10"
+        className="flex w-full max-w-300 scroll-mt-20 md:scroll-mt-24 flex-col gap-6 px-5 pt-16 pb-4 md:gap-10 md:px-6 xl:px-0 md:pt-30 md:pb-10"
       >
         <h2 className={cn('text-[32px]/10.5 font-bold tracking-[-0.03em] md:text-5xl/14.5', ink)}>
           สั่งในแชต ทีมทำต่อให้จนจบ
         </h2>
-        <div data-reveal-stagger className="flex flex-col gap-4 md:flex-row md:gap-6">
+        <div data-reveal-stagger className="flex flex-col gap-4 lg:flex-row lg:gap-6">
           <HowCard
             title="สรุปเช้าให้ ผอ."
             text="รุ่งเช้าสรุปภาพรวมโรงเรียนไม่เกิน 7 บรรทัด ระดับห้อง ไม่มีคะแนนรายคน"
@@ -574,7 +577,7 @@ export function LandingPage() {
       {/* closing CTA */}
       <section
         data-reveal="scale"
-        className="flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-16 pb-12 text-center md:gap-6 md:px-0 md:pt-30 md:pb-25"
+        className="flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-16 pb-12 text-center md:gap-6 md:px-6 xl:px-0 md:pt-30 md:pb-25"
       >
         <div className="hidden gap-2.5 md:flex">
           {(['jaew', 'jum', 'jeng', 'porn', 'nun'] as const).map((id) => (
@@ -594,19 +597,20 @@ export function LandingPage() {
         </p>
         <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
           <Cta className="py-3.75 text-lg/5.5 md:px-7.5 md:py-4 md:text-[19px]/6">ลองเดโมฟรี</Cta>
-          <Cta tone="yellow" className="py-3.75 text-lg/5.5 md:px-7 md:py-4 md:text-[19px]/6">
-            เข้าใช้
+          <Cta
+            to="/account"
+            tone="yellow"
+            className="py-3.75 text-lg/5.5 md:px-7 md:py-4 md:text-[19px]/6"
+          >
+            เข้าบัญชีโรงเรียน
           </Cta>
         </div>
       </section>
 
       {/* footer */}
-      <footer className="flex w-[calc(100%-40px)] max-w-300 items-center gap-5 border-t border-[#E3EAF6] pt-6 pb-10 md:pt-8 md:pb-12">
-        <span className="hidden font-[family-name:var(--font-logo)] text-[22px]/7 font-bold text-[#152238] md:inline">
-          crudex
-        </span>
-        <p className={cn('grow basis-0 text-[13px]/4 md:text-sm/4.5', muted)}>
-          <span className="md:hidden">crudex · </span>
+      <footer className="flex w-[calc(100%-40px)] max-w-300 flex-col items-start gap-3 md:flex-row md:items-center md:gap-5 border-t border-[#E3EAF6] pt-6 pb-10 md:pt-8 md:pb-12">
+        <BrandLogo size={22} />
+        <p className={cn('grow basis-0 text-[13px]/5 md:text-sm/5', muted)}>
           ทีมผู้ช่วย AI ของครู · ชื่อ ตัวเลข และแชตในหน้านี้เป็นตัวอย่างทั้งหมด
         </p>
       </footer>
