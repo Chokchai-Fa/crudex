@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { MessageCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import type { SchoolActor } from '@repo/shared';
@@ -144,29 +145,88 @@ export function SchoolGradebook({
   classId: string;
 }) {
   const grades = useSchoolGradebook(membershipId, classId);
+  const students = grades.data?.students ?? [];
+  const scored = students.filter((s) => s.score !== null);
+  const low = scored.filter((s) => !!s.maxScore && (s.score ?? 0) / s.maxScore < 0.5);
   return (
-    <section className="space-y-2 rounded-2xl border bg-card p-5">
-      <h2 className="text-xl font-bold">สมุดคะแนนจากโรงเรียน</h2>
+    <section className="gradebook space-y-3.5">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 grow space-y-0.5">
+          <h2 className="text-xl font-bold">สมุดคะแนนจากโรงเรียน</h2>
+          <p className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-success-text">
+            <span className="availability-dot" aria-hidden="true" />
+            คะแนนจากโรงเรียน
+            <span className="badge-sample">ข้อมูลตัวอย่าง</span>
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={grades.isFetching}
+          onClick={() => void grades.refetch()}
+        >
+          อ่านคะแนนอีกครั้ง
+        </Button>
+      </div>
       {grades.error ? (
         <p role="alert">{grades.error.message}</p>
       ) : grades.data ? (
         <>
-          {grades.data.students.length === 0 && <p>ยังไม่มีนักเรียนในห้องนี้</p>}
-          <ul>
-            {grades.data.students.map((s) => (
-              <li className="flex flex-wrap justify-between gap-2 border-b py-2" key={s.id}>
-                <span>{s.name}</span>
-                <span>{s.score === null ? 'ยังไม่มีคะแนน' : s.score + ' / ' + s.maxScore}</span>
-              </li>
-            ))}
-          </ul>
+          <dl className="gradebook-stats">
+            <div>
+              <dt>มีคะแนนแล้ว</dt>
+              <dd>
+                {scored.length}
+                <small>/{students.length} คน</small>
+              </dd>
+            </div>
+            <div className="is-low">
+              <dt>ต่ำกว่า 50%</dt>
+              <dd>
+                {low.length}
+                <small> คน</small>
+              </dd>
+            </div>
+          </dl>
+          {students.length === 0 ? (
+            <p className="gradebook-empty">ยังไม่มีนักเรียนในห้องนี้</p>
+          ) : (
+            <table className="gradebook-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="w-20">
+                    เลขที่
+                  </th>
+                  <th scope="col">ชื่อ (ตัวอย่าง)</th>
+                  <th scope="col" className="text-end">
+                    คะแนน
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s, i) => {
+                  const isLow = s.score !== null && !!s.maxScore && s.score / s.maxScore < 0.5;
+                  return (
+                    <tr key={s.id} className={isLow ? 'is-low' : undefined}>
+                      <td className="text-subtle-foreground">{String(i + 1).padStart(2, '0')}</td>
+                      <td>{s.name}</td>
+                      <td className="text-end font-bold">
+                        {s.score === null ? (
+                          <span className="font-normal text-subtle-foreground">ยังไม่มีคะแนน</span>
+                        ) : (
+                          s.score + '/' + s.maxScore
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </>
       ) : (
         <p role="status">กำลังอ่านคะแนน…</p>
       )}
-      <Button variant="outline" disabled={grades.isFetching} onClick={() => void grades.refetch()}>
-        อ่านคะแนนอีกครั้ง
-      </Button>
     </section>
   );
 }
@@ -176,20 +236,27 @@ export function SchoolClassroom({ actor }: { actor: SchoolActor }) {
   if (!id) return <p>บัญชีนี้ยังไม่มีห้องเรียนที่ได้รับมอบหมาย</p>;
   return (
     <>
-      <label className="flex items-center gap-3">
-        ห้องเรียน{' '}
-        <NativeSelect value={id} onChange={(e) => setSelected(e.target.value)}>
-          {actor.classes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </NativeSelect>
-      </label>
-      <Link className="text-primary underline" to="/teacher" search={{ roomId: id }}>
-        เปิดแชตเลขาครู
-      </Link>
-      <SchoolGradebook key={id} membershipId={actor.membershipId} classId={id} />
+      <div className="classroom-row">
+        <label className="flex items-center gap-3 font-semibold">
+          ห้องเรียน{' '}
+          <NativeSelect value={id} onChange={(e) => setSelected(e.target.value)}>
+            {actor.classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </label>
+        <Button asChild className="w-full sm:ms-auto sm:w-auto">
+          <Link to="/teacher" search={{ roomId: id }}>
+            <MessageCircle aria-hidden="true" />
+            เปิดแชตกับน้องแจ๋ว
+          </Link>
+        </Button>
+      </div>
+      <div className="school-panel">
+        <SchoolGradebook key={id} membershipId={actor.membershipId} classId={id} />
+      </div>
     </>
   );
 }

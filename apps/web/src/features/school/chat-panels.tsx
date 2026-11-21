@@ -16,9 +16,10 @@ const roles: Partial<Record<AgentId, string>> = {
   nun: 'วิเคราะห์คะแนนนักเรียนและห้องเรียน',
 };
 const icons = { jaew: 'secretary', jum: 'paper', jeng: 'notebook', porn: 'envelope' } as const;
-export function AssistantIcon({ id }: { id: AgentId }) {
-  if (id === 'nun') return <img src="/agents/nun.svg" width="40" height="40" alt="" />;
-  return <TeamIcon name={icons[id as keyof typeof icons] ?? 'secretary'} />;
+export function AssistantIcon({ id, size }: { id: AgentId; size?: number }) {
+  if (id === 'nun')
+    return <img src="/agents/nun.svg" width={size ?? 40} height={size ?? 40} alt="" />;
+  return <TeamIcon name={icons[id as keyof typeof icons] ?? 'secretary'} size={size} />;
 }
 export function SchoolTeam({
   actor,
@@ -76,7 +77,8 @@ export function SchoolTeam({
         ))}
       </div>
       <div className="account-panel">
-        <strong>{actor.displayName}</strong>
+        <p>ข้อมูลในเดโมนี้เป็นตัวอย่างทั้งหมด</p>
+        <strong>บัญชี: {actor.displayName}</strong>
         <Link to="/school">พื้นที่โรงเรียน</Link>
         <button disabled={logout.isPending || disabled} onClick={() => logout.mutate()}>
           ออกจากระบบ

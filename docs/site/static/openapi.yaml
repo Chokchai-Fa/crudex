@@ -475,6 +475,7 @@ paths:
   /runs/{id}/events:
     get:
       summary: Replay committed events after the cursor
+      description: Request application/cloudevents-batch+json in Accept for JSON progress pages. The default representation is SSE. Send the last consumed numeric event ID in Last-Event-ID for either representation.
       operationId: getRunsIdEvents
       tags:
         - runs
@@ -482,6 +483,12 @@ paths:
         '200':
           description: Success
           content:
+            application/cloudevents-batch+json:
+              schema:
+                type: array
+                maxItems: 128
+                items:
+                  $ref: '#/components/schemas/runCloudEvent'
             text/event-stream:
               schema:
                 type: string
@@ -1913,6 +1920,25 @@ components:
         - clientRequestId
         - prompt
       additionalProperties: false
+    runCloudEvent:
+      type: object
+      required: [specversion, id, source, type, data]
+      properties:
+        specversion: { type: string, const: '1.0' }
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        source: { type: string, format: uri-reference }
+        type:
+          type: string
+          enum:
+            [
+              work.crudex.run.status,
+              work.crudex.run.delta,
+              work.crudex.run.tool,
+              work.crudex.run.approval,
+              work.crudex.run.done,
+              work.crudex.run.error,
+            ]
+        data: { $ref: '#/components/schemas/runEvent' }
     runEvent:
       oneOf:
         - type: object

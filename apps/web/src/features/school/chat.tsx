@@ -1,6 +1,6 @@
 import { Link, Navigate, useNavigate } from '@tanstack/react-router';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUp, Menu, ListChecks } from 'lucide-react';
+import { ArrowUp, BookOpenCheck, Menu, ListChecks } from 'lucide-react';
 import type { AgentId, CreateRun, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { SchoolTeam, SchoolActivity, AssistantIcon } from './chat-panels';
@@ -195,9 +195,15 @@ function ChatRoom({
             <Menu />
           </Button>
           <AssistantIcon id={agent} />
-          <div>
+          <div className="min-w-0">
             <h1 className="text-xl font-bold">{agentName}</h1>
-            <p className="text-sm text-muted-foreground">{room.name}</p>
+            <p className="chat-presence">
+              <span className="availability-dot" aria-hidden="true" />
+              {room.name} ·{' '}
+              {currentTask?.status === 'running' || currentTask?.status === 'queued'
+                ? statusLabels[currentTask.status]
+                : 'ว่าง คุยได้เลย'}
+            </p>
           </div>
           <div className="ms-auto">
             <ThemeToggle />
@@ -224,14 +230,33 @@ function ChatRoom({
           className="min-h-0 overflow-y-auto overscroll-contain p-3"
         >
           {history.error && <p role="alert">{history.error.message}</p>}
-          <Button variant="outline" aria-expanded={grades} onClick={() => setGrades(!grades)}>
-            สมุดคะแนน · {room.name}
-          </Button>
+          <div className="chat-toolbar">
+            <Button
+              variant="outline"
+              size="sm"
+              aria-expanded={grades}
+              onClick={() => setGrades(!grades)}
+            >
+              <BookOpenCheck />
+              สมุดคะแนน · {room.name}
+            </Button>
+          </div>
           {grades && <SchoolGradebook classId={room.id} membershipId={actor.membershipId} />}
           {history.isPending ? (
-            <p role="status">กำลังอ่านประวัติ…</p>
+            <p role="status" className="chat-empty">
+              กำลังอ่านประวัติ…
+            </p>
           ) : (
-            !runs.length && !history.error && <p>เริ่มคำขอแรกสำหรับห้อง {room.name}</p>
+            !runs.length &&
+            !history.error && (
+              <div className="chat-empty">
+                <AssistantIcon id={agent} size={64} />
+                <p className="text-lg font-bold">เริ่มคำขอแรกสำหรับห้อง {room.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  พิมพ์สิ่งที่อยากให้{agentName}ช่วย หรือกดคำสั่งลัดด้านล่าง
+                </p>
+              </div>
+            )
           )}
           <ol ref={content} className="space-y-4 py-3">
             {runs.map((run) => (
@@ -241,7 +266,7 @@ function ChatRoom({
                 </p>
                 <div className="flex items-start gap-2">
                   <AssistantIcon id={run.agentId} />
-                  <div className="chat-response min-w-0 rounded-2xl bg-accent px-4 py-3">
+                  <div className="chat-response min-w-0 px-4 py-3">
                     <RunDetails id={run.id} membershipId={actor.membershipId} status={run.status} />
                   </div>
                 </div>

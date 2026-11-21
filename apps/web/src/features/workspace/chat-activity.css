@@ -610,3 +610,307 @@
     white-space: normal;
   }
 }
+
+/* ── Paper polish: 01a แชตเลขาครู ─────────────────────────── */
+.teacher-chat {
+  --team-blue: var(--primary);
+  --team-soft: var(--accent);
+  --team-green: var(--success-soft);
+  --team-yellow: var(--sample);
+  --team-bar: var(--muted);
+  --team-nav: var(--sidebar);
+  --team-ink: var(--foreground);
+}
+.school-workspace {
+  grid-template-columns: minmax(240px, 316px) minmax(0, 1fr) minmax(260px, 340px);
+}
+.school-conversation > header {
+  min-height: 68px;
+  gap: 14px;
+  padding: 12px 32px;
+}
+.school-conversation > header h1 {
+  font-size: 20px;
+  line-height: 24px;
+}
+.chat-presence {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success-text);
+}
+.teacher-chat header > div > p.chat-presence {
+  color: var(--success-text);
+}
+.chat-presence .availability-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, #18b87a 22%, transparent);
+}
+.school-conversation > [role='region'] {
+  padding: 20px 32px;
+}
+.chat-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+.chat-toolbar [data-slot='button'] {
+  min-height: 36px;
+  font-size: 13px;
+}
+.chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 28rem;
+  margin: 12vh auto 0;
+  text-align: center;
+  color: var(--foreground);
+}
+.chat-empty img {
+  margin-bottom: 8px;
+}
+.teacher-bubble {
+  max-width: 78%;
+  border-radius: 22px 22px 6px 22px;
+  padding: 12px 20px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.school-conversation .chat-response {
+  background: var(--accent);
+  border-radius: 22px 22px 22px 6px;
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 82%;
+}
+.school-conversation li > .flex.items-start {
+  align-items: flex-end;
+  gap: 10px;
+}
+.school-conversation li > .flex.items-start > img {
+  width: 32px;
+  height: 32px;
+}
+.chat-response details summary {
+  color: var(--subtle-foreground);
+  font-size: 13px;
+}
+/* Result cards */
+.school-workspace .chat-artifacts {
+  margin-inline-start: 42px;
+}
+.school-workspace .output-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px 6px;
+  padding: 14px;
+  border-radius: 20px;
+}
+.school-workspace .output-card > :not([data-slot='button']) {
+  flex: 1 0 100%;
+}
+.school-workspace .output-card .mini-page {
+  height: 96px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgb(21 34 56 / 8%);
+  font-size: 12px;
+  gap: 4px;
+}
+.school-workspace .output-card .mini-page b {
+  font-size: 13px;
+}
+.school-workspace .form-output .mini-page::before {
+  content: '';
+  display: block;
+  flex: none;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--primary);
+}
+.school-workspace .quiz-output .mini-page::after {
+  content: '';
+  display: block;
+  flex: none;
+  height: 14px;
+  margin-top: auto;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--primary) 0 25%,
+    #18b87a 25% 50%,
+    #ffc21a 50% 75%,
+    #ff6b8a 75%
+  );
+}
+.school-workspace .output-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.school-workspace .output-card [data-slot='button'] {
+  min-height: 36px;
+  height: auto;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  align-self: flex-start;
+  background: transparent;
+  border: 1.5px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  color: var(--primary);
+}
+.school-workspace .output-card h3 + [data-slot='button'] {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.school-workspace .worksheet-output [data-slot='button'] {
+  color: var(--success-text);
+}
+.school-workspace .worksheet-output h3 + [data-slot='button'] {
+  background: #18b87a;
+  color: #fff;
+}
+.school-workspace .quiz-output [data-slot='button'] {
+  color: var(--sample-foreground);
+}
+.school-workspace .quiz-output h3 + [data-slot='button'] {
+  background: var(--demo);
+  color: var(--demo-foreground);
+}
+/* Sidebar */
+.school-team.team-nav {
+  padding: 24px 16px 16px;
+  gap: 18px;
+}
+.school-team .team-row {
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 20px;
+}
+.school-team .team-row > img {
+  width: 52px;
+  height: 52px;
+}
+.school-team .team-row strong {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.school-team .team-row small {
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+.school-team .team-row:not(.current):hover {
+  background: var(--team-bar);
+}
+.school-team .room-pill {
+  padding: 0 16px;
+  font-size: 15px;
+}
+.school-team .room-pill::before {
+  border-width: 1.5px;
+  border-color: var(--input);
+}
+.school-workspace .account-panel {
+  border-radius: 16px;
+  padding: 12px 14px;
+  color: var(--sample-foreground);
+  font-size: 13px;
+  line-height: 20px;
+}
+.school-workspace .account-panel > strong {
+  font-weight: 600;
+  margin-bottom: 0;
+}
+/* Right panel */
+.school-activity.team-status {
+  padding: 24px 20px;
+}
+.school-activity.team-status h2 {
+  font-size: 20px;
+  margin-bottom: 14px;
+}
+.school-activity.team-status section {
+  border-radius: 20px;
+  padding: 16px;
+  font-size: 15px;
+}
+.school-activity .status-job strong {
+  font-size: 17px;
+}
+.school-activity .status-job p {
+  font-size: 14px;
+  margin-top: 2px;
+}
+.school-activity .status-memory {
+  border-width: 1.5px;
+  color: var(--muted-foreground);
+}
+.school-activity .status-memory li + li {
+  margin-top: 8px;
+}
+/* Composer */
+.school-conversation .chat-compose {
+  padding: 8px 32px 16px;
+}
+.school-conversation .compose-capsule {
+  border-radius: 28px;
+  padding: 6px 6px 6px 22px;
+  align-items: center;
+}
+.school-conversation .compose-capsule textarea {
+  font-size: 15px;
+}
+.school-conversation .compose-capsule textarea::placeholder {
+  color: var(--subtle-foreground);
+}
+.school-conversation .submit-arrow {
+  min-width: 48px;
+  min-height: 48px;
+}
+.school-conversation .submit-arrow:disabled {
+  background: var(--input);
+  color: var(--subtle-foreground);
+  opacity: 1;
+}
+.school-quick-prompts {
+  padding-bottom: 10px;
+}
+.school-quick-prompts button {
+  border-width: 1.5px;
+  border-color: var(--input);
+  padding: 4px 16px;
+  font-size: 15px;
+}
+@media (max-width: 1023px) {
+  .school-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .school-workspace .chat-artifacts {
+    margin-inline-start: 0;
+  }
+}
+@media (max-width: 600px) {
+  .school-conversation > header {
+    padding: 8px 10px;
+  }
+  .school-conversation > [role='region'] {
+    padding: 12px 10px;
+  }
+  .school-conversation .chat-compose {
+    padding: 6px 10px max(8px, env(safe-area-inset-bottom));
+  }
+  .school-conversation .chat-response {
+    max-width: calc(100% - 42px);
+  }
+}
+.school-conversation .chat-response .school-answer > * + * {
+  margin-top: 0.35em;
+}

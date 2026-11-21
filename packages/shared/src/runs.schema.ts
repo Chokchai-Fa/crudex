@@ -40,3 +40,17 @@ export type RunEvent = z.infer<typeof runEventSchema>;
 export type RunStatus = z.infer<typeof runStatusSchema>;
 export type CreateRun = z.infer<typeof createRunSchema>;
 export type AgentId = z.infer<typeof agentIdSchema>;
+
+export const runEventBatchMediaType = 'application/cloudevents-batch+json';
+export const runEventPageSize = 128;
+export const runEventBatchSchema = z
+  .array(
+    z.object({
+      specversion: z.literal('1.0'),
+      id: z.string().regex(/^[1-9]\d*$/),
+      source: z.string(),
+      type: z.string(),
+      data: runEventSchema,
+    }),
+  )
+  .max(runEventPageSize);
