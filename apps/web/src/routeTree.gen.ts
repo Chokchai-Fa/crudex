@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GradebookRouteImport } from './routes/gradebook'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as PrincipalRouteImport } from './routes/principal'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as StudentRoomIdRouteImport } from './routes/student.$roomId'
 
@@ -36,6 +37,11 @@ const PrincipalRoute = PrincipalRouteImport.update({
   path: '/principal',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeacherRoute = TeacherRouteImport.update({
   id: '/teacher',
   path: '/teacher',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/gradebook': typeof GradebookRoute
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
+  '/reports': typeof ReportsRoute
   '/teacher': typeof TeacherRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/gradebook': typeof GradebookRoute
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
+  '/reports': typeof ReportsRoute
   '/teacher': typeof TeacherRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/gradebook': typeof GradebookRoute
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
+  '/reports': typeof ReportsRoute
   '/teacher': typeof TeacherRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/gradebook'
     | '/notes'
     | '/principal'
+    | '/reports'
     | '/teacher'
     | '/student/$roomId'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/gradebook'
     | '/notes'
     | '/principal'
+    | '/reports'
     | '/teacher'
     | '/student/$roomId'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/gradebook'
     | '/notes'
     | '/principal'
+    | '/reports'
     | '/teacher'
     | '/student/$roomId'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   GradebookRoute: typeof GradebookRoute
   NotesRoute: typeof NotesRoute
   PrincipalRoute: typeof PrincipalRoute
+  ReportsRoute: typeof ReportsRoute
   TeacherRoute: typeof TeacherRoute
   StudentRoomIdRoute: typeof StudentRoomIdRoute
 }
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teacher': {
       id: '/teacher'
       path: '/teacher'
@@ -160,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   GradebookRoute: GradebookRoute,
   NotesRoute: NotesRoute,
   PrincipalRoute: PrincipalRoute,
+  ReportsRoute: ReportsRoute,
   TeacherRoute: TeacherRoute,
   StudentRoomIdRoute: StudentRoomIdRoute,
 }

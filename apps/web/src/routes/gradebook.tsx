@@ -83,6 +83,11 @@ function Gradebook() {
               ))}
             </ul>
           </div>
+          <Button asChild variant="outline">
+            <Link to="/reports" search={{ room }}>
+              รายงานผู้ปกครอง
+            </Link>
+          </Button>
           <table className="w-full text-left text-sm">
             <caption className="pb-3 text-left text-lg font-semibold">ผลรายคน · {room}</caption>
             <thead>
