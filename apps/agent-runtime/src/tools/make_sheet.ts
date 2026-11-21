@@ -3,7 +3,12 @@ import type { ToolDefinition } from './types';
 export const makeSheet: ToolDefinition = {
   name: 'make_sheet',
   description: 'สร้างชีตสรุป/ชีตเรียน (ตัวจำลอง: คืนรหัสไฟล์ตัวอย่าง ยังไม่ได้สร้างไฟล์จริง)',
-  input: {"type": "object", "properties": {"title": {"type": "string"}, "topic": {"type": "string"}}, "required": ["title", "topic"], "additionalProperties": false},
+  input: {
+    type: 'object',
+    properties: { title: { type: 'string' }, topic: { type: 'string' } },
+    required: ['title', 'topic'],
+    additionalProperties: false,
+  },
   gate: 'allow',
   execute: (input) => ({
     mode: 'mock',

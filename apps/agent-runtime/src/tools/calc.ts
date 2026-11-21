@@ -14,8 +14,14 @@ export function calculate(expr: string) {
 
 export const calc: ToolDefinition = {
   name: 'calc',
-  description: 'คิดเลขแม่นยำ (เศษส่วน/ทศนิยม + - * / และวงเล็บ) ตัวเลขทุกตัวในเอกสารต้องมาจากเครื่องมือนี้ ห้ามคิดเอง การหารเขียน (4/7)/(2/7)',
-  input: { type: 'object', properties: { expr: { type: 'string' } }, required: ['expr'], additionalProperties: false },
+  description:
+    'คิดเลขแม่นยำ (เศษส่วน/ทศนิยม + - * / และวงเล็บ) ตัวเลขทุกตัวในเอกสารต้องมาจากเครื่องมือนี้ ห้ามคิดเอง การหารเขียน (4/7)/(2/7)',
+  input: {
+    type: 'object',
+    properties: { expr: { type: 'string' } },
+    required: ['expr'],
+    additionalProperties: false,
+  },
   gate: 'allow',
   execute: (input) => calculate((input as { expr: string }).expr),
 };

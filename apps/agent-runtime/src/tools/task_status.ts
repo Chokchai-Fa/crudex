@@ -10,14 +10,28 @@ interface Task {
 
 /** Mock: the real status comes from opencode child sessions once the gateway exposes them. */
 const tasks: Task[] = [
-  { taskId: 't-sample-1', agent: 'jum', summary: 'ตัวอย่าง: ทำใบงานเศษส่วน ป.5/2 10 ข้อ', status: 'done' },
-  { taskId: 't-sample-2', agent: 'porn', summary: 'ตัวอย่าง: ร่างใบเบิกกระดาษ A4', status: 'running' },
+  {
+    taskId: 't-sample-1',
+    agent: 'jum',
+    summary: 'ตัวอย่าง: ทำใบงานเศษส่วน ป.5/2 10 ข้อ',
+    status: 'done',
+  },
+  {
+    taskId: 't-sample-2',
+    agent: 'porn',
+    summary: 'ตัวอย่าง: ร่างใบเบิกกระดาษ A4',
+    status: 'running',
+  },
 ];
 
 export const taskStatus: ToolDefinition = {
   name: 'task_status',
   description: 'ถามความคืบหน้าของงานที่ส่งต่อให้ agent อื่น (ตัวจำลอง: คืนข้อมูลตัวอย่าง)',
-  input: { type: 'object', properties: { taskId: { type: 'string' } }, additionalProperties: false },
+  input: {
+    type: 'object',
+    properties: { taskId: { type: 'string' } },
+    additionalProperties: false,
+  },
   gate: 'allow',
   execute: (input) => {
     const { taskId } = input as { taskId?: string };

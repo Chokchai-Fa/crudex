@@ -5,7 +5,18 @@ export const sampleClassId = 'class-p5-2';
 const addSub = 'การบวก การลบของเศษส่วนและจำนวนคละ';
 const compare = 'การเปรียบเทียบเศษส่วนและจำนวนคละ';
 const word = 'การแก้โจทย์ปัญหาเศษส่วนและจำนวนคละ';
-export const questionTopics = [addSub, addSub, addSub, addSub, addSub, addSub, compare, compare, word, word] as const;
+export const questionTopics = [
+  addSub,
+  addSub,
+  addSub,
+  addSub,
+  addSub,
+  addSub,
+  compare,
+  compare,
+  word,
+  word,
+] as const;
 
 // One row per student, one char per question: '1' correct, 'x' wrong.
 export const results = [
@@ -28,10 +39,15 @@ export const results = [
   '111111x11x',
   '11111x1111',
   'xxxxxx1x1x',
-  'x11xx11111'
+  'x11xx11111',
 ] as const;
 
-export const assessment = { assessmentId: 'a-001', title: 'ตัวอย่าง: ใบงานเศษส่วน ป.5', topic: 'เศษส่วน', maxScore: 10 } as const;
+export const assessment = {
+  assessmentId: 'a-001',
+  title: 'ตัวอย่าง: ใบงานเศษส่วน ป.5',
+  topic: 'เศษส่วน',
+  maxScore: 10,
+} as const;
 
 export const budgetSheet = {
   title: 'ตัวอย่าง: ชีตงบกลุ่มสาระคณิตศาสตร์ ปีงบประมาณ 2569',

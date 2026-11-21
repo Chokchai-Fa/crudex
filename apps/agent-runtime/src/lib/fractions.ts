@@ -110,11 +110,16 @@ class Parser {
     this.position += op.length;
     const difference = compare(left, this.expression());
     switch (op) {
-      case '<': return difference < 0n;
-      case '>': return difference > 0n;
-      case '<=': return difference <= 0n;
-      case '>=': return difference >= 0n;
-      default: return difference === 0n;
+      case '<':
+        return difference < 0n;
+      case '>':
+        return difference > 0n;
+      case '<=':
+        return difference <= 0n;
+      case '>=':
+        return difference >= 0n;
+      default:
+        return difference === 0n;
     }
   }
 
@@ -122,9 +127,10 @@ class Parser {
     let left = this.quotient();
     for (let op = this.take('*', '×', '÷'); op; op = this.take('*', '×', '÷')) {
       const right = this.quotient();
-      left = op === '÷'
-        ? fraction(left.n * right.d, left.d * right.n)
-        : fraction(left.n * right.n, left.d * right.d);
+      left =
+        op === '÷'
+          ? fraction(left.n * right.d, left.d * right.n)
+          : fraction(left.n * right.n, left.d * right.d);
     }
     return left;
   }
@@ -170,7 +176,8 @@ export function evalStatement(text: string): boolean {
 
 export function parseNumberText(text: string): Fraction | undefined {
   const source = normalize(text).trim();
-  const number = /^([+-]?)(\d+(?:\.\d*)?|\.\d+)(?:(?:\s+(\d+))?\s*\/\s*(\d+))?(?:\s*\p{L}[\p{L}\p{M}\s.]*)?$/u;
+  const number =
+    /^([+-]?)(\d+(?:\.\d*)?|\.\d+)(?:(?:\s+(\d+))?\s*\/\s*(\d+))?(?:\s*\p{L}[\p{L}\p{M}\s.]*)?$/u;
   const match = number.exec(source);
   if (!match) return undefined;
   const whole = match[2];
@@ -213,12 +220,17 @@ function verifyQuestion(question: Question, report: Report): Fraction | boolean 
   }
 
   try {
-    const actual = typeof expected === 'boolean' ? evalStatement(verify.expr) : evalExpr(verify.expr);
-    const matches = typeof actual === 'boolean' || typeof expected === 'boolean'
-      ? actual === expected
-      : compare(actual, expected) === 0n;
+    const actual =
+      typeof expected === 'boolean' ? evalStatement(verify.expr) : evalExpr(verify.expr);
+    const matches =
+      typeof actual === 'boolean' || typeof expected === 'boolean'
+        ? actual === expected
+        : compare(actual, expected) === 0n;
     if (!matches) {
-      report('verify_mismatch', `ผลคำนวณคือ ${typeof actual === 'boolean' ? actual : show(actual)} แต่ verify ระบุ ${verify.expected}`);
+      report(
+        'verify_mismatch',
+        `ผลคำนวณคือ ${typeof actual === 'boolean' ? actual : show(actual)} แต่ verify ระบุ ${verify.expected}`,
+      );
       return undefined;
     }
     return actual;
@@ -229,7 +241,9 @@ function verifyQuestion(question: Question, report: Report): Fraction | boolean 
 }
 
 function stemValue(text: string, report: Report): Fraction | undefined {
-  const expression = /^(?:ค่าของ\s*)?([\d๐-๙.\s()+\-−*/×÷]+)\s*(?:มีค่า|เท่ากับ|ได้ผลลัพธ์)/.exec(text.trim())?.[1];
+  const expression = /^(?:ค่าของ\s*)?([\d๐-๙.\s()+\-−*/×÷]+)\s*(?:มีค่า|เท่ากับ|ได้ผลลัพธ์)/.exec(
+    text.trim(),
+  )?.[1];
   if (!expression?.trim()) return undefined;
   try {
     return evalExpr(expression);
@@ -270,7 +284,10 @@ function checkQuestion(question: Question, report: Report): boolean {
     const target = !/ไม่ถูกต้อง|ผิด/.test(text);
     const matches = statements.filter(({ value }) => value === target);
     if (matches.length !== 1) {
-      report('statement_count', `ต้องมีข้อความที่ตรงกับคำถาม 1 ตัวเลือก แต่พบ ${matches.length} ตัวเลือก`);
+      report(
+        'statement_count',
+        `ต้องมีข้อความที่ตรงกับคำถาม 1 ตัวเลือก แต่พบ ${matches.length} ตัวเลือก`,
+      );
       return false;
     }
     const answer = matches[0]?.choice;
@@ -286,7 +303,10 @@ function checkQuestion(question: Question, report: Report): boolean {
   if (extreme && values.size === choices.length) {
     expected = undefined;
     for (const value of values.values()) {
-      if (!expected || (extreme === 'มากที่สุด' ? compare(value, expected) > 0n : compare(value, expected) < 0n)) {
+      if (
+        !expected ||
+        (extreme === 'มากที่สุด' ? compare(value, expected) > 0n : compare(value, expected) < 0n)
+      ) {
         expected = value;
       }
     }
@@ -313,7 +333,10 @@ export function checkAssessment(assessment: Assessment, options: CheckOptions = 
   const unverified: string[] = [];
 
   if (expectedCount !== undefined && count !== expectedCount) {
-    errors.push({ code: 'count_mismatch', message: `ต้องมี ${expectedCount} ข้อ แต่พบ ${count} ข้อ` });
+    errors.push({
+      code: 'count_mismatch',
+      message: `ต้องมี ${expectedCount} ข้อ แต่พบ ${count} ข้อ`,
+    });
   }
   if (count < minQuestions) {
     errors.push({ code: 'too_few', message: `ต้องมีอย่างน้อย ${minQuestions} ข้อ` });
@@ -321,7 +344,8 @@ export function checkAssessment(assessment: Assessment, options: CheckOptions = 
 
   const ids = new Set<string>();
   for (const question of assessment.questions) {
-    const report: Report = (code, message) => errors.push({ code, message, questionId: question.id });
+    const report: Report = (code, message) =>
+      errors.push({ code, message, questionId: question.id });
     const before = errors.length;
     if (ids.has(question.id)) report('duplicate_question_id', `รหัสข้อซ้ำกัน (${question.id})`);
     ids.add(question.id);

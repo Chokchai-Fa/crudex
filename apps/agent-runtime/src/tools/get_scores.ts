@@ -40,9 +40,15 @@ export function summarize() {
     n: students.length,
     mean: Math.round((total / students.length) * 100) / 100,
     wrongByTopic: [...byTopic]
-      .map(([topic, v]) => ({ topic, ...v, wrongRate: Math.round((v.wrong / v.total) * 1000) / 1000 }))
+      .map(([topic, v]) => ({
+        topic,
+        ...v,
+        wrongRate: Math.round((v.wrong / v.total) * 1000) / 1000,
+      }))
       .sort((a, b) => b.wrongRate - a.wrongRate),
-    belowThreshold: students.filter((s) => s.score < threshold).map(({ studentId, displayName, score }) => ({ studentId, displayName, score })),
+    belowThreshold: students
+      .filter((s) => s.score < threshold)
+      .map(({ studentId, displayName, score }) => ({ studentId, displayName, score })),
     students,
   };
 }

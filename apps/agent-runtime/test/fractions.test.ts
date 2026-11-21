@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import sample from './fixtures/assessment-sample.json';
-import { checkAssessment, evalExpr, evalStatement, parseNumberText, show, type Assessment } from '../src/lib/fractions';
+import {
+  checkAssessment,
+  evalExpr,
+  evalStatement,
+  parseNumberText,
+  show,
+  type Assessment,
+} from '../src/lib/fractions';
 
 const clone = (): Assessment => structuredClone(sample) as Assessment;
 const q = (a: Assessment, id: string) => {
@@ -131,7 +138,9 @@ describe('checkAssessment', () => {
     a.questions = a.questions.slice(0, 3);
     expect(checkAssessment(a).ok).toBe(true);
     expect(checkAssessment(a, { expectedCount: 3 }).ok).toBe(true);
-    expect(checkAssessment(a, { expectedCount: 10 }).errors.map((e) => e.code)).toEqual(['count_mismatch']);
+    expect(checkAssessment(a, { expectedCount: 10 }).errors.map((e) => e.code)).toEqual([
+      'count_mismatch',
+    ]);
   });
 
   it('still supports an explicit minimum', () => {

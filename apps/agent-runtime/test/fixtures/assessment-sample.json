@@ -3,15 +3,144 @@
   "grade": "ป.5",
   "topic": "เศษส่วน",
   "questions": [
-    {"id":"q1","text":"1/2 + 1/4 เท่ากับเท่าใด","choices":[{"id":"c1","text":"2/6"},{"id":"c2","text":"3/4"},{"id":"c3","text":"1/6"},{"id":"c4","text":"2/4"}],"correctChoiceId":"c2","topic":"บวกเศษส่วนต่างตัวส่วน","explanation":"1/2 = 2/4 จึงได้ 2/4 + 1/4 = 3/4","verify":{"expr":"1/2+1/4","expected":"3/4"}},
-    {"id":"q2","text":"2/3 + 1/6 เท่ากับเท่าใด","choices":[{"id":"c1","text":"3/9"},{"id":"c2","text":"1/2"},{"id":"c3","text":"5/6"},{"id":"c4","text":"4/6"}],"correctChoiceId":"c3","topic":"บวกเศษส่วนต่างตัวส่วน","explanation":"2/3 = 4/6 จึงได้ 4/6 + 1/6 = 5/6","verify":{"expr":"2/3+1/6","expected":"5/6"}},
-    {"id":"q3","text":"1/3 + 1/2 เท่ากับเท่าใด","choices":[{"id":"c1","text":"2/5"},{"id":"c2","text":"2/6"},{"id":"c3","text":"1/5"},{"id":"c4","text":"5/6"}],"correctChoiceId":"c4","topic":"บวกเศษส่วนต่างตัวส่วน","explanation":"2/6 + 3/6 = 5/6","verify":{"expr":"1/3+1/2","expected":"5/6"}},
-    {"id":"q4","text":"3/4 + 1/8 เท่ากับเท่าใด","choices":[{"id":"c1","text":"7/8"},{"id":"c2","text":"4/12"},{"id":"c3","text":"4/8"},{"id":"c4","text":"3/32"}],"correctChoiceId":"c1","topic":"บวกเศษส่วนต่างตัวส่วน","explanation":"6/8 + 1/8 = 7/8","verify":{"expr":"3/4+1/8","expected":"7/8"}},
-    {"id":"q5","text":"3/4 − 1/8 เท่ากับเท่าใด","choices":[{"id":"c1","text":"2/4"},{"id":"c2","text":"2/8"},{"id":"c3","text":"5/8"},{"id":"c4","text":"7/8"}],"correctChoiceId":"c3","topic":"ลบเศษส่วนต่างตัวส่วน","explanation":"6/8 − 1/8 = 5/8","verify":{"expr":"3/4-1/8","expected":"5/8"}},
-    {"id":"q6","text":"5/6 − 1/3 เท่ากับเท่าใด","choices":[{"id":"c1","text":"4/3"},{"id":"c2","text":"1/2"},{"id":"c3","text":"4/6"},{"id":"c4","text":"1/3"}],"correctChoiceId":"c2","topic":"ลบเศษส่วนต่างตัวส่วน","explanation":"5/6 − 2/6 = 3/6 = 1/2","verify":{"expr":"5/6-1/3","expected":"1/2"}},
-    {"id":"q7","text":"ข้อใดถูกต้อง","choices":[{"id":"c1","text":"3/5 > 2/3"},{"id":"c2","text":"3/5 = 2/3"},{"id":"c3","text":"3/5 < 2/3"},{"id":"c4","text":"เปรียบเทียบไม่ได้"}],"correctChoiceId":"c3","topic":"เปรียบเทียบเศษส่วน","explanation":"9/15 < 10/15","verify":{"expr":"3/5<2/3","expected":"true"}},
-    {"id":"q8","text":"เศษส่วนใดมีค่ามากที่สุด","choices":[{"id":"c1","text":"1/2"},{"id":"c2","text":"3/8"},{"id":"c3","text":"5/8"},{"id":"c4","text":"1/4"}],"correctChoiceId":"c3","topic":"เปรียบเทียบเศษส่วน","explanation":"ตัวส่วน 8: 4/8, 3/8, 5/8, 2/8"},
-    {"id":"q9","text":"แม่ใช้แป้ง 3/4 ถ้วยทำขนมเค้ก และ 1/2 ถ้วยทำคุกกี้ ใช้แป้งทั้งหมดกี่ถ้วย","choices":[{"id":"c1","text":"4/6 ถ้วย"},{"id":"c2","text":"1 ถ้วย"},{"id":"c3","text":"1 1/4 ถ้วย"},{"id":"c4","text":"1/4 ถ้วย"}],"correctChoiceId":"c3","topic":"โจทย์ปัญหาเศษส่วน","explanation":"3/4 + 2/4 = 5/4 = 1 1/4","verify":{"expr":"3/4+1/2","expected":"5/4"}},
-    {"id":"q10","text":"เชือกยาว 7/8 เมตร ตัดไป 1/4 เมตร เหลือเชือกกี่เมตร","choices":[{"id":"c1","text":"6/4 เมตร"},{"id":"c2","text":"5/8 เมตร"},{"id":"c3","text":"6/8 เมตร"},{"id":"c4","text":"1/2 เมตร"}],"correctChoiceId":"c2","topic":"โจทย์ปัญหาเศษส่วน","explanation":"7/8 − 2/8 = 5/8","verify":{"expr":"7/8-1/4","expected":"5/8"}}
+    {
+      "id": "q1",
+      "text": "1/2 + 1/4 เท่ากับเท่าใด",
+      "choices": [
+        { "id": "c1", "text": "2/6" },
+        { "id": "c2", "text": "3/4" },
+        { "id": "c3", "text": "1/6" },
+        { "id": "c4", "text": "2/4" }
+      ],
+      "correctChoiceId": "c2",
+      "topic": "บวกเศษส่วนต่างตัวส่วน",
+      "explanation": "1/2 = 2/4 จึงได้ 2/4 + 1/4 = 3/4",
+      "verify": { "expr": "1/2+1/4", "expected": "3/4" }
+    },
+    {
+      "id": "q2",
+      "text": "2/3 + 1/6 เท่ากับเท่าใด",
+      "choices": [
+        { "id": "c1", "text": "3/9" },
+        { "id": "c2", "text": "1/2" },
+        { "id": "c3", "text": "5/6" },
+        { "id": "c4", "text": "4/6" }
+      ],
+      "correctChoiceId": "c3",
+      "topic": "บวกเศษส่วนต่างตัวส่วน",
+      "explanation": "2/3 = 4/6 จึงได้ 4/6 + 1/6 = 5/6",
+      "verify": { "expr": "2/3+1/6", "expected": "5/6" }
+    },
+    {
+      "id": "q3",
+      "text": "1/3 + 1/2 เท่ากับเท่าใด",
+      "choices": [
+        { "id": "c1", "text": "2/5" },
+        { "id": "c2", "text": "2/6" },
+        { "id": "c3", "text": "1/5" },
+        { "id": "c4", "text": "5/6" }
+      ],
+      "correctChoiceId": "c4",
+      "topic": "บวกเศษส่วนต่างตัวส่วน",
+      "explanation": "2/6 + 3/6 = 5/6",
+      "verify": { "expr": "1/3+1/2", "expected": "5/6" }
+    },
+    {
+      "id": "q4",
+      "text": "3/4 + 1/8 เท่ากับเท่าใด",
+      "choices": [
+        { "id": "c1", "text": "7/8" },
+        { "id": "c2", "text": "4/12" },
+        { "id": "c3", "text": "4/8" },
+        { "id": "c4", "text": "3/32" }
+      ],
+      "correctChoiceId": "c1",
+      "topic": "บวกเศษส่วนต่างตัวส่วน",
+      "explanation": "6/8 + 1/8 = 7/8",
+      "verify": { "expr": "3/4+1/8", "expected": "7/8" }
+    },
+    {
+      "id": "q5",
+      "text": "3/4 − 1/8 เท่ากับเท่าใด",
+      "choices": [
+        { "id": "c1", "text": "2/4" },
+        { "id": "c2", "text": "2/8" },
+        { "id": "c3", "text": "5/8" },
+        { "id": "c4", "text": "7/8" }
+      ],
+      "correctChoiceId": "c3",
+      "topic": "ลบเศษส่วนต่างตัวส่วน",
+      "explanation": "6/8 − 1/8 = 5/8",
+      "verify": { "expr": "3/4-1/8", "expected": "5/8" }
+    },
+    {
+      "id": "q6",
+      "text": "5/6 − 1/3 เท่ากับเท่าใด",
+      "choices": [
+        { "id": "c1", "text": "4/3" },
+        { "id": "c2", "text": "1/2" },
+        { "id": "c3", "text": "4/6" },
+        { "id": "c4", "text": "1/3" }
+      ],
+      "correctChoiceId": "c2",
+      "topic": "ลบเศษส่วนต่างตัวส่วน",
+      "explanation": "5/6 − 2/6 = 3/6 = 1/2",
+      "verify": { "expr": "5/6-1/3", "expected": "1/2" }
+    },
+    {
+      "id": "q7",
+      "text": "ข้อใดถูกต้อง",
+      "choices": [
+        { "id": "c1", "text": "3/5 > 2/3" },
+        { "id": "c2", "text": "3/5 = 2/3" },
+        { "id": "c3", "text": "3/5 < 2/3" },
+        { "id": "c4", "text": "เปรียบเทียบไม่ได้" }
+      ],
+      "correctChoiceId": "c3",
+      "topic": "เปรียบเทียบเศษส่วน",
+      "explanation": "9/15 < 10/15",
+      "verify": { "expr": "3/5<2/3", "expected": "true" }
+    },
+    {
+      "id": "q8",
+      "text": "เศษส่วนใดมีค่ามากที่สุด",
+      "choices": [
+        { "id": "c1", "text": "1/2" },
+        { "id": "c2", "text": "3/8" },
+        { "id": "c3", "text": "5/8" },
+        { "id": "c4", "text": "1/4" }
+      ],
+      "correctChoiceId": "c3",
+      "topic": "เปรียบเทียบเศษส่วน",
+      "explanation": "ตัวส่วน 8: 4/8, 3/8, 5/8, 2/8"
+    },
+    {
+      "id": "q9",
+      "text": "แม่ใช้แป้ง 3/4 ถ้วยทำขนมเค้ก และ 1/2 ถ้วยทำคุกกี้ ใช้แป้งทั้งหมดกี่ถ้วย",
+      "choices": [
+        { "id": "c1", "text": "4/6 ถ้วย" },
+        { "id": "c2", "text": "1 ถ้วย" },
+        { "id": "c3", "text": "1 1/4 ถ้วย" },
+        { "id": "c4", "text": "1/4 ถ้วย" }
+      ],
+      "correctChoiceId": "c3",
+      "topic": "โจทย์ปัญหาเศษส่วน",
+      "explanation": "3/4 + 2/4 = 5/4 = 1 1/4",
+      "verify": { "expr": "3/4+1/2", "expected": "5/4" }
+    },
+    {
+      "id": "q10",
+      "text": "เชือกยาว 7/8 เมตร ตัดไป 1/4 เมตร เหลือเชือกกี่เมตร",
+      "choices": [
+        { "id": "c1", "text": "6/4 เมตร" },
+        { "id": "c2", "text": "5/8 เมตร" },
+        { "id": "c3", "text": "6/8 เมตร" },
+        { "id": "c4", "text": "1/2 เมตร" }
+      ],
+      "correctChoiceId": "c2",
+      "topic": "โจทย์ปัญหาเศษส่วน",
+      "explanation": "7/8 − 2/8 = 5/8",
+      "verify": { "expr": "7/8-1/4", "expected": "5/8" }
+    }
   ]
 }

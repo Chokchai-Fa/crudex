@@ -15,7 +15,8 @@ export const memorySave: ToolDefinition = {
   gate: 'allow',
   execute: (input, context) => {
     const { text, userConfirmed } = input as { text: string; userConfirmed: boolean };
-    if (userConfirmed !== true) throw new ToolError('not_confirmed', 'ต้องถามครูและได้รับการยืนยันก่อนบันทึก');
+    if (userConfirmed !== true)
+      throw new ToolError('not_confirmed', 'ต้องถามครูและได้รับการยืนยันก่อนบันทึก');
     return saveMemory(identityOf(context).ownerId, text);
   },
 };

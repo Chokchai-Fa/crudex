@@ -15,7 +15,8 @@ describe('teacher agents', () => {
   });
 
   it('binds only tools that exist', () => {
-    for (const agent of teacherAgents) for (const name of agent.tools) expect(toolNames.has(name), `${agent.id}:${name}`).toBe(true);
+    for (const agent of teacherAgents)
+      for (const name of agent.tools) expect(toolNames.has(name), `${agent.id}:${name}`).toBe(true);
   });
 
   it('lets only jaew start subagents, and only the four workers', () => {
@@ -30,9 +31,12 @@ describe('teacher agents', () => {
   it('denies shell, edit, web and every tool that is not bound', () => {
     for (const agent of teacherAgents) {
       const rules = permissionsFor(agent);
-      for (const action of ['shell', 'edit', 'webfetch', 'websearch', 'read']) expect(decide(rules, action, ['*'])).toBe('deny');
+      for (const action of ['shell', 'edit', 'webfetch', 'websearch', 'read'])
+        expect(decide(rules, action, ['*'])).toBe('deny');
       for (const tool of tools) {
-        expect(decide(rules, tool.name, ['*']) !== 'deny', `${agent.id}:${tool.name}`).toBe(agent.tools.includes(tool.name));
+        expect(decide(rules, tool.name, ['*']) !== 'deny', `${agent.id}:${tool.name}`).toBe(
+          agent.tools.includes(tool.name),
+        );
       }
     }
   });
@@ -41,7 +45,9 @@ describe('teacher agents', () => {
     const t = (id: string) => byId[id]?.tools ?? [];
     expect(t('jaew')).not.toContain('save_assessment');
     expect(t('jaew')).not.toContain('get_scores');
-    expect(t('jum')).toEqual(expect.arrayContaining(['check_assessment', 'save_assessment', 'memory_search']));
+    expect(t('jum')).toEqual(
+      expect.arrayContaining(['check_assessment', 'save_assessment', 'memory_search']),
+    );
     expect(t('jum')).not.toContain('memory_save');
     expect(t('nun')).toEqual(['get_scores', 'memory_search', 'calc']);
     expect(t('porn')).toContain('send_email');
@@ -50,14 +56,18 @@ describe('teacher agents', () => {
   });
 
   it('only the secretary can save memory', () => {
-    expect(teacherAgents.filter((a) => a.tools.includes('memory_save')).map((a) => a.id)).toEqual(['jaew']);
+    expect(teacherAgents.filter((a) => a.tools.includes('memory_save')).map((a) => a.id)).toEqual([
+      'jaew',
+    ]);
   });
 
   it('puts the fixed tool order in the instructions, not only in skills', () => {
     const jum = byId['jum']?.instructions ?? '';
     expect(jum.indexOf('memory_search')).toBeLessThan(jum.indexOf('check_assessment'));
     expect(jum.indexOf('check_assessment')).toBeLessThan(jum.indexOf('save_assessment'));
-    expect(jaew.instructions.indexOf('ให้ผมจำไว้ไหม')).toBeLessThan(jaew.instructions.indexOf('ข) ถ้าเป็นคำขอให้ทำงาน'));
+    expect(jaew.instructions.indexOf('ให้ผมจำไว้ไหม')).toBeLessThan(
+      jaew.instructions.indexOf('ข) ถ้าเป็นคำขอให้ทำงาน'),
+    );
     expect(byId['porn']?.instructions).toContain('ยืนยันทุกครั้ง');
   });
 

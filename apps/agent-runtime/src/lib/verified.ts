@@ -5,6 +5,9 @@ import { ToolError } from '../tools/identity';
 export function assertVerifiedAssessment(assessment: Assessment, expectedCount?: number): void {
   const result = checkAssessment(assessment, { expectedCount });
   if (!result.ok) {
-    throw new ToolError('invalid_assessment', result.errors.map((e) => `${e.questionId ?? '-'}: ${e.code} ${e.message}`).join('; '));
+    throw new ToolError(
+      'invalid_assessment',
+      result.errors.map((e) => `${e.questionId ?? '-'}: ${e.code} ${e.message}`).join('; '),
+    );
   }
 }
