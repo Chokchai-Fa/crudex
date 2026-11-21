@@ -19,13 +19,14 @@ export function FormCard({ room }: { room: string }) {
   }
 
   return (
-    <article className="min-w-0 space-y-3 rounded-lg border p-4">
+    <article className="min-w-0 space-y-3 rounded-2xl border p-4">
       <h2 className="font-semibold">ฟอร์มจำลอง · {room}</h2>
       <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
       {failed ? (
         <>
           <p role="status">จำลองการเตรียมฟอร์มไม่สำเร็จ</p>
           <Button
+            variant="outline"
             onClick={() => {
               setFailed(false);
               setMessage('ฟอร์มจำลองพร้อมแล้ว');
@@ -37,7 +38,7 @@ export function FormCard({ room }: { room: string }) {
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
-            <Button asChild>
+            <Button asChild variant="outline">
               <a href={url} target="_blank" rel="noreferrer">
                 เปิดฟอร์ม
               </a>

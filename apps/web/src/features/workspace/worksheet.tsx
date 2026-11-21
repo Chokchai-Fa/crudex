@@ -26,7 +26,7 @@ export function Worksheet({ room }: { room: string }) {
           ))}
         </ol>
       </details>
-      <Button className="print:hidden" onClick={() => window.print()}>
+      <Button variant="outline" className="print:hidden" onClick={() => window.print()}>
         พิมพ์ใบงาน A4
       </Button>
     </article>
