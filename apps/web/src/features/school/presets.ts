@@ -85,37 +85,6 @@ export function presetsFor(agent: AgentId, room: string) {
     .map((p) => ({ ...p, text: p.text.replaceAll('ม.2/1', room) }));
 }
 
-/** Instant, client-side acknowledgement in each assistant's voice (no model call). */
-const taskAcks: Record<AgentId, string[]> = {
-  jaew: ['รับทราบค่า กำลังจัดการให้นะคะ', 'ได้เลยค่ะคุณครู เดี๋ยวหนูดูให้นะคะ'],
-  jum: ['รับทราบค่ะ หนูกำลังเตรียมให้นะคะ', 'ได้ค่ะ ขอหนูเช็กให้ละเอียดแป๊บนึงนะคะ'],
-  jeng: ['จัดไปครับ! พี่กำลังทำให้', 'รับทราบครับ เดี๋ยวพี่ลงมือเลย'],
-  porn: ['ได้จ้ะ ป้ากำลังดูให้นะจ๊ะ', 'รับทราบจ้ะ ป้าขอเช็กงบแป๊บนึงนะ'],
-  nun: ['รับทราบค่ะ หนูกำลังดูข้อมูลให้นะคะ', 'ได้ค่ะ ขอหนูดูคะแนนแป๊บนึงนะคะ'],
-  rungchao: ['รับทราบค่ะ ท่าน ผอ. รุ่งเช้ากำลังสรุปให้ค่ะ'],
-  lekha_por: ['รับทราบครับ ท่าน ผอ. ลุงกำลังดูเอกสารให้ครับ'],
-};
-const thinkingAcks: Record<AgentId, string> = {
-  jaew: 'ขอคิดแป๊บนะคะ…',
-  jum: 'ขอหนูคิดแป๊บนะคะ…',
-  jeng: 'ขอพี่คิดแป๊บนะครับ…',
-  porn: 'ขอป้าคิดแป๊บนะจ๊ะ…',
-  nun: 'ขอหนูคิดแป๊บนะคะ…',
-  rungchao: 'ขอคิดแป๊บนะคะ…',
-  lekha_por: 'ขอลุงคิดแป๊บนะครับ…',
-};
-const taskWords =
-  /ช่วย|ทำ|สร้าง|เตรียม|สรุป|ส่ง|จัด|ออก|เขียน|ตรวจ|เบิก|วิเคราะห์|หา|ค้น|ให้หน่อย|ขอ(?!บคุณ)/u;
-const chatOnly = /^(สวัสดี|หวัดดี|ดีจ้า|ดีค่ะ|ดีครับ|hello|hi\b|ขอบคุณ|ขอบใจ|โอเค|ok\b)/iu;
-
-export function ackFor(agent: AgentId, prompt: string) {
-  const text = prompt.trim();
-  const isTask = !chatOnly.test(text) && taskWords.test(text);
-  if (!isTask) return thinkingAcks[agent];
-  const options = taskAcks[agent];
-  return options[Math.floor(Math.random() * options.length)]!;
-}
-
 /** Default to conversation. Only explicit creation requests need background delivery. */
 export function isBackgroundRequest(prompt: string) {
   const request = prompt

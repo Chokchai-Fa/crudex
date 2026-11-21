@@ -92,6 +92,10 @@ it('denies a different class and principal agent before reservation and rejects 
   await expect(startRun(deps, a, 'rungchao', input)).rejects.toMatchObject({ code: 'forbidden' });
   expect(repo.accept).not.toHaveBeenCalled();
   vi.mocked(repo.accept).mockResolvedValue(r);
+  await expect(startRun(deps, a, 'jum', input)).resolves.toMatchObject({
+    id: r.id,
+    clientRequestId: input.clientRequestId,
+  });
   await expect(startRun(deps, a, 'jum', { ...input, prompt: 'changed' })).rejects.toMatchObject({
     code: 'conflict',
   });

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { LoaderCircle, MessageCircle } from 'lucide-react';
+import { Clock3, Ellipsis, LoaderCircle, MessageCircle, PencilLine, Workflow } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import type { SchoolActor } from '@repo/shared';
@@ -8,7 +8,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import { SchoolAnswer } from './answer';
 import { useRunEvents } from './api/run-events';
 import { useRunMemory } from './api/run-memory';
-import { presentRun } from './run-presentation';
+import { presentRun, type AgentNames } from './run-presentation';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
 
@@ -35,7 +35,11 @@ function MemoryReview({
     return (
       <p role="alert">
         เปิดข้อเสนอความจำไม่สำเร็จ{' '}
-        <Button size="sm" variant="link" onClick={() => void proposals.refetch()}>
+        <Button
+          size="sm"
+          variant="link"
+          onClick={() => void proposals.refetch({ cancelRefetch: false })}
+        >
           ลองอีกครั้ง
         </Button>
       </p>
@@ -53,7 +57,15 @@ function MemoryReview({
         <section key={p.id} className="space-y-2 rounded-xl border bg-card p-3">
           <p className="text-sm font-semibold">ให้ผู้ช่วยจำเรื่องนี้ไว้ไหม?</p>
           <p>{p.text}</p>
-          <Button size="sm" disabled={approve.isPending} onClick={() => approve.mutate(p.id)}>
+          <Button
+            size="sm"
+            disabled={approve.isPending}
+            aria-busy={approve.isPending && approve.variables === p.id}
+            onClick={() => approve.mutate(p.id)}
+          >
+            {approve.isPending && approve.variables === p.id && (
+              <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+            )}
             ยืนยันให้จำ
           </Button>
         </section>
@@ -63,61 +75,66 @@ function MemoryReview({
   );
 }
 
+const activityIcons = {
+  queued: Clock3,
+  thinking: Ellipsis,
+  tool: LoaderCircle,
+  handoff: Workflow,
+  writing: PencilLine,
+};
+
 export function RunDetails({
   id,
   membershipId,
   status,
-  ack,
+  agents,
+  hasArtifacts,
   onRetry,
   retryDisabled,
 }: {
   id: string;
   membershipId: string;
   status: keyof typeof statusLabels;
-  /** Instant client-side acknowledgement shown until the first real content arrives. */
-  ack?: string;
+  agents?: AgentNames;
+  hasArtifacts?: boolean;
   /** Sends the same request again; shown only after a failed or interrupted reply. */
   onRetry?: () => void;
   retryDisabled?: boolean;
 }) {
   const active = status === 'queued' || status === 'running';
-  const { events, error, complete } = useRunEvents(membershipId, id, active);
-  const { answer, activity, notice, lastProposalId, final, phase } = presentRun(
+  const { events, error, complete, reload } = useRunEvents(membershipId, id, active);
+  const { answer, activity, activityKind, notice, lastProposalId, final, phase } = presentRun(
     status,
     events,
     complete,
+    agents,
   );
   const failed = phase === 'failed' || phase === 'interrupted';
-  const acking = !!ack && !answer && !failed && !notice && !error && !final;
+  const ActivityIcon = activityKind && activityIcons[activityKind];
+  const emptyReply = hasArtifacts ? 'ใบงานพร้อมแล้ว' : 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ';
 
   return (
     <div className="space-y-2">
       {answer && <SchoolAnswer text={answer} />}
-      {acking && (
-        <p className="run-ack" role="status">
-          {ack}
-          <span className="typing-dots" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        </p>
-      )}
-      {!error && activity && !(acking && /^(รอคิว|กำลังคิด)$/.test(activity)) && (
-        <p className="school-run-activity" role="status">
-          <LoaderCircle aria-hidden="true" />
+      {!error && ActivityIcon && (
+        <p
+          className="school-run-activity"
+          data-kind={activityKind}
+          role="status"
+          aria-atomic="true"
+        >
+          <ActivityIcon aria-hidden="true" />
           {activity}
         </p>
       )}
       {failed ? (
         <div className="run-failed" role="status">
-          <p>ขอโทษค่ะ ระบบสะดุด ลองส่งอีกครั้งนะคะ</p>
+          <p>{notice}</p>
           {onRetry && (
             <Button size="sm" disabled={retryDisabled} onClick={onRetry}>
               ส่งอีกครั้ง
             </Button>
           )}
-          {notice && <small className="w-full text-muted-foreground">{notice}</small>}
         </div>
       ) : (
         notice && (
@@ -126,10 +143,17 @@ export function RunDetails({
           </p>
         )
       )}
-      {error && <p role="alert">ยังโหลดคำตอบไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ</p>}
-      {!answer && !activity && !notice && !error && !lastProposalId && !acking && (
+      {error && (
+        <div className="flex flex-wrap items-center gap-x-2 text-sm" role="alert">
+          อ่านคำตอบไม่สำเร็จ
+          <Button size="sm" variant="link" onClick={() => void reload({ cancelRefetch: false })}>
+            โหลดคำตอบอีกครั้ง
+          </Button>
+        </div>
+      )}
+      {!answer && !activity && !notice && !error && !lastProposalId && (
         <p className="text-sm text-muted-foreground" role="status">
-          {final ? 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ' : 'กำลังอ่านคำตอบ…'}
+          {final ? emptyReply : 'กำลังอ่านคำตอบ…'}
         </p>
       )}
       {lastProposalId && (

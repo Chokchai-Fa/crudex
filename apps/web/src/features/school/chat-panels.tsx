@@ -1,5 +1,9 @@
+import { useCachedRunEvents } from './api/run-events';
+import { presentRun } from './run-presentation';
+import { statusLabels } from './classroom';
 import { Link } from '@tanstack/react-router';
-import type { AgentId, SchoolActor } from '@repo/shared';
+import { Clock3, AudioLines } from 'lucide-react';
+import type { AgentId, RunStatus, SchoolActor } from '@repo/shared';
 import type { CSSProperties } from 'react';
 import secretary from '@/assets/mascots/secretary.svg?raw';
 import paper from '@/assets/mascots/paper.svg?raw';
@@ -13,6 +17,8 @@ import {
   useSchoolRoutines,
   useSchoolLogout,
 } from './api/school';
+import { teamActivityLabels, useTeamActivity, type TeamActivity } from './api/team-activity';
+import './team-activity.css';
 
 const roles: Partial<Record<AgentId, string>> = {
   jaew: 'ประสานงานและจดจำให้ครู',
@@ -36,6 +42,47 @@ export function AssistantIcon({ id, size = 40 }: { id: AgentId; size?: number })
     />
   );
 }
+function TeamRow({
+  assistant: { id, name },
+  activity,
+  selected,
+  disabled,
+  onAgent,
+}: {
+  assistant: { id: AgentId; name: string };
+  activity?: TeamActivity;
+  selected: boolean;
+  disabled: boolean;
+  onAgent: (id: AgentId) => void;
+}) {
+  return (
+    <button
+      disabled={disabled}
+      aria-pressed={selected}
+      data-activity={activity}
+      className={'team-row w-full text-start ' + (selected ? 'current' : '')}
+      onClick={() => onAgent(id)}
+    >
+      <AssistantIcon id={id} />
+      <div className="team-row-copy">
+        <strong>{name}</strong>
+        {activity ? (
+          <small className="team-row-activity">
+            {activity === 'queued' ? (
+              <Clock3 aria-hidden="true" />
+            ) : (
+              <AudioLines aria-hidden="true" />
+            )}
+            {teamActivityLabels[activity]}
+          </small>
+        ) : (
+          <small>{roles[id]}</small>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export function SchoolTeam({
   actor,
   roomId,
@@ -52,6 +99,7 @@ export function SchoolTeam({
   disabled: boolean;
 }) {
   const directory = useSchoolAgents(actor.membershipId);
+  const activity = useTeamActivity(actor.membershipId, roomId, agent, directory.data?.agents ?? []);
   const logout = useSchoolLogout();
   return (
     <nav id="school-team" className="school-team team-nav" aria-label="ห้องและผู้ช่วย">
@@ -76,20 +124,15 @@ export function SchoolTeam({
       </fieldset>
       <div>
         {directory.error && <p role="alert">{directory.error.message}</p>}
-        {directory.data?.agents.map((a) => (
-          <button
-            key={a.id}
+        {directory.data?.agents.map((assistant) => (
+          <TeamRow
+            key={assistant.id}
+            assistant={assistant}
+            activity={activity.get(assistant.id)}
+            selected={agent === assistant.id}
             disabled={disabled}
-            aria-pressed={agent === a.id}
-            className={'team-row w-full text-start ' + (agent === a.id ? 'current' : '')}
-            onClick={() => onAgent(a.id)}
-          >
-            <AssistantIcon id={a.id} />
-            <div>
-              <strong>{a.name}</strong>
-              <small>{roles[a.id]}</small>
-            </div>
-          </button>
+            onAgent={onAgent}
+          />
         ))}
       </div>
       <div className="account-panel">
@@ -104,6 +147,29 @@ export function SchoolTeam({
     </nav>
   );
 }
+type RoomTask = { id: string; prompt: string; status: RunStatus };
+
+function CurrentTask({ membershipId, task }: { membershipId: string; task: RoomTask }) {
+  const replay = useCachedRunEvents(membershipId, task.id);
+  const directory = useSchoolAgents(membershipId);
+  const events = replay.events;
+  const { phase, activity, notice } = presentRun(
+    task.status,
+    events,
+    replay.complete,
+    directory.data?.agents,
+  );
+  const done = events.findLast((event) => event.type === 'done');
+  return (
+    <>
+      <strong>{activity || notice || statusLabels[phase]}</strong>
+      <p className="line-clamp-2">{task.prompt}</p>
+      {done && phase === 'succeeded' && done.elapsedMs >= 1000 && (
+        <small>ใช้เวลา {Math.round(done.elapsedMs / 1000).toLocaleString('th-TH')} วินาที</small>
+      )}
+    </>
+  );
+}
 export function SchoolActivity({
   agentName,
   actor,
@@ -113,7 +179,7 @@ export function SchoolActivity({
   actor: SchoolActor;
   roomId: string;
   agentName: string;
-  task?: { prompt: string; status: string };
+  task?: RoomTask;
 }) {
   const routines = useSchoolRoutines(actor.membershipId);
   const memory = useSchoolMemories(actor.membershipId);
@@ -123,10 +189,7 @@ export function SchoolActivity({
       <h2>งานของ{agentName}ในห้องนี้</h2>
       <section className="status-job">
         {task ? (
-          <>
-            <strong>{task.status}</strong>
-            <p>{task.prompt}</p>
-          </>
+          <CurrentTask membershipId={actor.membershipId} task={task} />
         ) : (
           <p>ยังไม่มีงานในบทสนทนานี้</p>
         )}

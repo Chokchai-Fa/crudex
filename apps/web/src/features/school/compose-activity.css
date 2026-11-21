@@ -1,0 +1,20 @@
+.school-conversation .submit-arrow[aria-busy='true'] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.compose-send-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+@media (max-width: 1023px) {
+  .school-workspace:not([data-panel='chat']) .latest-message-button {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .submit-arrow[aria-busy='true'] svg {
+    animation: school-run-turn 1s linear infinite;
+  }
+}
