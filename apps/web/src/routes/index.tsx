@@ -1,3 +1,4 @@
+import { BrandLogo } from '@/components/brand-logo';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 
@@ -8,8 +9,7 @@ function Landing() {
     <main className="grid min-h-dvh place-items-center bg-muted px-5 py-10">
       <section className="mx-auto grid w-full max-w-5xl items-center gap-10 rounded-3xl border bg-card p-7 shadow-sm sm:p-12 lg:grid-cols-[3fr_2fr]">
         <div className="space-y-6">
-          <img
-            src="/roles/brand.png"
+          <BrandLogo
             alt="Crudex"
             width="148"
             height="32"

@@ -472,7 +472,7 @@
   .team-row small {
     display: none;
   }
-  .team-nav > a img {
+  .team-nav > a > svg {
     height: 24px;
   }
   .account-panel {
