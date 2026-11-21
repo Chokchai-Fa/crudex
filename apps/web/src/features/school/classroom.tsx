@@ -2,13 +2,14 @@ import { Link } from '@tanstack/react-router';
 import { LoaderCircle, MessageCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
-import type { SchoolActor } from '@repo/shared';
+import type { AgentId, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { SchoolAnswer } from './answer';
 import { useRunEvents } from './api/run-events';
 import { useRunMemory } from './api/run-memory';
 import { presentRun } from './run-presentation';
+import { failureLine } from './presets';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
 
@@ -67,6 +68,7 @@ export function RunDetails({
   id,
   membershipId,
   status,
+  agentId,
   ack,
   onRetry,
   retryDisabled,
@@ -74,6 +76,8 @@ export function RunDetails({
   id: string;
   membershipId: string;
   status: keyof typeof statusLabels;
+  /** The replying assistant, for the failed-reply wording. */
+  agentId?: AgentId;
   /** Instant client-side acknowledgement shown until the first real content arrives. */
   ack?: string;
   /** Sends the same request again; shown only after a failed or interrupted reply. */
@@ -111,7 +115,7 @@ export function RunDetails({
       )}
       {failed ? (
         <div className="run-failed" role="status">
-          <p>ขอโทษค่ะ ระบบสะดุด ลองส่งอีกครั้งนะคะ</p>
+          <p>{failureLine(agentId)}</p>
           {onRetry && (
             <Button size="sm" disabled={retryDisabled} onClick={onRetry}>
               ส่งอีกครั้ง

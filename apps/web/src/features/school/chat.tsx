@@ -357,6 +357,7 @@ function ChatRoom({
                       id={run.id}
                       membershipId={actor.membershipId}
                       status={run.status}
+                      agentId={run.agentId}
                       ack={acks.current.get(run.id)}
                       onRetry={() => void resend(run.prompt)}
                       retryDisabled={sending || localGatewayUnconfirmed}
