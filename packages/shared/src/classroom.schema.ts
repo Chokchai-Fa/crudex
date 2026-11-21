@@ -26,6 +26,15 @@ export const assessmentContentSchema = z.object({
     )
     .min(1)
     .max(30),
+  googleFormUrl: z
+    .string()
+    .regex(/^https:\/\/docs\.google\.com\/forms\/[A-Za-z0-9_\-/?=&.#]+$/)
+    .max(500)
+    .optional(),
+  googleFormReason: z
+    .string()
+    .regex(/^[a-z_0-9]{1,64}$/)
+    .optional(),
 });
 export type AssessmentContent = z.infer<typeof assessmentContentSchema>;
 export const saveWorksheetSchema = z.object({
