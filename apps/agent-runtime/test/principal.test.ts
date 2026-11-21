@@ -54,6 +54,13 @@ describe('principal agents', () => {
     }
   });
 
+  it('use the display names the principal chose', () => {
+    expect(rungchao?.name).toBe('ลุงนิต');
+    expect(lekha?.name).toBe('น้องดรีม');
+    expect(rungchao?.instructions).toContain('คุณคือลุงนิต');
+    expect(lekha?.instructions).toContain('คุณคือน้องดรีม');
+  });
+
   it('bind exactly the tools in the spec', () => {
     expect([...(rungchao?.tools ?? [])].sort()).toEqual(
       [
