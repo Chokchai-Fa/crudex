@@ -1,4 +1,5 @@
 import { loginIdHeader, validLoginId } from './gate';
+import { dispatchSchema, signedTurn } from '../../../packages/shared/src/school-dispatch.schema';
 import { DurableObject } from 'cloudflare:workers';
 import { consumeRun, countToday, type DailyUsage } from './daily-cap';
 import { envSchema, type AgentConfig } from './env';
@@ -14,6 +15,7 @@ import {
 } from './sandbox';
 
 interface SandboxRecord {
+  owner?: string;
   name: string;
   revision?: string;
   startedAt: number;
@@ -62,9 +64,13 @@ export class SandboxManager extends DurableObject<Env> {
       });
     }
 
-    if (request.method === 'POST' && url.pathname === '/api/chat') {
+    if (
+      request.method === 'POST' &&
+      (url.pathname === '/api/chat' || url.pathname === '/school/chat')
+    ) {
       const loginId = request.headers.get(loginIdHeader);
       if (
+        url.pathname === '/api/chat' &&
         !validLoginId(loginId) &&
         !(loginId === 'scheduled' && url.searchParams.get('role') === 'principal')
       ) {
@@ -77,7 +83,10 @@ export class SandboxManager extends DurableObject<Env> {
         return next !== null;
       });
       if (!admitted) return Response.json({ error: 'daily_limit' }, { status: 429 });
-      return this.proxy(request, config, '/chat');
+      const owner =
+        url.pathname === '/school/chat' ? request.headers.get('x-school-owner') : undefined;
+      if (owner === null) return new Response(null, { status: 403 });
+      return this.proxy(request, config, '/chat', owner);
     }
     if (request.method === 'GET' && url.pathname === '/api/agents') {
       return this.proxy(request, config, '/agents');
@@ -108,17 +117,46 @@ export class SandboxManager extends DurableObject<Env> {
     });
   }
 
-  private async proxy(request: Request, config: AgentConfig, path: '/chat' | '/agents') {
+  private async proxy(
+    request: Request,
+    config: AgentConfig,
+    path: '/chat' | '/agents',
+    owner?: string,
+  ) {
     let acquired = false;
     try {
-      const sandbox = await this.acquire(new URL(request.url).origin, config);
+      const sandbox = await this.acquire(new URL(request.url).origin, config, owner);
       acquired = true;
       const headers = new Headers({ [upstreamHeader]: sandbox.token });
       if (path === '/chat') {
         headers.set('content-type', 'application/json');
-        headers.set(loginIdHeader, request.headers.get(loginIdHeader)!);
+        if (!owner) headers.set(loginIdHeader, request.headers.get(loginIdHeader)!);
       }
 
+      let body: ReadableStream<Uint8Array> | string | null = request.body;
+      if (owner) {
+        const turn = dispatchSchema.parse(await request.json());
+        if (turn.scope.expiresAt <= Date.now())
+          return Response.json({ error: 'expired_attempt' }, { status: 403 });
+        const encoder = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+          'raw',
+          encoder.encode(sandbox.token),
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign'],
+        );
+        const signature = await crypto.subtle.sign(
+          'HMAC',
+          key,
+          encoder.encode(signedTurn(turn.scope, turn.text)),
+        );
+        headers.set(
+          'x-school-signature',
+          Array.from(new Uint8Array(signature), (b) => b.toString(16).padStart(2, '0')).join(''),
+        );
+        body = JSON.stringify(turn);
+      }
       const url = new URL(path, sandbox.url);
       const role = new URL(request.url).searchParams.get('role');
       if (role !== null) url.searchParams.set('role', role);
@@ -127,7 +165,7 @@ export class SandboxManager extends DurableObject<Env> {
       const upstream = await fetch(url, {
         method: request.method,
         headers,
-        body: request.body,
+        body,
         redirect: 'manual',
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(proxyTimeout)]),
       });
@@ -154,17 +192,22 @@ export class SandboxManager extends DurableObject<Env> {
     }
   }
 
-  private async acquire(origin: string, config: AgentConfig): Promise<RunningSandbox> {
+  private async acquire(
+    origin: string,
+    config: AgentConfig,
+    owner?: string,
+  ): Promise<RunningSandbox> {
     if (this.transition) await this.transition;
     const current = this.sandbox;
     if (
       !current ||
       !('url' in current) ||
+      current.owner !== owner ||
       current.revision !== config.RUNTIME_REVISION ||
       Date.now() >= current.startedAt + rotateAfter
     ) {
-      await this.beginTransition(() => this.replace(origin, config));
-      return this.acquire(origin, config);
+      await this.beginTransition(() => this.replace(origin, config, owner));
+      return this.acquire(origin, config, owner);
     }
 
     this.activeRequests++;
@@ -193,7 +236,7 @@ export class SandboxManager extends DurableObject<Env> {
     return this.transition;
   }
 
-  private async replace(origin: string, config: AgentConfig) {
+  private async replace(origin: string, config: AgentConfig, owner?: string) {
     if (this.activeRequests)
       await new Promise<void>((resolve) => {
         this.drained = resolve;
@@ -202,6 +245,7 @@ export class SandboxManager extends DurableObject<Env> {
     const sandbox = await createSandbox(config);
     const startedAt = sandbox.createdAt.getTime();
     const record = {
+      owner,
       name: sandbox.name,
       revision: config.RUNTIME_REVISION,
       startedAt,
@@ -214,7 +258,7 @@ export class SandboxManager extends DurableObject<Env> {
       const token = randomToken();
       await this.ctx.storage.setAlarm(Date.now() + retryAlarmAfter);
       await this.ctx.storage.put({ sandbox: record, 'boot-token': bootToken });
-      const url = await bootSandbox(sandbox, config, origin, bootToken, token);
+      const url = await bootSandbox(sandbox, config, origin, bootToken, token, owner);
       const running = { ...record, url, token, lastUsedAt: Date.now() };
       await this.ctx.storage.put('sandbox', running);
       this.sandbox = running;

@@ -12,6 +12,7 @@ export default defineConfig({
       wrangler: { configPath: './wrangler.toml' },
       remoteBindings: false,
       miniflare: {
+        serviceBindings: { SCHOOL_GATEWAY: () => new Response(null, { status: 503 }) },
         // Fake values so config validation passes; tests must not reach real services.
         bindings: {
           APP_ENV: 'test',

@@ -1,0 +1,173 @@
+import { and, asc, desc, eq, gt, lt, isNull, sql, or, exists, getTableColumns } from 'drizzle-orm';
+import type { RunEvent, CreateRun, AgentId, RunStatus, SchoolActor } from '@repo/shared';
+import { assessments } from '../db/schema/classroom';
+import type { Db } from '../db/client';
+import { agentRuns as runs, runEvents, runOutbox } from '../db/schema/runs';
+
+export async function accept(
+  db: Db,
+  actor: SchoolActor,
+  role: 'principal' | 'teacher',
+  agentId: AgentId,
+  input: CreateRun,
+  id: string = crypto.randomUUID(),
+) {
+  await db.batch([
+    db
+      .insert(runs)
+      .values({
+        id,
+        schoolId: actor.schoolId,
+        ownerId: actor.ownerId,
+        membershipId: actor.membershipId,
+        role,
+        agentId,
+        classId: input.classId,
+        requestId: input.clientRequestId,
+        prompt: input.prompt,
+      })
+      .onConflictDoNothing(),
+    db.execute(sql`insert into run_quota(day,used)
+      select (now() at time zone 'Asia/Bangkok')::date,1 from agent_runs where id=${id}
+      on conflict(day) do update set used=run_quota.used+1`),
+    db.execute(sql`insert into owner_run_quota(day,owner_id,used)
+      select (now() at time zone 'Asia/Bangkok')::date,owner_id,1 from agent_runs where id=${id}
+      on conflict(day,owner_id) do update set used=owner_run_quota.used+1`),
+    db.execute(sql`insert into run_outbox(run_id) select id from agent_runs where id=${id}`),
+    db.execute(
+      sql`insert into run_events(run_id,body) select id,'{"type":"status","status":"queued"}'::jsonb from agent_runs where id=${id}`,
+    ),
+  ]);
+  const [run] = await db
+    .select()
+    .from(runs)
+    .where(
+      and(
+        eq(runs.schoolId, actor.schoolId),
+        eq(runs.ownerId, actor.ownerId),
+        eq(runs.requestId, input.clientRequestId),
+      ),
+    );
+  return run!;
+}
+
+export const ownerScope = (a: SchoolActor) =>
+  and(
+    eq(runs.schoolId, a.schoolId),
+    eq(runs.ownerId, a.ownerId),
+    eq(runs.membershipId, a.membershipId),
+  );
+export async function owned(db: Db, a: SchoolActor, id: string) {
+  return (
+    await db
+      .select()
+      .from(runs)
+      .where(and(eq(runs.id, id), ownerScope(a)))
+  )[0];
+}
+export function history(db: Db, a: SchoolActor, agentId: AgentId) {
+  const artifacts = db
+    .select({ id: assessments.id })
+    .from(assessments)
+    .where(and(eq(assessments.schoolId, runs.schoolId), eq(assessments.runId, runs.id)));
+  return db
+    .select({ ...getTableColumns(runs), worksheetIds: sql<string[]>`array(${artifacts})` })
+    .from(runs)
+    .where(
+      and(
+        ownerScope(a),
+        or(
+          eq(runs.agentId, agentId),
+          agentId === 'jum' ? and(eq(runs.agentId, 'jaew'), exists(artifacts)) : undefined,
+        ),
+      ),
+    )
+    .orderBy(desc(runs.createdAt))
+    .limit(100);
+}
+export function events(db: Db, runId: string, cursor: number) {
+  return db
+    .select({ id: runEvents.id, body: runEvents.body })
+    .from(runEvents)
+    .where(and(eq(runEvents.runId, runId), gt(runEvents.id, cursor)))
+    .orderBy(asc(runEvents.id))
+    .limit(128);
+}
+export async function claim(db: Db, id: string, attemptId: string, credentialHash: string) {
+  const [rows] = await db.batch([
+    db
+      .update(runs)
+      .set({
+        attemptId,
+        credentialHash,
+        status: 'running',
+        leaseUntil: sql`now()+interval '12 minutes'`,
+      })
+      .where(and(eq(runs.id, id), eq(runs.status, 'queued')))
+      .returning(),
+    db.execute(
+      sql`insert into run_events(run_id,body) select id,'{"type":"status","status":"running"}'::jsonb from agent_runs where id=${id} and attempt_id=${attemptId}`,
+    ),
+    db.delete(runOutbox).where(eq(runOutbox.runId, id)),
+  ]);
+  return rows[0];
+}
+export async function append(db: Db, id: string, attempt: string, bodies: RunEvent[]) {
+  await db.execute(
+    sql`insert into run_events(run_id,body) select id, item from (select id from agent_runs where id=${id} and attempt_id=${attempt} and status='running' and lease_until>now() for update) active cross join jsonb_array_elements(${JSON.stringify(bodies)}::jsonb) with ordinality as events(item, seq) order by seq`,
+  );
+}
+export async function finish(
+  db: Db,
+  id: string,
+  attempt: string,
+  status: RunStatus,
+  body: RunEvent,
+) {
+  await db.execute(sql`with finished as (update agent_runs set status=${status},credential_hash=null where id=${id} and attempt_id=${attempt} and status='running' and lease_until>now() returning id)
+    insert into run_events(run_id,body) select id,${JSON.stringify(body)}::jsonb from finished`);
+}
+export async function expire(db: Db) {
+  await db.execute(sql`with expired as (update agent_runs set status='interrupted',credential_hash=null where status='running' and lease_until<=now() returning id)
+    insert into run_events(run_id,body) select id,'{"type":"error","code":"interrupted"}'::jsonb from expired`);
+}
+export async function pending(db: Db) {
+  return db.select().from(runOutbox).limit(60);
+}
+export async function credential(db: Db, id: string, hash: string) {
+  return (
+    await db
+      .select()
+      .from(runs)
+      .where(
+        and(
+          eq(runs.id, id),
+          eq(runs.status, 'running'),
+          eq(runs.credentialHash, hash),
+          gt(runs.leaseUntil, new Date()),
+        ),
+      )
+  )[0];
+}
+
+export async function cancel(db: Db, id: string, a: SchoolActor) {
+  await db.execute(sql`with stopped as (update agent_runs set status='cancelled',credential_hash=null where id=${id} and owner_id=${a.ownerId} and membership_id=${a.membershipId} and school_id=${a.schoolId} and status in ('queued','running') returning id)
+    insert into run_events(run_id,body) select id,'{"type":"error","code":"cancelled"}'::jsonb from stopped`);
+}
+
+export async function previousStatus(db: Db, run: typeof runs.$inferSelect) {
+  const [previous] = await db
+    .select({ status: runs.status })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.membershipId, run.membershipId),
+        eq(runs.agentId, run.agentId),
+        run.classId ? eq(runs.classId, run.classId) : isNull(runs.classId),
+        lt(runs.createdAt, run.createdAt),
+      ),
+    )
+    .orderBy(desc(runs.createdAt))
+    .limit(1);
+  return previous?.status;
+}

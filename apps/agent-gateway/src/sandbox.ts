@@ -61,6 +61,7 @@ export async function bootSandbox(
   origin: string,
   bootToken: string,
   upstreamToken: string,
+  owner?: string,
 ) {
   const setup = await sandbox.runCommand({
     cmd: 'node',
@@ -81,6 +82,7 @@ export async function bootSandbox(
       ...(config.SCHOOL_BOT_APPS_SCRIPT_URL && {
         SCHOOL_BOT_APPS_SCRIPT_URL: config.SCHOOL_BOT_APPS_SCRIPT_URL,
       }),
+      ...(owner && { SCHOOL_OWNER: owner }),
       UPSTREAM_TOKEN: upstreamToken,
       DATA_DIR: workDir + '/data',
     },

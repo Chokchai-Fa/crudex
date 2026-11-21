@@ -27,6 +27,7 @@ export function createDeps(env: Env): Deps {
       const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } = getConfig();
       return (cache ??= createCache(UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN));
     },
+    agentGateway: env.SCHOOL_GATEWAY,
     queue: createJobQueue(env.JOBS_QUEUE),
   };
 }

@@ -79,7 +79,7 @@ export const fractionAdditionForm: ToolDefinition = {
     }
     const { count } = inputSchema.parse(input);
     const assessment = additionWorksheet(count);
-    const published = await saveVerifiedAssessment(assessment, context.signal);
+    const published = await saveVerifiedAssessment(assessment, context.signal, context.scope);
     if (published.questions?.length !== count)
       throw new ToolError('unavailable', 'ไม่พบลำดับตัวเลือกที่ส่งเข้า Form');
     const questions = published.questions.map((question, index) => {

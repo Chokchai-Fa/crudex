@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { clearSessionCookie, readSession, sessionCookie, validPasscode } from '../src/gate';
 
-vi.mock('cloudflare:workers', () => ({ DurableObject: class {} }));
+vi.mock('cloudflare:workers', () => ({ DurableObject: class {}, WorkerEntrypoint: class {} }));
 
 const sample = 'sample passcode only';
 const now = 1_800_000_000_000;

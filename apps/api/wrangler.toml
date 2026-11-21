@@ -11,7 +11,7 @@ enabled = true
 [triggers]
 # Daily write to Upstash so the free database isn't archived for inactivity (~30 days).
 # Free plan: 5 cron triggers per account. Handler: src/jobs/scheduled-handler.ts.
-crons = ["17 3 * * *"]
+crons = ["17 3 * * *", "*/5 * * * *"]
 
 [vars]
 APP_ENV = "production"
@@ -33,5 +33,13 @@ queue = "crudex-jobs"                 # must match the Terraform queue name
 
 [[queues.consumers]]
 queue = "crudex-jobs"
-max_batch_size = 10
+max_batch_size = 1
 max_retries = 3
+
+[[services]]
+binding = "SCHOOL_GATEWAY"
+service = "crudex-agent"
+entrypoint = "SchoolDispatch"
+
+[secrets]
+required = ["DATABASE_URL", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]

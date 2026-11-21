@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Assessment } from '../lib/fractions';
 import { z } from 'zod';
+import { schoolTool, type SchoolScope } from '../school';
 import { assessmentSchema, runCheck } from './check_assessment';
 import { ToolError } from './identity';
 import { validatedTool } from './validated';
@@ -14,7 +15,7 @@ const formResponse = z.object({
 });
 
 type PublishedForm = {
-  mode: 'apps-script' | 'mock';
+  mode: 'apps-script' | 'mock' | 'school';
   formId: string;
   url: string;
   /** The order and key actually published. */
@@ -83,12 +84,13 @@ export const saveAssessment = validatedTool(assessmentSchema, {
   description:
     'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร',
   gate: 'allow',
-  execute: (input, context) => saveVerifiedAssessment(input, context.signal),
+  execute: (input, context) => saveVerifiedAssessment(input, context.signal, context.scope),
 });
 
 export async function saveVerifiedAssessment(
   input: z.infer<typeof assessmentSchema>,
   signal: AbortSignal,
+  scope?: SchoolScope,
 ) {
   const { assessment, result } = runCheck(input);
   if (!result.ok || result.unverified.length) {
@@ -96,7 +98,9 @@ export async function saveVerifiedAssessment(
     throw new ToolError('invalid_assessment', reasons.join('; '));
   }
   const bridgeStarted = performance.now();
-  const { mode, formId, url, questions } = await publisher.publish(assessment, signal);
+  const { mode, formId, url, questions } = scope
+    ? await saveSchoolAssessment(scope, assessment, signal)
+    : await publisher.publish(assessment, signal);
   const bridgeElapsedMs = Math.round(performance.now() - bridgeStarted);
   const published = questions.map((question, index) => ({
     id: assessment.questions[index]?.id,
@@ -113,4 +117,27 @@ export async function saveVerifiedAssessment(
     bridgeElapsedMs,
     maxScore: questions.length,
   };
+}
+
+async function saveSchoolAssessment(
+  scope: SchoolScope,
+  assessment: Assessment,
+  signal: AbortSignal,
+): Promise<PublishedForm> {
+  const questions = formQuestions(assessment.questions);
+  const ordered = {
+    ...assessment,
+    questions: assessment.questions.map((q, index) => ({
+      ...q,
+      choices: questions[index]!.choices.map((text, position) => ({ id: `c${position}`, text })),
+      correctChoiceId: `c${questions[index]!.answerIndex}`,
+    })),
+  };
+  const invocationId = createHash('sha256').update(JSON.stringify(ordered)).digest('hex');
+  const result = z
+    .object({ id: z.string(), formUrl: z.string(), worksheetUrl: z.string() })
+    .parse(
+      await schoolTool(scope, 'save_assessment', { assessment: ordered, invocationId }, signal),
+    );
+  return { mode: 'school', formId: result.id, url: result.formUrl, questions };
 }

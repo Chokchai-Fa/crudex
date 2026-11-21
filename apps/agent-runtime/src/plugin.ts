@@ -1,4 +1,5 @@
 import { Agent, Location, Model, Skill, type Plugin } from '@opencode/plugin';
+import { schoolTool, type SchoolScope } from './school';
 import { agents } from './agents';
 import { KahootDrafts, kahootTool, kahootServer } from './kahoot-draft';
 import { decide, permissionsFor } from './permissions';
@@ -30,6 +31,24 @@ class ToolNotBound extends Error {
 const builtins = ['build', 'plan', 'general', 'explore'];
 const definitions = new Map(agents.map((agent) => [agent.id, agent]));
 
+const schoolCallbacks: Record<string, string> = {
+  memory_save: 'เสนอข้อความให้เจ้าของบัญชีอนุมัติ ก่อนเก็บเป็นความจำถาวร',
+  memory_search: 'ค้นข้อความที่เจ้าของบัญชีอนุมัติให้จำแล้ว',
+  get_scores: 'อ่านคะแนนและคะแนนเต็มที่บันทึกในห้องที่เลือก',
+  get_school_summary: 'อ่านยอดรวมห้อง นักเรียน คะแนน และรายงานของโรงเรียน',
+  teacher_activity: 'อ่านจำนวนงานที่เสร็จและใบงานที่สร้างในวันก่อนหน้า',
+  list_pending_approvals: 'อ่านคำขอที่รอการอนุมัติของโรงเรียน',
+  get_approval: 'อ่านรายละเอียดคำขอในโรงเรียนตามรหัส',
+};
+const schoolLocalTools = new Set([
+  'calc',
+  'server_clock',
+  'curriculum_lookup',
+  'check_assessment',
+  'save_assessment',
+  'fraction_addition_form',
+]);
+
 export function createRuntimePlugin(
   increment: (name: string) => number,
   skills: readonly EmbeddedSkill[],
@@ -39,6 +58,7 @@ export function createRuntimePlugin(
     agent: string,
     signal: AbortSignal,
   ) => Promise<{ ownerId: string; classId?: string }>,
+  resolveScope?: (sessionId: string) => Promise<SchoolScope>,
 ) {
   const drafts = new KahootDrafts();
   const rulesByAgent = new Map(
@@ -81,7 +101,10 @@ export function createRuntimePlugin(
             agent.name = Agent.Name.make(definition.name);
             agent.description = definition.description;
             agent.mode = definition.mode;
-            agent.system = definition.instructions;
+            agent.system = resolveScope
+              ? definition.instructions +
+                '\nโหมดบัญชีโรงเรียน ใช้ข้อมูลจากเครื่องมือที่ผูกกับบัญชีเท่านั้น หากเครื่องมือไม่พร้อมให้บอกผู้ใช้ตามจริง ห้ามสร้างตัวเลข ลิงก์ หรือผลลัพธ์เอง'
+              : definition.instructions;
             agent.model = Model.Ref.parse('openai/' + definition.model);
             agent.permissions = permissionsFor(definition, kahootEnabled);
           });
@@ -101,9 +124,11 @@ export function createRuntimePlugin(
 
       await ctx.tool.transform((editor) => {
         for (const tool of tools) {
+          const callback = Object.hasOwn(schoolCallbacks, tool.name);
+          if (resolveScope && !callback && !schoolLocalTools.has(tool.name)) continue;
           editor.add({
             name: tool.name,
-            description: tool.description,
+            description: resolveScope && callback ? schoolCallbacks[tool.name]! : tool.description,
             input: tool.input,
             options: { codemode: false },
             async execute(input, call) {
@@ -116,8 +141,15 @@ export function createRuntimePlugin(
                 action: tool.name,
                 resources: ['*'],
               });
+              const scope = await resolveScope?.(call.sessionID);
+              if (scope && callback) {
+                const result = await schoolTool(scope, tool.name, input, call.signal);
+                return { content: JSON.stringify(result) };
+              }
               const result = await tool.execute(input, {
-                ...(await toolOwner?.(call.sessionID, call.agent, call.signal)),
+                ...(scope
+                  ? { scope, ownerId: scope.ownerId, classId: scope.classId ?? undefined }
+                  : await toolOwner?.(call.sessionID, call.agent, call.signal)),
                 count: increment(tool.name),
                 agent: call.agent,
                 sessionID: call.sessionID,

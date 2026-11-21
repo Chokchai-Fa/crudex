@@ -1,0 +1,64 @@
+import { createHmac } from 'node:crypto';
+import { expect, it, vi, afterEach } from 'vitest';
+import { signedTurn } from '../../../packages/shared/src/school-dispatch.schema';
+import { validSchoolTurn, type SchoolScope } from '../src/school';
+import { additionWorksheet } from '../src/tools/fraction_addition_form';
+import { saveVerifiedAssessment } from '../src/tools/save_assessment';
+afterEach(() => vi.unstubAllGlobals());
+const scope = (): SchoolScope => ({
+  freshSession: false,
+  agentId: 'jum',
+  role: 'teacher',
+  schoolId: crypto.randomUUID(),
+  ownerId: crypto.randomUUID(),
+  classId: crypto.randomUUID(),
+  runId: crypto.randomUUID(),
+  attemptId: crypto.randomUUID(),
+  expiresAt: Date.now() + 120000,
+  credential: crypto.randomUUID() + crypto.randomUUID(),
+  callbackOrigin: 'https://school.test',
+});
+it('binds school, owner, class, agent, prompt and attempt to the active sandbox', () => {
+  const claims = scope();
+  const owner = claims.schoolId + '/' + claims.ownerId;
+  const signature = createHmac('sha256', 'boot-secret')
+    .update(signedTurn(claims, 'worksheet'))
+    .digest('hex');
+  expect(validSchoolTurn(claims, 'worksheet', signature, owner, 'boot-secret')).toBe(true);
+  expect(validSchoolTurn(claims, 'other', signature, owner, 'boot-secret')).toBe(false);
+  expect(
+    validSchoolTurn({ ...claims, classId: null }, 'worksheet', signature, owner, 'boot-secret'),
+  ).toBe(false);
+  expect(validSchoolTurn(claims, 'worksheet', signature, owner, 'replacement-secret')).toBe(false);
+  expect(
+    validSchoolTurn(
+      { ...claims, expiresAt: Date.now() - 1 },
+      'worksheet',
+      signature,
+      owner,
+      'boot-secret',
+    ),
+  ).toBe(false);
+});
+it('retries a verified school worksheet with the same invocation ID and published choice order', async () => {
+  const s = scope();
+  const fetcher = vi.fn(async () =>
+    Response.json({ id: 'quiz', formUrl: '/play/quiz', worksheetUrl: '/worksheets/quiz' }),
+  );
+  vi.stubGlobal('fetch', fetcher);
+  const data = additionWorksheet(5);
+  const result = await saveVerifiedAssessment(data, new AbortController().signal, s);
+  expect(result.mode).toBe('school');
+  await saveVerifiedAssessment(data, new AbortController().signal, s);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  const calls = fetcher.mock.calls as unknown as [URL, RequestInit][];
+  expect(String(calls[0]![0])).toBe(
+    s.callbackOrigin + '/api/internal/runs/' + s.runId + '/tools/save_assessment',
+  );
+  expect(calls[0]![1].body).toBe(calls[1]![1].body);
+  const saved = JSON.parse(String(calls[0]![1].body)).assessment as typeof data;
+  expect(new Set(saved.questions.map((q) => q.correctChoiceId)).size).toBe(4);
+  expect(saved.questions.map((q) => q.choices.map((c) => c.text))).toEqual(
+    result.questions.map((q) => q.choices),
+  );
+});

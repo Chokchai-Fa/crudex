@@ -1,3 +1,4 @@
+import type { SchoolActor } from '@repo/shared';
 import type { RequestIdVariables } from 'hono/request-id';
 import type { Deps } from './deps';
 
@@ -6,5 +7,6 @@ export interface AppEnv {
   Bindings: Env;
   Variables: RequestIdVariables & {
     deps: Deps;
+    actor: SchoolActor;
   };
 }
