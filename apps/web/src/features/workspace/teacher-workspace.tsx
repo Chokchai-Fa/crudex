@@ -19,6 +19,10 @@ const draftKey = (room: string) => 'crudex.demo.teacher.draft.' + room;
 
 const formFailureKey = (room: string) => 'crudex.demo.form-failed.' + room;
 
+function isNearBottom(panel: HTMLDivElement) {
+  return panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 24;
+}
+
 export function TeacherWorkspace() {
   const [room, setRoom] = useState(() => {
     const saved = sessionStorage.getItem(roomKey);
@@ -68,6 +72,8 @@ export function TeacherWorkspace() {
     const origin = room;
     const prompt = draft.trim();
     if (!prompt || timers.current.has(origin)) return;
+    // A scroll event can still be queued when the teacher presses Send.
+    if (viewport.current) following.current = isNearBottom(viewport.current);
     const previous = history[origin] ?? [];
     const turn = replyTo(prompt, origin, previous, Boolean(request));
     setPending((current) => ({ ...current, [origin]: prompt }));
@@ -182,8 +188,7 @@ export function TeacherWorkspace() {
           tabIndex={0}
           className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-3 py-3 outline-offset-[-2px] sm:px-5 print:overflow-visible print:p-0"
           onScroll={(event) => {
-            const panel = event.currentTarget;
-            following.current = panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 24;
+            following.current = isNearBottom(event.currentTarget);
           }}
         >
           {latestWorksheet < 0 && artifacts}
