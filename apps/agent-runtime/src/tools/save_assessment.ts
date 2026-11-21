@@ -3,7 +3,7 @@ import type { Assessment } from '../lib/fractions';
 import { z } from 'zod';
 import { assessmentSchema, runCheck } from './check_assessment';
 import { ToolError } from './identity';
-import type { ToolDefinition } from './types';
+import { validatedTool } from './validated';
 
 const formResponse = z.object({
   ok: z.literal(true),
@@ -17,8 +17,8 @@ type PublishedForm = {
   mode: 'apps-script' | 'mock';
   formId: string;
   url: string;
-  /** The order and key actually published; the teacher must be shown this, not the order the model sent. */
-  questions?: ReturnType<typeof formQuestions>;
+  /** The order and key actually published. */
+  questions: ReturnType<typeof formQuestions>;
 };
 
 export function formQuestions(questions: Assessment['questions']) {
@@ -78,16 +78,18 @@ export const publisher = {
   },
 };
 
-export const saveAssessment: ToolDefinition = {
+export const saveAssessment = validatedTool(assessmentSchema, {
   name: 'save_assessment',
   description:
     'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร',
-  input: assessmentSchema,
   gate: 'allow',
   execute: (input, context) => saveVerifiedAssessment(input, context.signal),
-};
+});
 
-export async function saveVerifiedAssessment(input: unknown, signal: AbortSignal) {
+export async function saveVerifiedAssessment(
+  input: z.infer<typeof assessmentSchema>,
+  signal: AbortSignal,
+) {
   const { assessment, result } = runCheck(input);
   if (!result.ok || result.unverified.length) {
     const reasons = result.errors.map((error) => error.message).concat(result.unverified);
@@ -96,10 +98,19 @@ export async function saveVerifiedAssessment(input: unknown, signal: AbortSignal
   const bridgeStarted = performance.now();
   const { mode, formId, url, questions } = await publisher.publish(assessment, signal);
   const bridgeElapsedMs = Math.round(performance.now() - bridgeStarted);
-  const published = questions?.map((question, index) => ({
+  const published = questions.map((question, index) => ({
     id: assessment.questions[index]?.id,
+    text: question.text,
     choices: question.choices,
+    points: question.points,
     answer: 'กขคง'[question.answerIndex],
   }));
-  return { formUrl: url, mode, formId, questions: published, bridgeElapsedMs };
+  return {
+    formUrl: url,
+    mode,
+    formId,
+    questions: published,
+    bridgeElapsedMs,
+    maxScore: questions.length,
+  };
 }

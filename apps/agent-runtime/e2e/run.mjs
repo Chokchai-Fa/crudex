@@ -212,6 +212,7 @@ const expected = {
     'list_pending_approvals',
     'teacher_activity',
     'memory_search',
+    'publish_brief',
   ],
   lekha_por: [
     'list_pending_approvals',
@@ -389,6 +390,56 @@ check(
   'lekha_por cannot send email',
   tool(ev)?.state?.status === 'error',
   JSON.stringify(tool(ev)?.state),
+);
+
+console.log('# approval line: porn -> principal');
+ev = run([
+  '--auto',
+  '--agent',
+  'porn',
+  'CALL fill_claim_form {"budgetCode":"M-01","purpose":"กระดาษ","items":[{"name":"A4","qty":10,"unitPrice":120}]}',
+]);
+const claimOut = JSON.parse((tool(ev)?.state?.output ?? '{}').split('\n')[0]);
+check(
+  'porn fills a claim with code-computed totals',
+  claimOut.total === 1200 && claimOut.remainingAfter === 2400,
+  JSON.stringify(claimOut).slice(0, 160),
+);
+check(
+  'publish_brief rejects an 8-line brief',
+  (() => {
+    const evb = run([
+      '--agent',
+      'rungchao',
+      `CALL publish_brief ${JSON.stringify({ text: Array(8).fill('บรรทัด').join('\n') })}`,
+    ]);
+    return (
+      tool(evb)?.state?.status === 'error' &&
+      /brief_rejected|too_many_lines/.test(JSON.stringify(tool(evb)?.state))
+    );
+  })(),
+);
+check(
+  'publish_brief rejects a student name',
+  (() => {
+    const evb = run([
+      '--agent',
+      'rungchao',
+      'CALL publish_brief {"text":"นักเรียนตัวอย่าง 07 ต้องติว"}',
+    ]);
+    return tool(evb)?.state?.status === 'error';
+  })(),
+);
+check(
+  'publish_brief accepts a clean brief',
+  (() => {
+    const evb = run([
+      '--agent',
+      'rungchao',
+      `CALL publish_brief ${JSON.stringify({ text: 'สรุปเช้า (ตัวอย่าง)\nป.6/1 ต่ำกว่าเกณฑ์' })}`,
+    ]);
+    return tool(evb)?.state?.status === 'completed';
+  })(),
 );
 
 console.log('# secretary delegates');

@@ -46,7 +46,7 @@ export const assessment = {
   assessmentId: 'a-001',
   title: 'ตัวอย่าง: ใบงานเศษส่วน ป.5',
   topic: 'เศษส่วน',
-  maxScore: 10,
+  maxScore: questionTopics.length,
 } as const;
 
 export const budgetSheet = {

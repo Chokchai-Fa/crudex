@@ -1,13 +1,14 @@
 import { sampleClassId, sampleOwner } from '../data/sample';
 import type { ToolContext } from './types';
 
-/** Owner and class come from the session; the sample fallback exists only until the gateway passes them. */
-export function identityOf(context: ToolContext) {
-  return {
-    ownerId: context.ownerId ?? sampleOwner,
-    classId: context.classId ?? sampleClassId,
-    fromSession: context.ownerId !== undefined && context.classId !== undefined,
-  };
+/** Owner comes from the gateway; until it passes one, every session shares the sample teacher so state carries across agents. */
+export function ownerOf({ ownerId }: ToolContext) {
+  const id = ownerId ?? sampleOwner;
+  return { id, key: `owner:${id}` };
+}
+
+export function classOf({ ownerId, classId }: ToolContext) {
+  return classId ?? (ownerId === undefined ? sampleClassId : undefined);
 }
 
 export class ToolError extends Error {
