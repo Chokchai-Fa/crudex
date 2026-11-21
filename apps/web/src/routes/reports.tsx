@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { classroomResults } from '@/features/workspace/demo-gradebook';
 import { exercises, rooms } from '@/features/workspace/fraction-set';
@@ -57,8 +58,8 @@ function ReportDraft({ room }: { room: string }) {
         <>
           <label className="block">
             เลือกครอบครัว
-            <select
-              className="mt-2 block min-h-11 w-full rounded-lg border bg-background px-3"
+            <NativeSelect
+              className="mt-2 w-full"
               value={number}
               onChange={(e) => selectStudent(Number(e.target.value))}
             >
@@ -67,7 +68,7 @@ function ReportDraft({ room }: { room: string }) {
                   ผู้ปกครองของ{row.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           {receipt ? (
             <p

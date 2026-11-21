@@ -38,7 +38,6 @@ function RoleChooser() {
   }
   return (
     <main
-      style={{ fontFamily: '"Noto Sans Thai", "Leelawadee UI", Thonburi, Tahoma, sans-serif' }}
       className="grid min-h-dvh place-items-center bg-[#f6f9fe] px-5 py-5 sm:py-10 text-[#15233b]"
     >
       <section className="w-full max-w-[700px]">

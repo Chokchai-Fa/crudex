@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { BookOpen, Send } from 'lucide-react';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -81,16 +82,11 @@ export function TeacherWorkspace() {
         </Link>
         <div className="flex items-center gap-2 lg:flex-col lg:items-stretch">
           <Label htmlFor="room">ห้อง</Label>
-          <select
-            id="room"
-            value={room}
-            onChange={(event) => switchRoom(event.target.value)}
-            className="bg-background h-11 rounded-xl border px-2"
-          >
+          <NativeSelect id="room" value={room} onChange={(event) => switchRoom(event.target.value)}>
             {rooms.map((name) => (
               <option key={name}>{name}</option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         <Button asChild variant="outline">
           <Link to="/gradebook" search={{ room }}>

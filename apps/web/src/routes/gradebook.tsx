@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { exercises, rooms } from '@/features/workspace/fraction-set';
 import { classroomResults } from '@/features/workspace/demo-gradebook';
@@ -29,15 +30,15 @@ function Gradebook() {
           </Button>
           <label className="flex items-center gap-2 text-sm">
             ห้องเรียน
-            <select
+            <NativeSelect
               value={room}
-              className="min-h-11 rounded-xl border bg-card px-2"
+
               onChange={(e) => void navigate({ search: { room: e.target.value } })}
             >
               {rooms.map((value) => (
                 <option key={value}>{value}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         </div>
         <div className="flex items-center gap-3">
