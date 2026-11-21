@@ -23,3 +23,11 @@ class_name = "SandboxManager"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["SandboxManager"]
+
+[[durable_objects.bindings]]
+name = "BRIEFS"
+class_name = "MorningBrief"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["MorningBrief"]

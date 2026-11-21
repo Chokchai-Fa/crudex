@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import type { Assessment } from '../lib/fractions';
 import { z } from 'zod';
 import { assessmentSchema, runCheck } from './check_assessment';
@@ -14,17 +15,31 @@ const formResponse = z.object({
 
 type PublishedForm = { mode: 'apps-script' | 'mock'; formId: string; url: string };
 
+export function formQuestions(questions: Assessment['questions']) {
+  const availableBySize = new Map<number, number[]>();
+  return questions.map(({ text, choices, correctChoiceId }) => {
+    const original = choices.findIndex((choice) => choice.id === correctChoiceId);
+    if (original < 0) throw new ToolError('invalid_assessment', 'ไม่พบตัวเลือกที่ถูก');
+
+    // Draw every position once before reusing one for questions of the same size.
+    let positions = availableBySize.get(choices.length);
+    if (!positions?.length) {
+      positions = choices.map((_, i) => i);
+      availableBySize.set(choices.length, positions);
+    }
+    const answerIndex = positions.splice(randomInt(positions.length), 1)[0]!;
+    const ordered = [...choices];
+    [ordered[original], ordered[answerIndex]] = [ordered[answerIndex]!, ordered[original]!];
+    return { text, choices: ordered.map((choice) => choice.text), answerIndex, points: 1 };
+  });
+}
+
 export const publisher = {
   async publish(assessment: Assessment, signal: AbortSignal): Promise<PublishedForm> {
     const endpoint = process.env.SCHOOL_BOT_APPS_SCRIPT_URL;
     if (!endpoint) throw new ToolError('unavailable', 'ยังไม่ได้เชื่อมต่อ Google Form');
 
-    const questions = assessment.questions.map(({ text, choices, correctChoiceId }) => ({
-      text,
-      choices: choices.map((choice) => choice.text),
-      answerIndex: choices.findIndex((choice) => choice.id === correctChoiceId),
-      points: 1,
-    }));
+    const questions = formQuestions(assessment.questions);
     try {
       const response = await fetch(endpoint, {
         method: 'POST',

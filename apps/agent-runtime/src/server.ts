@@ -68,7 +68,14 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     return json(response, 401, { error: 'unauthorized' });
   }
 
-  const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+  const { pathname: path, searchParams } = new URL(request.url ?? '/', 'http://localhost');
+  const role = searchParams.get('role') ?? 'teacher';
+  if (role !== 'teacher' && role !== 'principal')
+    return json(response, 400, { error: 'invalid_role' });
+  const visibleAgents =
+    role === 'principal'
+      ? agents.filter(({ id }) => id === 'rungchao' || id === 'lekha_por')
+      : teacherAgents;
   if (request.method === 'GET' && path === '/__health') {
     return json(response, 200, {
       ok: true,
@@ -83,7 +90,7 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     return json(
       response,
       200,
-      teacherAgents.map(({ id, name, description }) => ({ id, name, description })),
+      visibleAgents.map(({ id, name, description }) => ({ id, name, description })),
     );
   }
   if (request.method !== 'POST' || path !== '/chat') {
@@ -93,7 +100,7 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
   const body = await readChat(request);
   if (!body?.success) return json(response, 400, { error: 'invalid_chat' });
   const { agentId, text, sessionId } = body.data;
-  const agent = teacherAgents.find(({ id }) => id === agentId);
+  const agent = visibleAgents.find(({ id }) => id === agentId);
   if (!agent) return json(response, 400, { error: 'unknown_agent' });
 
   const abort = new AbortController();

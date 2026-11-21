@@ -86,6 +86,8 @@ export function createRuntimePlugin(
               });
               const result = await tool.execute(input, {
                 count: increment(tool.name),
+                agent: call.agent,
+                sessionID: call.sessionID,
                 signal: call.signal,
               });
               return { content: JSON.stringify(result) };

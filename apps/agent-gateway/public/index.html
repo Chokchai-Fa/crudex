@@ -169,8 +169,13 @@
       </header>
       <div class="layout">
         <section class="card chat" aria-label="Chat">
+          <label for="role">บทบาทเดโม</label>
+          <select id="role">
+            <option value="teacher">ครู</option>
+            <option value="principal">ผู้อำนวยการ</option>
+          </select>
           <form id="chat">
-            <label for="agent">ผู้ช่วยของครู</label>
+            <label for="agent">ผู้ช่วย</label>
             <select id="agent" aria-describedby="description" required disabled>
               <option>กำลังโหลดรายชื่อผู้ช่วย…</option>
             </select>
@@ -191,6 +196,13 @@
           <p id="answer" lang="th" aria-live="polite">Your answer will appear here.</p>
         </section>
         <aside class="side" aria-label="Runtime details">
+          <section id="brief-panel" class="card" hidden>
+            <h2>สรุปเช้า ผอ.</h2>
+            <p id="brief-text" style="white-space: pre-line" aria-live="polite"></p>
+            <p id="brief-time"></p>
+            <button type="button" id="brief-run">รันตอนนี้</button>
+            <p id="brief-status" role="status"></p>
+          </section>
           <section class="card">
             <h2>Sandbox status</h2>
             <dl>
@@ -215,6 +227,7 @@
     <script type="module">
       const get = (id) => document.getElementById(id);
       const agent = get('agent');
+      const role = get('role');
       const send = get('send');
       const answer = get('answer');
       const feedback = get('feedback');
@@ -258,9 +271,37 @@
           agents.find(({ id }) => id === agent.value)?.description ?? '';
       }
 
-      async function loadAgents() {
+      async function updateBrief(run) {
+        const button = get('brief-run');
+        button.disabled = true;
+        get('brief-status').textContent = run ? 'กำลังจัดทำสรุป…' : 'กำลังโหลด…';
         try {
-          agents = await (await api('/api/agents')).json();
+          const response = run
+            ? await api('/api/brief/run', { method: 'POST' })
+            : await api('/api/brief');
+          const { latest, nextRunAt } = await response.json();
+          const thaiTime = (date) =>
+            new Date(date).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+          get('brief-text').textContent = latest?.text ?? 'ยังไม่มีสรุปเช้า';
+          get('brief-time').textContent = [
+            latest && 'สรุปล่าสุด ' + thaiTime(latest.generatedAt),
+            nextRunAt && 'รอบถัดไป ' + thaiTime(nextRunAt),
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          get('brief-status').textContent = '';
+        } catch (error) {
+          get('brief-status').textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      }
+      get('brief-run').addEventListener('click', () => void updateBrief(true));
+
+      async function loadAgents() {
+        agent.disabled = send.disabled = role.disabled = true;
+        try {
+          agents = await (await api('/api/agents?role=' + role.value)).json();
           agent.replaceChildren(...agents.map(({ id, name }) => new Option(name, id)));
           agent.disabled = agents.length === 0;
           send.disabled = agent.disabled;
@@ -270,9 +311,27 @@
           agent.replaceChildren(new Option('Agents unavailable'));
           feedback.textContent = error.message;
         } finally {
+          role.disabled = false;
           void refreshStatus();
         }
       }
+
+      role.addEventListener('change', () => {
+        sessionId = undefined;
+        agents = [];
+        agent.replaceChildren();
+        showDescription();
+        answer.textContent = feedback.textContent = get('prompt').value = '';
+        toolEvents.replaceChildren();
+        get('empty-events').hidden = false;
+        const principal = role.value === 'principal';
+        get('prompt').placeholder = principal
+          ? 'วันนี้มีเรื่องไหนต้องตัดสินใจบ้าง'
+          : 'ช่วยเตรียมใบงานเศษส่วน 3 ข้อให้ห้อง ป.5/2';
+        get('brief-panel').hidden = !principal;
+        if (principal && !get('brief-run').disabled) void updateBrief(false);
+        void loadAgents();
+      });
 
       agent.addEventListener('change', () => {
         sessionId = undefined;
@@ -286,14 +345,14 @@
           feedback.textContent = 'Enter a message.';
           return;
         }
-        send.disabled = agent.disabled = true;
+        send.disabled = agent.disabled = role.disabled = true;
         answer.textContent = '';
         feedback.textContent = 'Waiting for the agent…';
         toolEvents.replaceChildren();
         get('empty-events').hidden = false;
         let finished = false;
         try {
-          const response = await api('/api/chat', {
+          const response = await api('/api/chat?role=' + role.value, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ agentId: agent.value, text, sessionId }),
@@ -338,7 +397,7 @@
         } catch (error) {
           feedback.textContent = error.message;
         } finally {
-          send.disabled = agent.disabled = false;
+          send.disabled = agent.disabled = role.disabled = false;
           void refreshStatus();
         }
       });

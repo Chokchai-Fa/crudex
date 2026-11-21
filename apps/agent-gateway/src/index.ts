@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { clearSessionCookie, hasSession, sessionCookie, validPasscode } from './gate';
 import { archivePath } from './sandbox';
 
+export { MorningBrief } from './morning-brief';
 export { SandboxManager } from './sandbox-manager';
 
 const passcodeSchema = z.string().min(1);
@@ -121,6 +122,9 @@ export default {
       const headers = new Headers(asset.headers);
       for (const [name, value] of Object.entries(securityHeaders)) headers.set(name, value);
       return new Response(asset.body, { status: asset.status, headers });
+    }
+    if (route === 'GET /api/brief' || route === 'POST /api/brief/run') {
+      return env.BRIEFS.getByName('principal').fetch(request);
     }
     if (apiRoutes.has(route)) {
       const result = await sandbox().fetch(request);

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { saveAssessment } from '../src/tools/save_assessment';
+import { formQuestions, saveAssessment } from '../src/tools/save_assessment';
 import sample from './fixtures/assessment-sample.json';
 
 const input = { ...sample, questions: sample.questions.slice(0, 3), expectedCount: 3 };
@@ -26,12 +26,10 @@ it('sends a checked quiz and returns the respondent link from Apps Script', asyn
   const payload = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
   expect(payload.action).toBe('createQuiz');
   expect(payload.questions).toHaveLength(3);
-  expect(payload.questions[0]).toEqual({
-    text: input.questions[0]!.text,
-    choices: ['2/6', '3/4', '1/6', '2/4'],
-    answerIndex: 1,
-    points: 1,
-  });
+  const first = payload.questions[0];
+  expect(first.text).toBe(input.questions[0]!.text);
+  expect(first.choices[first.answerIndex]).toBe('3/4');
+  expect(first.points).toBe(1);
 });
 
 it('does not invent a form on an invalid response or missing configuration', async () => {
@@ -48,4 +46,32 @@ it('does not invent a form on an invalid response or missing configuration', asy
   await expect(saveAssessment.execute(input, context)).rejects.toMatchObject({
     code: 'unavailable',
   });
+});
+
+it.each([1, 2, 3, 4, 5, 10, 29, 30])(
+  'balances the correct positions across %i four-choice items',
+  (count) => {
+    const questions = Array.from({ length: count }, () => input.questions[0]!);
+    const before = structuredClone(questions);
+    const results = formQuestions(questions);
+    const counts = [0, 0, 0, 0];
+    for (const item of results) {
+      counts[item.answerIndex]!++;
+      expect(item.choices[item.answerIndex]).toBe('3/4');
+      expect([...item.choices].sort()).toEqual(['1/6', '2/4', '2/6', '3/4']);
+    }
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+    expect(questions).toEqual(before);
+  },
+);
+
+it('tracks answer positions separately for each number of choices', () => {
+  const full = input.questions[0]!;
+  const short = { ...full, choices: full.choices.slice(0, 2) };
+  const results = formQuestions([full, short, full, short, full, full]);
+  expect(new Set([results[1]!.answerIndex, results[3]!.answerIndex]).size).toBe(2);
+  expect(
+    new Set(results.filter((item) => item.choices.length === 4).map((item) => item.answerIndex))
+      .size,
+  ).toBe(4);
 });

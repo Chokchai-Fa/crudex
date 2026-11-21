@@ -52,6 +52,14 @@ for (;;) {
   await delay(15_000);
 }
 
+// Register the daily 07:00 Bangkok alarm without generating an extra brief.
+const brief = await fetch(new URL('/api/brief', AGENT_URL), {
+  headers: { cookie },
+  signal: AbortSignal.timeout(15_000),
+});
+assert.equal(brief.status, 200, 'Morning brief schedule was not initialized');
+assert((await brief.json()).nextRunAt > Date.now(), 'Next morning alarm is missing');
+
 async function chat(label, text) {
   const start = performance.now();
   const response = await fetch(new URL('/api/chat', AGENT_URL), {
