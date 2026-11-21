@@ -149,3 +149,41 @@ describe('checkAssessment', () => {
     expect(checkAssessment(a, { minQuestions: 10 }).errors.map((e) => e.code)).toContain('too_few');
   });
 });
+
+describe('powers and exact square roots', () => {
+  it('evaluates ^ and sqrt for perfect squares only', () => {
+    expect(show(evalExpr('7^2+24^2'))).toBe('625');
+    expect(show(evalExpr('sqrt(7^2+24^2)'))).toBe('25');
+    expect(show(evalExpr('sqrt(9/16)'))).toBe('3/4');
+    expect(show(evalExpr('2*sqrt(36)'))).toBe('12');
+    expect(() => evalExpr('sqrt(2)')).toThrow('ลงตัว');
+    expect(() => evalExpr('sqrt(0-4)')).toThrow();
+    expect(() => evalExpr('2^99')).toThrow('ไม่เกิน');
+    expect(() => evalExpr('sqrt(4')).toThrow('วงเล็บ');
+  });
+
+  it('verifies a side-length question that needs a square root', () => {
+    const q = {
+      id: 'q1',
+      text: 'บันไดวางพิงกำแพงสูง 7 เมตร ปลายล่างห่างจากกำแพง 24 เมตร บันไดยาวกี่เมตร',
+      topic: 'ทฤษฎีบทพีทาโกรัส',
+      choices: [
+        { id: 'c1', text: '25 เมตร' },
+        { id: 'c2', text: '31 เมตร' },
+        { id: 'c3', text: '17 เมตร' },
+        { id: 'c4', text: '23 เมตร' },
+      ],
+      correctChoiceId: 'c1',
+      verify: { expr: 'sqrt(7^2+24^2)', expected: '25' },
+    };
+    const ok = checkAssessment({ title: 't', grade: 'ม.2', topic: 'x', questions: [q] });
+    expect(ok.errors).toEqual([]);
+    const wrong = checkAssessment({
+      title: 't',
+      grade: 'ม.2',
+      topic: 'x',
+      questions: [{ ...q, correctChoiceId: 'c2' }],
+    });
+    expect(wrong.ok).toBe(false);
+  });
+});

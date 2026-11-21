@@ -72,6 +72,37 @@ function normalize(text: string): string {
   return text.replace(/−/g, '-').replace(/[๐-๙]/g, (digit) => String(digit.charCodeAt(0) - 0x0e50));
 }
 
+const MAX_EXPONENT = 8;
+
+function power(base: Fraction, exponent: number): Fraction {
+  return fraction(base.n ** BigInt(exponent), base.d ** BigInt(exponent));
+}
+
+function integerRoot(value: bigint): bigint | undefined {
+  if (value < 0n) return undefined;
+  if (value < 2n) return value;
+  let low = 1n;
+  let high = value;
+  while (low <= high) {
+    const mid = (low + high) / 2n;
+    const square = mid * mid;
+    if (square === value) return mid;
+    if (square < value) low = mid + 1n;
+    else high = mid - 1n;
+  }
+  return undefined;
+}
+
+/** Exact square root; a value that is not the square of a fraction is an error, never a rounded number. */
+function squareRoot(value: Fraction): Fraction {
+  const numerator = integerRoot(value.n);
+  const denominator = integerRoot(value.d);
+  if (numerator === undefined || denominator === undefined) {
+    throw new Error('รากที่สองต้องลงตัว ใช้ได้เฉพาะจำนวนที่เป็นกำลังสองสมบูรณ์');
+  }
+  return fraction(numerator, denominator);
+}
+
 class Parser {
   private position = 0;
 
@@ -146,7 +177,10 @@ class Parser {
   private factor(): Fraction {
     const sign = this.take('+', '-');
     let value: Fraction;
-    if (this.take('(')) {
+    if (this.take('sqrt(', '√(')) {
+      value = squareRoot(this.expression());
+      if (!this.take(')')) throw new Error('ปิดวงเล็บไม่ครบ');
+    } else if (this.take('(')) {
       value = this.expression();
       if (!this.take(')')) throw new Error('ปิดวงเล็บไม่ครบ');
     } else {
@@ -155,6 +189,15 @@ class Parser {
       if (!token) throw new Error('ต้องเป็นตัวเลขหรือวงเล็บ');
       this.position += token.length;
       value = decimal(token);
+    }
+    if (this.take('^')) {
+      const exponentPattern = /\d+/y;
+      exponentPattern.lastIndex = this.position;
+      const digits = exponentPattern.exec(this.text)?.[0];
+      if (!digits || Number(digits) > MAX_EXPONENT)
+        throw new Error(`เลขยกกำลังต้องเป็นจำนวนเต็มไม่เกิน ${MAX_EXPONENT}`);
+      this.position += digits.length;
+      value = power(value, Number(digits));
     }
     return sign === '-' ? { n: -value.n, d: value.d } : value;
   }

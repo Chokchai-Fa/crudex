@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { curriculumIndicators as indicators } from '../data/curriculum';
+import { pythagoreanIssues, reuseIssue, type SemanticQuestion } from '../lib/assessment-semantics';
 import { checkAssessment } from '../lib/fractions';
 import { recordCheckResult } from './check-failures';
 import { nonBlank, validatedTool } from './validated';
@@ -18,6 +19,14 @@ export const assessmentSchema = z.strictObject({
         correctChoiceId: nonBlank,
         topic: nonBlank,
         indicator: nonBlank.optional(),
+        pythagorean: z
+          .strictObject({
+            legA: z.number().positive(),
+            legB: z.number().positive(),
+            hypotenuse: z.number().positive(),
+            ask: z.enum(['legA', 'legB', 'hypotenuse']),
+          })
+          .optional(),
         explanation: z.string().optional(),
         verify: z
           .strictObject({
@@ -52,6 +61,15 @@ export function runCheck(
       result.ok = false;
     }
   }
+  for (const question of assessment.questions as SemanticQuestion[]) {
+    const { issues, verified } = pythagoreanIssues(question);
+    if (issues.length) {
+      result.errors.push(...issues);
+      result.ok = false;
+    }
+    if (!verified && !result.unverified.includes(question.id)) result.unverified.push(question.id);
+    if (!verified) result.verified = result.verified.filter((id) => id !== question.id);
+  }
   const byTopic = new Map<string, number>();
   for (const question of assessment.questions) {
     byTopic.set(question.topic, (byTopic.get(question.topic) ?? 0) + 1);
@@ -71,10 +89,17 @@ export function runCheck(
 export const checkAssessmentTool = validatedTool(assessmentSchema, {
   name: 'check_assessment',
   description:
-    'ตรวจชุดข้อสอบด้วยโค้ด: คำนวณเศษส่วนจริง ตรวจเฉลย ตัวเลือกที่ค่าเท่ากันหลังย่อ และจำนวนข้อ (expectedCount = จำนวนที่ครูขอ) การหารเขียน (4/7)/(2/7) ถ้า ok เป็น false ให้แก้ตาม errors แล้วเรียกใหม่',
+    'ตรวจชุดข้อสอบด้วยโค้ด: คำนวณเศษส่วนจริง ตรวจเฉลย ตัวเลือกที่ค่าเท่ากันหลังย่อ และจำนวนข้อ (expectedCount = จำนวนที่ครูขอ) การหารเขียน (4/7)/(2/7) ข้อพีทาโกรัสต้องใส่ pythagorean {legA, legB, hypotenuse, ask} ระบุขา 2 ด้านกับด้านตรงข้ามมุมฉากและด้านที่ถาม ถ้าไม่ใส่ข้อนั้นจะนับเป็นยังไม่ได้ตรวจด้วยโค้ด ชุดที่ใช้ตัวเลขซ้ำกับชุดก่อนหน้าในเซสชันเดียวกันจะไม่ผ่าน ยกกำลังเขียน 7^2 รากที่สองเขียน sqrt(625) (ใช้ได้เมื่อลงตัวพอดีเท่านั้น) ถ้า ok เป็น false ให้แก้ตาม errors แล้วเรียกใหม่',
   gate: 'allow',
   execute: (input, context) => {
-    const { result } = runCheck(input, { defaultFloor: true });
+    const { assessment, result } = runCheck(input, { defaultFloor: true });
+    if (result.ok) {
+      const reused = reuseIssue(context.sessionID ?? 'no-session', assessment.questions);
+      if (reused) {
+        result.errors.push({ code: 'reused_numbers', message: reused });
+        result.ok = false;
+      }
+    }
     recordCheckResult(context.sessionID, result.ok);
     return result;
   },

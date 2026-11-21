@@ -10,8 +10,9 @@ const pkg = join(here, '..');
 const OC =
   process.env.OPENCODE_BIN ??
   '/Users/mac/Documents/agent-school-bot/app/node_modules/.bin/opencode';
-const root = '/tmp/crudex-agents-e2e';
-const PORT = { mock: 4777, serve: 4791 };
+const base = 20000 + Math.floor(Math.random() * 20000);
+const root = `/tmp/crudex-agents-e2e-${process.pid}`;
+const PORT = { mock: base, serve: base + 1, bridge: base + 2 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const auth = { authorization: 'Basic ' + Buffer.from('opencode:e2e-pass').toString('base64') };
 const debug = process.env.E2E_DEBUG;
@@ -78,7 +79,8 @@ Object.defineProperty(bridgeCalls, 0, { get: () => bridgeCalls.all[0] });
 const env = {
   ...process.env,
   E2E_SKILLS_FILE: join(root, 'skills.json'),
-  SCHOOL_BOT_APPS_SCRIPT_URL: 'http://127.0.0.1:4793/exec',
+  SCHOOL_BOT_APPS_SCRIPT_URL: `http://127.0.0.1:${PORT.bridge}/exec`,
+  BRIDGE_PORT: String(PORT.bridge),
   PWD: root,
   MOCK_KEY: 'x',
   MOCK_PORT: String(PORT.mock),
@@ -100,7 +102,10 @@ const start = (cmd, args, extra = {}) => {
     s.on('data', (d) => debug && process.stderr.write(d));
   spawned.push(child);
 };
-process.on('exit', () => spawned.forEach((c) => c.kill()));
+process.on('exit', () => {
+  spawned.forEach((c) => c.kill());
+  if (!process.env.E2E_KEEP) rmSync(root, { recursive: true, force: true });
+});
 
 const lines = (out) =>
   out.split('\n').flatMap((l) => {

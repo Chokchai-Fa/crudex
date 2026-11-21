@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sampleOwner } from '../src/data/sample';
 import sample from './fixtures/assessment-sample.json';
 import { tools } from '../src/tools';
+import { resetPassedSets } from '../src/lib/assessment-semantics';
 import { approvals, resetApprovals } from '../src/tools/approval-store';
 import { testMailbox } from '../src/tools/inbox';
 import { resetMemory } from '../src/tools/memory-store';
@@ -508,5 +509,98 @@ describe('default question floor', () => {
     expect(refused.errors.map((e: { code: string }) => e.code)).toContain('too_few');
     expect((await call('check_assessment', { ...one, expectedCount: 1 })).ok).toBe(true);
     await expect(call('save_assessment', one)).rejects.toBeInstanceOf(Error);
+  });
+});
+
+describe('semantic checks and reused numbers', () => {
+  const ladder = (overrides: Record<string, unknown> = {}) => ({
+    id: 'q1',
+    text: 'บันไดยาว 25 เมตร พิงกำแพงสูง 24 เมตร ปลายล่างห่างจากกำแพงกี่เมตร',
+    topic: 'ทฤษฎีบทพีทาโกรัส',
+    choices: [
+      { id: 'c1', text: '7 เมตร' },
+      { id: 'c2', text: '1 เมตร' },
+      { id: 'c3', text: '49 เมตร' },
+      { id: 'c4', text: '31 เมตร' },
+    ],
+    correctChoiceId: 'c1',
+    verify: { expr: 'sqrt(25^2-24^2)', expected: '7' },
+    pythagorean: { legA: 24, legB: 7, hypotenuse: 25, ask: 'legB' },
+    ...overrides,
+  });
+  const set = (questions: unknown[]) => ({
+    title: 't',
+    grade: 'ม.2',
+    topic: 'พีทาโกรัส',
+    expectedCount: questions.length,
+    questions,
+  });
+
+  it('accepts a right-triangle question whose roles, key and stem agree', async () => {
+    const r = await call('check_assessment', set([ladder()]));
+    expect(r.errors).toEqual([]);
+    expect(r.unverified).toEqual([]);
+  });
+
+  it('flags a hypotenuse that is not the longest side, a wrong key, and a missing given side', async () => {
+    const swapped = await call(
+      'check_assessment',
+      set([ladder({ pythagorean: { legA: 25, legB: 7, hypotenuse: 24, ask: 'legB' } })]),
+    );
+    expect(swapped.errors.map((e: { code: string }) => e.code)).toContain('hypotenuse_not_longest');
+    const wrongKey = await call('check_assessment', set([ladder({ correctChoiceId: 'c3' })]));
+    expect(wrongKey.errors.map((e: { code: string }) => e.code)).toContain('answer_not_asked_side');
+    const missingGiven = await call(
+      'check_assessment',
+      set([ladder({ text: 'บันไดยาว 25 เมตร ปลายล่างห่างจากกำแพงกี่เมตร' })]),
+    );
+    expect(missingGiven.errors.map((e: { code: string }) => e.code)).toContain(
+      'given_side_missing',
+    );
+  });
+
+  it('marks a Pythagoras question without declared roles as not verified by code', async () => {
+    const bare = ladder();
+    delete (bare as Record<string, unknown>).pythagorean;
+    const r = await call('check_assessment', set([bare]));
+    expect(r.unverified).toEqual(['q1']);
+    expect(r.verified).not.toContain('q1');
+    await expect(call('save_assessment', set([bare]))).rejects.toBeInstanceOf(Error);
+  });
+
+  it('refuses a second, different set that reuses the numbers in the same session', async () => {
+    resetPassedSets();
+    const sessionCtx = ctx({ sessionID: 'same-request' });
+    const first = await call('check_assessment', sample, sessionCtx);
+    expect(first.ok).toBe(true);
+    expect((await call('check_assessment', sample, sessionCtx)).ok).toBe(true);
+    const fresh = (id: string, a: number, b: number) => ({
+      id,
+      text: `${a}/${b} + ${a}/${b} เท่ากับเท่าใด`,
+      topic: 'การบวกเศษส่วน',
+      choices: [
+        { id: 'c1', text: `${2 * a}/${b}` },
+        { id: 'c2', text: `${a}/${2 * b}` },
+        { id: 'c3', text: `${a + 1}/${b}` },
+        { id: 'c4', text: `${a}/${b + 1}` },
+      ],
+      correctChoiceId: 'c1',
+      verify: { expr: `${a}/${b}+${a}/${b}`, expected: `${2 * a}/${b}` },
+    });
+    const clone = structuredClone(sample);
+    clone.title = 'ชุดที่สอง';
+    clone.questions = [
+      ...clone.questions.slice(0, 6),
+      fresh('n1', 2, 7),
+      fresh('n2', 3, 8),
+      fresh('n3', 2, 9),
+      fresh('n4', 3, 10),
+    ] as typeof clone.questions;
+    const second = await call('check_assessment', clone, sessionCtx);
+    expect(second.ok).toBe(false);
+    expect(second.errors.map((e: { code: string }) => e.code)).toContain('reused_numbers');
+    expect((await call('check_assessment', clone, ctx({ sessionID: 'another-request' }))).ok).toBe(
+      true,
+    );
   });
 });
