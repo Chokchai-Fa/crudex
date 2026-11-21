@@ -1,4 +1,4 @@
-import '@fontsource-variable/noto-sans-thai/wght.css';
+import '@fontsource-variable/anuphan/wght.css';
 import './styles/globals.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createRouter, RouterProvider } from '@tanstack/react-router';

@@ -31,34 +31,58 @@ export function SchoolLogin() {
   );
 }
 
+const guestRoles = [
+  {
+    role: 'teacher',
+    label: 'ครู',
+    icon: '/team/secretary.svg',
+    detail: 'คุยกับเลขาครู ทำใบงาน เก็บคะแนน และดูงานของห้องเรียน',
+    scope: 'ครูตัวอย่าง · ห้องเรียนตัวอย่าง',
+    action: 'เข้าใช้เป็นครู',
+  },
+  {
+    role: 'principal',
+    label: 'ผู้อำนวยการ',
+    icon: '/agents/rungchao.svg',
+    detail: 'รับสรุปเช้า เห็นภาพรวมระดับห้อง ไม่เห็นคะแนนรายคน',
+    scope: 'ผอ. ตัวอย่าง · ทั้งโรงเรียน',
+    action: 'เข้าใช้เป็น ผอ.',
+  },
+] as const;
+
 export function GuestRolePicker() {
   const login = useSchoolLogin();
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5">
-      <h2 className="text-xl font-semibold">เลือกบทบาทเพื่อทดลองใช้</h2>
-      <p className="text-muted-foreground">
-        เริ่มต้นด้วยโรงเรียน ห้องเรียน และนักเรียนตัวอย่างของคุณเอง
-      </p>
-      <div className="grid grid-cols-2 gap-3">
-        {(
-          [
-            { role: 'teacher', label: 'ครู' },
-            { role: 'principal', label: 'ผอ.' },
-          ] as const
-        ).map(({ role, label }) => (
-          <Button
-            variant="outline"
-            size={null}
-            key={role}
-            disabled={login.isPending}
-            onClick={() => login.mutate({ role })}
-            className="school-role-card min-w-0 flex-col gap-2 px-2 py-4 text-base font-semibold"
-          >
-            <img src={'/roles/' + role + '.png'} alt="" width="72" height="72" />
-            <span>{label}</span>
-          </Button>
+    <section className="role-picker">
+      <img src="/roles/brand.png" width="219" height="48" alt="Crudex" />
+      <div className="space-y-1.5 text-center">
+        <h1 className="text-[32px]/10 font-bold">เข้าใช้ในฐานะ</h1>
+        <p className="text-[17px] text-muted-foreground">
+          เริ่มต้นด้วยโรงเรียน ห้องเรียน และนักเรียนตัวอย่างของคุณเอง
+        </p>
+      </div>
+      <div className="role-cards">
+        {guestRoles.map(({ role, label, icon, detail, scope, action }) => (
+          <article key={role} className="role-card" data-role={role}>
+            <img src={icon} alt="" width="72" height="72" />
+            <h2 className="text-2xl font-bold">{label}</h2>
+            <p className="text-base text-muted-foreground">{detail}</p>
+            <p className="text-sm text-subtle-foreground">{scope}</p>
+            <Button
+              variant={role === 'teacher' ? 'default' : 'outline'}
+              size="lg"
+              disabled={login.isPending}
+              onClick={() => login.mutate({ role })}
+              className="mt-1 w-full text-[17px] font-bold"
+            >
+              {action}
+            </Button>
+          </article>
         ))}
       </div>
+      <p className="text-sm text-subtle-foreground">
+        <span className="badge-sample">ข้อมูลตัวอย่าง</span> ทุกบัญชีในเดโมเป็นข้อมูลสมมุติ
+      </p>
       {login.isPending && <p role="status">กำลังเปิดพื้นที่โรงเรียน…</p>}
       {login.error && <p role="alert">{login.error.message}</p>}
     </section>

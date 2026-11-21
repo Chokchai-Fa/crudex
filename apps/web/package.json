@@ -11,7 +11,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@fontsource-variable/noto-sans-thai": "5.3.0",
+    "@fontsource-variable/anuphan": "5.3.0",
     "@hookform/resolvers": "^5.9.1",
     "@repo/shared": "workspace:*",
     "@tanstack/react-query": "5.104.1",
