@@ -1,5 +1,6 @@
 import { meSchema, type AgentId, type CreateRun, type GuestSignIn } from '@repo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { startDirectChat } from './direct-chat';
 import { api } from '@/lib/api-client';
 import { toApiError } from '@/lib/api-error';
 
@@ -103,7 +104,8 @@ export function useSchoolRuns(membershipId: string, agentId: AgentId = 'jaew') {
 export function useCreateSchoolRun(membershipId: string, agentId: AgentId = 'jaew') {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateRun) => {
+    mutationFn: async ({ background, ...input }: CreateRun & { background: boolean }) => {
+      if (!background) return startDirectChat(client, membershipId, agentId, input);
       const res = await jaew.runs.$post({ param: { id: agentId }, json: input });
       if (!res.ok) throw await toApiError(res, 'ส่งคำขอไม่สำเร็จ');
       return res.json();

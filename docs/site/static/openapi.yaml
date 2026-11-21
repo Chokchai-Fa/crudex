@@ -409,6 +409,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
+  /agents/{id}/chat:
+    post:
+      summary: Run an interactive conversation directly and stream its events
+      operationId: postAgentsIdChat
+      tags:
+        - agents
+      responses:
+        '200':
+          description: A new conversation streams newline-delimited JSON. A repeated client request ID returns the original run as JSON for replay.
+          headers:
+            X-Run-Id:
+              description: Run ID for the new stream. Use the events endpoint to recover after a disconnect.
+              schema: { type: string, format: uuid }
+          content:
+            application/x-ndjson:
+              schema: { type: string, description: One runEvent JSON object per line. }
+            application/json:
+              schema:
+                $ref: '#/components/schemas/run'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/agentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createRun'
   /agents/{id}/runs:
     post:
       summary: Accept an idempotent teacher or principal run

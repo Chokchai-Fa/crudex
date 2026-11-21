@@ -23,7 +23,11 @@ The browser sends `POST /api/auth/guest` with `{"role":"teacher"}` or `{"role":"
 
 ## Teacher chat, replay and worksheet publication
 
-Send `POST /api/agents/jaew/runs` with JSON like the following, using an actual assigned class and a new UUID for each distinct user request.
+For interactive conversation, send `POST /api/agents/{id}/chat` with the same payload shown below. The API reserves the run and dispatches it to the agent on the open HTTP request. A new request returns HTTP 200, an `X-Run-Id` header and a stream of newline-delimited JSON run events. A repeated request ID returns the original run as JSON. Refresh or reconnect using the saved run history and event cursor. The same school permissions, daily model quotas and run recovery apply to both paths.
+
+The classroom sends ordinary messages and questions directly. Artifact-generation presets and explicit creation requests, such as creating a worksheet or slides, use background delivery so the user can leave while work continues.
+
+For background delivery, send `POST /api/agents/jaew/runs` with JSON like the following, using an actual assigned class and a new UUID for each distinct user request.
 
 ```json
 {

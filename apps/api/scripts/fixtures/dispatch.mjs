@@ -25,7 +25,16 @@ const assessment = {
 
 export class SchoolDispatch extends WorkerEntrypoint {
   async fetch(request) {
-    const { scope } = await request.json();
+    const { scope, text } = await request.json();
+    if (text === 'Can you explain equivalent fractions?') {
+      const events = [
+        { type: 'delta', text: 'One half equals two quarters.' },
+        { type: 'done', elapsedMs: 1 },
+      ];
+      return new Response(events.map((e) => 'data: ' + JSON.stringify(e) + '\n\n').join(''), {
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+    }
     const callback = 'http://localhost/api/internal/runs/' + scope.runId + '/tools/save_assessment';
     const save = () =>
       this.env.SCHOOL_API.fetch(callback, {
