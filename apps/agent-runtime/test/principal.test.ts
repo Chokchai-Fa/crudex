@@ -183,7 +183,7 @@ describe('publish_brief', () => {
     await expect(
       call('publish_brief', { text: Array(8).fill('บรรทัด').join('\n') }),
     ).rejects.toMatchObject({ code: 'brief_rejected' });
-    for (const leak of ['นักเรียนตัวอย่าง 07 ต้องติว', 'รหัส s-07', 'เลขที่ 12 ขาดเรียน']) {
+    for (const leak of ['ม.2/1 นักเรียนตัวอย่าง 07 ต้องติว', 'รหัส s-07', 'เลขที่ 12 ขาดเรียน']) {
       await expect(call('publish_brief', { text: leak })).rejects.toMatchObject({
         code: 'brief_rejected',
       });

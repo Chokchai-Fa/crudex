@@ -99,6 +99,11 @@ export function createTurnRunner(host: Host) {
 
       const calls = new Map<string, string>();
       const renderedWorksheets = new Set<string>();
+      let lessonPrep = false;
+      let lessonSkillCall: string | undefined;
+      const scoreReports = new Map<string, boolean>();
+      const reportInbox = new Map<string, string>();
+      let summaryStarted = false;
       let rootDone = false;
       let rootText = '';
       let toolSteps = 0;
@@ -141,8 +146,47 @@ export function createTurnRunner(host: Host) {
         }
 
         switch (event.type) {
+          case 'session.tool.called':
+            if (
+              root &&
+              turn.agent.id === 'jaew' &&
+              calls.get(source + '/' + event.data.id) === 'skill' &&
+              event.data.input.id === 'lesson-prep'
+            )
+              lessonSkillCall = event.data.id;
+            break;
+          case 'session.inbox.enqueued': {
+            if (!root || !lessonPrep || event.data.item.type !== 'synthetic') break;
+            const report = event.data.item.payload.metadata;
+            if (
+              report?.source === 'subagent' &&
+              report.state === 'completed' &&
+              typeof report.childID === 'string' &&
+              scoreReports.has(report.childID)
+            )
+              reportInbox.set(event.data.inboxID, report.childID);
+            break;
+          }
+          case 'session.inbox.delivered': {
+            const childId = root && reportInbox.get(event.data.inboxID);
+            if (childId) {
+              scoreReports.set(childId, true);
+              reportInbox.delete(event.data.inboxID);
+              summaryStarted = false;
+              rootDone = false;
+            }
+            break;
+          }
           case 'session.text.delta':
             if (root) {
+              if (
+                scoreReports.size &&
+                [...scoreReports.values()].every(Boolean) &&
+                event.data.delta.trim()
+              ) {
+                summaryStarted = true;
+                rootDone = false;
+              }
               rootText += event.data.delta;
               yield { type: 'delta', text: event.data.delta };
             }
@@ -161,10 +205,18 @@ export function createTurnRunner(host: Host) {
               calls.delete(source + '/' + event.data.id);
               let bridgeElapsedMs: number | undefined;
               if (event.type === 'session.tool.success') {
+                if (root && name === 'skill' && event.data.id === lessonSkillCall)
+                  lessonPrep = true;
                 const childId = event.data.metadata?.sessionID;
                 if (root && name === 'subagent' && typeof childId === 'string') {
                   const childSession = await findSession(host, childId, signal);
-                  if (childSession?.parentID === sessionID) delegated.add(childId);
+                  if (childSession?.parentID === sessionID) {
+                    delegated.add(childId);
+                    if (lessonPrep && childSession.agent === 'nun') {
+                      scoreReports.set(childId, false);
+                      summaryStarted = false;
+                    }
+                  }
                 }
                 if (root && turn.agent.id === 'rungchao' && name === 'publish_brief') {
                   for (const part of event.data.content) {
@@ -232,11 +284,15 @@ export function createTurnRunner(host: Host) {
         if (!rootDone) continue;
         const results = [...delegated].map((id) => children.get(id));
         if (results.some((result) => result?.completed === undefined)) continue;
-        for (const result of results) {
+        if (results.every((result) => result?.completed) && scoreReports.size && !summaryStarted)
+          continue;
+        for (const id of delegated) {
+          const result = children.get(id);
           if (!result?.completed) {
             yield { type: 'error', code: 'delegation_failed' };
             return;
           }
+          if (scoreReports.has(id)) continue;
           const reply = result.text.trim();
           if (reply && !rootText.includes(reply)) yield { type: 'delta', text: '\n\n' + reply };
           if (

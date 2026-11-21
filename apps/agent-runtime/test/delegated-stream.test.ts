@@ -103,3 +103,69 @@ it.each([rungchao, jaew])(
     );
   },
 );
+
+it.each([true, false])(
+  'keeps Jaew subscribed for the lesson menu (initial root ends first = %s)',
+  async (rootFirst) => {
+    const rootEnd = event('session.execution.succeeded', 'root');
+    const report = (childID: string, inboxID: string) =>
+      event('session.inbox.enqueued', 'root', {
+        inboxID,
+        item: {
+          type: 'synthetic',
+          payload: {
+            metadata: { source: 'subagent', agent: 'น้องนุ่น', state: 'completed', childID },
+          },
+        },
+      });
+    const prompt = vi.fn();
+    const host = {
+      session: {
+        create: async () => ({ id: 'root' }),
+        get: async () => ({ agent: 'nun', parentID: 'root' }),
+        prompt,
+      },
+      event: {
+        async *subscribe() {
+          yield { type: 'server.connected', data: {} };
+          yield event('session.tool.input.started', 'root', { name: 'skill', id: 'skill' });
+          yield event('session.tool.called', 'root', { id: 'skill', input: { id: 'lesson-prep' } });
+          yield event('session.tool.success', 'root', { id: 'skill', content: [] });
+          yield event('session.tool.input.started', 'root', { name: 'subagent', id: 'delegate' });
+          yield event('session.tool.success', 'root', {
+            id: 'delegate',
+            metadata: { sessionID: 'current' },
+            content: [],
+          });
+          if (rootFirst) yield rootEnd;
+          yield event('session.text.ended', 'current', { text: 'RAW_SCORES' });
+          yield event('session.execution.succeeded', 'current');
+          yield report('old', 'notice-1');
+          yield event('session.inbox.delivered', 'root', { inboxID: 'notice-1' });
+          if (!rootFirst) yield rootEnd;
+          yield report('current', 'notice-2');
+          yield event('session.execution.started', 'root');
+          yield event('session.inbox.delivered', 'root', { inboxID: 'notice-2' });
+          yield event('session.text.delta', 'root', {
+            delta: 'ห้องนี้ควรฝึกตัวส่วน เลือกใบงานหรือเกมได้',
+          });
+          yield rootEnd;
+        },
+      },
+    };
+    const events = [];
+    for await (const item of createTurnRunner(host as unknown as Host)({
+      agent: jaew,
+      directory: '.',
+      loginId: 'teacher',
+      text: 'เตรียมสอน',
+      signal: new AbortController().signal,
+    }))
+      events.push(item);
+    expect(events.at(-1)?.type).toBe('done');
+    expect(events.flatMap((x) => (x.type === 'delta' ? [x.text] : []))).toEqual([
+      'ห้องนี้ควรฝึกตัวส่วน เลือกใบงานหรือเกมได้',
+    ]);
+    expect(prompt).toHaveBeenCalledTimes(1);
+  },
+);
