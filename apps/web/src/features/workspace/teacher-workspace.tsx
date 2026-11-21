@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Menu, Send } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { RoomNavigation } from './room-navigation';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,15 @@ export function TeacherWorkspace() {
       rooms.map((name) => [name, sessionStorage.getItem(formFailureKey(name)) === '1']),
     ),
   );
+  const [menuOpen, setMenuOpen] = useState(false);
+  const viewport = useRef<HTMLDivElement>(null);
+  const following = useRef(true);
+  const pendingPrompt = pending[room];
+  useLayoutEffect(() => {
+    const panel = viewport.current;
+    if (panel && following.current) panel.scrollTop = panel.scrollHeight;
+  }, [room, turns.length, pendingPrompt]);
+
   const formFailed = failedForms[room] ?? false;
   const [previewRoom, setPreviewRoom] = useState('');
   const worksheetKey = (name: string) => 'crudex.demo.worksheet.' + name;
@@ -87,123 +96,162 @@ export function TeacherWorkspace() {
 
   function switchRoom(value: string) {
     sessionStorage.setItem(roomKey, value);
+    following.current = true;
+    setMenuOpen(false);
     setRoom(value);
     setPreviewRoom('');
     setDraft(pending[value] ? '' : (sessionStorage.getItem(draftKey(value)) ?? ''));
   }
 
+  const latestWorksheet = turns.map((turn) => turn.kind).lastIndexOf('worksheet');
+  const artifacts = request && (
+    <div id="room-artifacts" className="space-y-3">
+      {formFailed && (
+        <p role="status">ใบงานพร้อม · ฟอร์มจำลองยังไม่พร้อม ลองใหม่ที่การ์ดฟอร์มได้ค่ะ</p>
+      )}
+      <div className="grid gap-3 xl:grid-cols-3">
+        <article className="space-y-3 rounded-2xl border p-4">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <img src="/agents/jum.svg" alt="" width="32" height="32" />
+            ใบงาน A4 · {room}
+          </h2>
+          <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
+          <Button
+            variant="outline"
+            aria-expanded={previewRoom === room}
+            onClick={() => setPreviewRoom(previewRoom === room ? '' : room)}
+          >
+            {previewRoom === room ? 'ปิดตัวอย่าง' : 'ตรวจใบงาน'} · {room}
+          </Button>
+        </article>
+        <FormCard
+          key={room}
+          room={room}
+          failed={formFailed}
+          onFailureChange={(failed) => updateFormFailure(room, failed)}
+        />
+        <QuizCard key={'quiz-' + room} room={room} />
+      </div>
+      {previewRoom === room && <Worksheet room={room} />}
+    </div>
+  );
+
   return (
-    <main className="teacher-chat grid min-h-dvh content-start gap-3 bg-muted px-2 pb-2 pt-[env(safe-area-inset-top)] sm:px-4 lg:content-stretch lg:grid-cols-[minmax(12rem,22fr)_minmax(0,55fr)_minmax(12rem,23fr)] lg:gap-0 lg:px-0 lg:pb-0 print:block print:min-h-0 print:bg-white print:p-0">
-      <RoomNavigation room={room} onRoomChange={switchRoom} />
-      <div className="min-w-0 space-y-4 rounded-2xl border bg-card p-4 sm:p-5 lg:rounded-none lg:border-0 print:border-0 print:p-0">
-        <header className="flex items-center gap-3 border-b pb-3">
+    <main className="teacher-chat grid h-dvh min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-muted pt-[env(safe-area-inset-top)] lg:grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(12rem,22fr)_minmax(0,55fr)_minmax(12rem,23fr)] lg:gap-0 lg:px-0 lg:pb-0 print:block print:h-auto print:overflow-visible print:min-h-0 print:bg-white print:p-0">
+      <div
+        id="teacher-room-menu"
+        className={
+          (menuOpen ? 'block' : 'hidden') +
+          ' row-start-1 max-h-[30dvh] overflow-y-auto overscroll-contain lg:col-start-1 lg:block lg:max-h-full print:hidden'
+        }
+      >
+        <RoomNavigation room={room} onRoomChange={switchRoom} />
+      </div>
+      <div className="row-start-2 grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-card lg:col-start-2 lg:row-start-1 print:block">
+        <header className="flex items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-5">
+          <Button
+            variant="outline"
+            size="icon"
+            className="lg:hidden"
+            aria-label="เมนูห้องเรียน"
+            aria-expanded={menuOpen}
+            aria-controls="teacher-room-menu"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <Menu aria-hidden="true" />
+          </Button>
           <img
             src="/agents/jaew.svg"
             alt=""
             width="48"
             height="48"
-            className="size-12 object-contain"
+            className="size-9 object-contain sm:size-12"
           />
           <div>
-            <h1 className="text-2xl font-semibold">น้องแจ๋ว · เลขาครู</h1>
+            <h1 className="text-lg font-semibold sm:text-2xl">น้องแจ๋ว · เลขาครู</h1>
             <p className="text-sm text-muted-foreground">ห้อง {room} · บทสนทนาตัวอย่าง</p>
           </div>
           <div className="ms-auto shrink-0">
             <ThemeToggle />
           </div>
         </header>
-        {!request && !turns.length && !pending[room] && (
-          <p className="w-fit rounded-2xl rounded-tl-sm bg-muted p-3">
-            วันนี้ครูอยากเตรียมอะไรให้ห้อง {room} คะ?
-          </p>
-        )}
-        <ol aria-label={'บทสนทนาห้อง ' + room} className="space-y-5">
-          {turns.map((turn, i) => (
-            <li key={i} className="space-y-2">
-              <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-accent p-3 text-accent-foreground">
-                {turn.prompt}
-              </p>
-              <div className="flex items-start gap-2">
-                <img src="/agents/jaew.svg" alt="น้องแจ๋ว" width="32" height="32" />
-                <div className="min-w-0 space-y-2">
-                  <p className="rounded-2xl rounded-tl-sm bg-muted p-3">{turn.answer}</p>
-                  {turn.kind === 'scores' && (
-                    <Button asChild variant="outline">
-                      <Link to="/gradebook" search={{ room }}>
-                        เปิดสมุดคะแนน · {room}
-                      </Link>
-                    </Button>
-                  )}
-                  {turn.kind === 'report' && (
-                    <Button asChild variant="outline">
-                      <Link to="/reports" search={{ room }}>
-                        ตรวจร่างรายงาน · {room}
-                      </Link>
-                    </Button>
-                  )}
-                  {(turn.kind === 'worksheet' || turn.kind === 'exercise') && (
-                    <a
-                      className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline"
-                      href="#room-artifacts"
-                    >
-                      ดูผลงานชุดนี้
-                    </a>
-                  )}
+        <div
+          ref={viewport}
+          role="region"
+          aria-label={'ประวัติสนทนาห้อง ' + room}
+          tabIndex={0}
+          className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-3 py-3 outline-offset-[-2px] sm:px-5 print:overflow-visible print:p-0"
+          onScroll={(event) => {
+            const panel = event.currentTarget;
+            following.current = panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 24;
+          }}
+        >
+          {latestWorksheet < 0 && artifacts}
+          {!request && !turns.length && !pending[room] && (
+            <p className="w-fit rounded-2xl rounded-tl-sm bg-muted p-3">
+              วันนี้ครูอยากเตรียมอะไรให้ห้อง {room} คะ?
+            </p>
+          )}
+          <ol aria-label={'บทสนทนาห้อง ' + room} className="space-y-5">
+            {turns.map((turn, i) => (
+              <li key={i} className="space-y-2">
+                <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-accent p-3 text-accent-foreground">
+                  {turn.prompt}
+                </p>
+                <div className="flex items-start gap-2">
+                  <img src="/agents/jaew.svg" alt="น้องแจ๋ว" width="32" height="32" />
+                  <div className="min-w-0 space-y-2">
+                    <p className="rounded-2xl rounded-tl-sm bg-muted p-3">{turn.answer}</p>
+                    {turn.kind === 'scores' && (
+                      <Button asChild variant="outline">
+                        <Link to="/gradebook" search={{ room }}>
+                          เปิดสมุดคะแนน · {room}
+                        </Link>
+                      </Button>
+                    )}
+                    {turn.kind === 'report' && (
+                      <Button asChild variant="outline">
+                        <Link to="/reports" search={{ room }}>
+                          ตรวจร่างรายงาน · {room}
+                        </Link>
+                      </Button>
+                    )}
+                    {(turn.kind === 'worksheet' || turn.kind === 'exercise') && (
+                      <a
+                        className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline"
+                        href="#room-artifacts"
+                      >
+                        ดูผลงานชุดนี้
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-        {pending[room] && (
-          <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl bg-accent p-3 text-accent-foreground">
-            {pending[room]}
+                {i === latestWorksheet && artifacts}
+              </li>
+            ))}
+          </ol>
+          {pending[room] && (
+            <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl bg-accent p-3 text-accent-foreground">
+              {pending[room]}
+            </p>
+          )}
+          <p role="status" className="text-sm text-muted-foreground empty:sr-only">
+            {pending[room]
+              ? 'น้องแจ๋วกำลังตอบ…'
+              : turns.length > 0
+                ? 'ตอบแล้ว · ถามต่อในห้องนี้ได้'
+                : ''}
           </p>
-        )}
-        <p role="status" className="text-sm text-muted-foreground empty:sr-only">
-          {pending[room]
-            ? 'น้องแจ๋วกำลังตอบ…'
-            : turns.length > 0
-              ? 'ตอบแล้ว · ถามต่อในห้องนี้ได้'
-              : ''}
-        </p>
-        {request && (
-          <div id="room-artifacts" className="space-y-3">
-            {formFailed && (
-              <p role="status">ใบงานพร้อม · ฟอร์มจำลองยังไม่พร้อม ลองใหม่ที่การ์ดฟอร์มได้ค่ะ</p>
-            )}
-            <div className="grid gap-3 xl:grid-cols-3">
-              <article className="space-y-3 rounded-2xl border p-4">
-                <h2 className="flex items-center gap-2 font-semibold">
-                  <img src="/agents/jum.svg" alt="" width="32" height="32" />
-                  ใบงาน A4 · {room}
-                </h2>
-                <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
-                <Button
-                  variant="outline"
-                  aria-expanded={previewRoom === room}
-                  onClick={() => setPreviewRoom(previewRoom === room ? '' : room)}
-                >
-                  {previewRoom === room ? 'ปิดตัวอย่าง' : 'ตรวจใบงาน'} · {room}
-                </Button>
-              </article>
-              <FormCard
-                key={room}
-                room={room}
-                failed={formFailed}
-                onFailureChange={(failed) => updateFormFailure(room, failed)}
-              />
-              <QuizCard key={'quiz-' + room} room={room} />
-            </div>
-            {previewRoom === room && <Worksheet room={room} />}
-          </div>
-        )}
-        <div className="space-y-3 border-t pt-4">
-          <Label htmlFor="draft">คุยกับน้องแจ๋ว · ห้อง {room}</Label>
+        </div>
+        <div className="space-y-1.5 border-t px-3 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-3">
+          <Label htmlFor="draft" className="sr-only">
+            คุยกับน้องแจ๋ว · ห้อง {room}
+          </Label>
           <Textarea
             id="draft"
             ref={draftInput}
             rows={2}
-            className="rounded-xl text-base"
+            className="min-h-11 max-h-[14dvh] resize-none rounded-xl text-base"
             placeholder={
               request ? 'ถามต่อเกี่ยวกับใบงาน เช่น อธิบายข้อ 3' : 'วันนี้อยากให้ช่วยเตรียมอะไรคะ?'
             }
@@ -240,7 +288,7 @@ export function TeacherWorkspace() {
           </div>
         </div>
       </div>
-      <aside className="space-y-2 rounded-2xl border bg-card p-4 lg:rounded-none lg:border-0 lg:border-s lg:p-5 print:hidden">
+      <aside className="hidden space-y-2 overflow-y-auto border-s bg-card p-5 lg:col-start-3 lg:row-start-1 lg:block print:hidden">
         <h2 className="font-semibold">สถานะงาน · {room}</h2>
         {request && !pending[room] ? (
           <dl className="space-y-3 text-sm">
