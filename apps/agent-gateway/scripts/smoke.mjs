@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 import { performance } from 'node:perf_hooks';
 
 const { AGENT_URL, AGENT_PASSCODE } = process.env;
@@ -25,13 +26,21 @@ assert(['stopped', 'starting', 'running'].includes(info.sandbox), 'Unexpected sa
 assert(Number.isInteger(info.runsToday) && Number.isInteger(info.limit), 'Quota status missing');
 console.log(`Sandbox ${info.sandbox}, runs ${info.runsToday}/${info.limit}`);
 
-const catalog = await fetch(new URL('/api/agents', AGENT_URL), {
-  headers: { cookie },
-  signal: AbortSignal.timeout(120_000),
-});
-assert.equal(catalog.status, 200);
-const agents = await catalog.json();
-assert.deepEqual(agents.map(({ id }) => id), ['jaew', 'jum', 'jeng', 'porn', 'nun']);
+// The Worker and its Durable Object may switch versions at different times.
+const expectedIds = ['jaew', 'jum', 'jeng', 'porn', 'nun'];
+const deadline = performance.now() + 300_000;
+for (;;) {
+  const catalog = await fetch(new URL('/api/agents', AGENT_URL), {
+    headers: { cookie },
+    signal: AbortSignal.timeout(120_000),
+  });
+  assert.equal(catalog.status, 200);
+  const ids = (await catalog.json()).map(({ id }) => id);
+  if (JSON.stringify(ids) === JSON.stringify(expectedIds)) break;
+  if (performance.now() >= deadline) assert.deepEqual(ids, expectedIds);
+  console.log('Waiting for the teacher catalog after deploy');
+  await delay(15_000);
+}
 
 async function chat(label, text) {
   const start = performance.now();
