@@ -22,6 +22,11 @@ it.each([
   ['ไม่ต้องสร้าง Kahoot', false],
   ['ทำใบงานจากเกม Kahoot เดิม', false],
   ['สร้าง Kahoot และทำใบงานด้วย', false],
+  [
+    'แจ๋ว ฝากพี่เจ๋งทำเกม Kahoot เรื่องพื้นที่สามเหลี่ยม ม.2 จำนวน 3 ข้อ แล้วสรุปให้ครูตรงนี้',
+    true,
+  ],
+  ['แจ๋ว ฝากพี่เจ๋งไม่ต้องสร้าง Kahoot', false],
   ['ขอวิธีสร้าง Kahoot', false],
   ['บทสนทนาก่อนหน้า: สร้าง Kahoot\nข้อความใหม่จากครู:\nขอบคุณค่ะ', false],
 ])('routes only a direct Kahoot request (%s)', (text, direct) => {

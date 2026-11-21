@@ -4,7 +4,7 @@ const brand = /kahoot|คาฮู[ทตด]/i;
 const action =
   /สร้าง|ทำ|จัด|ออกแบบ|เตรียม|ขอ\s*(?:เกม|แบบทดสอบ|kahoot)|\b(create|make|build|generate|prepare)\b/i;
 const instruction =
-  /^(?:(?:น้องแจ๋ว|แจ๋ว|รบกวน|ช่วย|ขอให้|อยากให้|ลอง|please)[\s,:ๆ]*)*(?:สร้าง|ทำ|จัด|ออกแบบ|เตรียม|ขอ|(?:create|make|build|generate|prepare)\b)\s*(?:(?:เกม|แบบทดสอบ|ควิซ)\s*)?(?:(?:ใน|บน|ด้วย|เป็น|ผ่าน|an?\b)\s*)?(?:kahoot|คาฮู[ทตด])/i;
+  /^(?:(?:น้องแจ๋ว|แจ๋ว|รบกวน|ช่วย|ขอให้|อยากให้|ลอง|please|(?:ฝาก|ให้|บอก|สั่ง)(?:ให้)?\s*(?:พี่)?เจ๋ง(?:ช่วย)?)[\s,:ๆ]*)*(?:สร้าง|ทำ|จัด|ออกแบบ|เตรียม|ขอ|(?:create|make|build|generate|prepare)\b)\s*(?:(?:เกม|แบบทดสอบ|ควิซ)\s*)?(?:(?:ใน|บน|ด้วย|เป็น|ผ่าน|an?\b)\s*)?(?:kahoot|คาฮู[ทตด])/i;
 
 export function requestsKahoot(text: string) {
   const newest = text.split('ข้อความใหม่จากครู:').at(-1) ?? text;
