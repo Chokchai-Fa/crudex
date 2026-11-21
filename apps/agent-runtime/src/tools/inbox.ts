@@ -6,6 +6,5 @@ export interface InboxItem {
   createdAt: number;
 }
 
-/** In-process stand-ins for the principal's approval box and the test mailbox. */
-export const approvalBox: InboxItem[] = [];
+/** In-process stand-in for the test mailbox; the approval box lives in approval-store.ts. */
 export const testMailbox: InboxItem[] = [];

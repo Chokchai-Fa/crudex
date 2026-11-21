@@ -1,6 +1,6 @@
 import { results } from '../data/sample';
 import { checkBrief } from '../lib/brief-guard';
-import { identityOf, ToolError } from './identity';
+import { ownerOf, ToolError } from './identity';
 import type { ToolDefinition } from './types';
 
 export interface PublishedBrief {
@@ -39,7 +39,7 @@ export const publishBrief: ToolDefinition = {
     }
     const brief: PublishedBrief = {
       id: 'brief-' + crypto.randomUUID().slice(0, 8),
-      ownerId: identityOf(context).ownerId,
+      ownerId: ownerOf(context).id,
       text: text.trim(),
       createdAt: Date.now(),
     };

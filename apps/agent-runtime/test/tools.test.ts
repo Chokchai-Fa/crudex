@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import sample from './fixtures/assessment-sample.json';
 import { tools } from '../src/tools';
-import { approvalBox, testMailbox } from '../src/tools/inbox';
+import { approvals, resetApprovals } from '../src/tools/approval-store';
+import { testMailbox } from '../src/tools/inbox';
 import { resetMemory } from '../src/tools/memory-store';
-import { publisher } from '../src/tools/save_assessment';
+import { formQuestions, publisher } from '../src/tools/save_assessment';
 import type { ToolContext } from '../src/tools/types';
 
 const ctx = (extra: Partial<ToolContext> = {}): ToolContext => ({
@@ -19,7 +20,51 @@ const call = async (name: string, input: unknown, context = ctx()): Promise<Tool
   return (await tool.execute(input, context)) as ToolResult;
 };
 
-beforeEach(() => resetMemory());
+beforeEach(() => {
+  resetMemory();
+  resetApprovals();
+  testMailbox.length = 0;
+});
+
+const claimInput = {
+  budgetCode: 'M-01',
+  purpose: 'กระดาษ',
+  items: [{ name: 'A4', qty: 10, unitPrice: 120 }],
+};
+
+it.each([
+  ['check_assessment', { ...sample, questions: [null] }],
+  ['check_assessment', { ...sample, expectedCount: 0 }],
+  ['check_assessment', { ...sample, questions: Array(31).fill(sample.questions[0]) }],
+  ['save_assessment', { ...sample, formUrl: 'https://example.invalid/' }],
+  ['fill_claim_form', { ...claimInput, items: [] }],
+  ['fill_claim_form', { ...claimInput, items: [{ name: 'A4', qty: -1, unitPrice: 10 }] }],
+  ['fill_claim_form', { ...claimInput, items: [{ name: 'A4', qty: 1, unitPrice: -10 }] }],
+  ['fill_claim_form', { ...claimInput, items: [{ name: 'A4', qty: 1, unitPrice: Infinity }] }],
+  ['fill_claim_form', { ...claimInput, total: 0 }],
+  ['memory_save', { text: false, userConfirmed: true }],
+  ['memory_save', { text: 'ข้อความ', userConfirmed: 'true' }],
+  ['memory_search', { query: 1 }],
+  ['memory_search', { query: '', limit: 11 }],
+  ['calc', { expr: 10 }],
+  ['calc', { expr: '1'.repeat(2049) }],
+  ['send_email', { subject: 's', body: 'b' }],
+  ['send_email', { to: 'sample', subject: 's', body: {} }],
+  ['submit_for_approval', { claimId: 'claim-sample', note: 3 }],
+  ['get_scores', { classId: 'class-p5-3' }],
+  ['curriculum_lookup', { query: [] }],
+  ['old_exam_search', { exam: 'OTHER' }],
+  ['read_budget', { code: 4 }],
+  ['search_proj14', { topic: {} }],
+  ['task_status', { taskId: 1 }],
+  ['make_file', { title: 'Worksheet', format: 'pdf', url: 'https://example.invalid/' }],
+  ['make_sheet', { title: 'Worksheet', topic: 1 }],
+  ['make_slides', { title: 'Worksheet', outline: [] }],
+])('%s rejects malformed input before execution', async (name, input) => {
+  await expect(call(name, input)).rejects.toMatchObject({ code: 'invalid_input' });
+  expect(approvals).toHaveLength(0);
+  expect(testMailbox).toHaveLength(0);
+});
 
 describe('tool catalog', () => {
   it('has unique names and an object schema without extra properties on every tool', () => {
@@ -50,6 +95,20 @@ describe('memory', () => {
     ).toEqual([]);
   });
 
+  it('shares the sample teacher across sessions until the gateway passes an owner', async () => {
+    await call(
+      'memory_save',
+      { text: 'ห้อง ป.5/2', userConfirmed: true },
+      ctx({ sessionID: 'first' }),
+    );
+    expect(
+      (await call('memory_search', { query: 'ป.5/2' }, ctx({ sessionID: 'second' }))).items,
+    ).toHaveLength(1);
+    expect(
+      (await call('memory_search', { query: 'ป.5/2' }, ctx({ ownerId: 'someone-else' }))).items,
+    ).toEqual([]);
+  });
+
   it('refuses a score and personal data', async () => {
     for (const text of ['นักเรียนตัวอย่าง 07 ได้ 6 คะแนน', 'โทร 081-234-5678', 'a@b.co']) {
       await expect(call('memory_save', { text, userConfirmed: true })).rejects.toBeInstanceOf(
@@ -61,7 +120,11 @@ describe('memory', () => {
 
 describe('assessment chain', () => {
   it('check_assessment proves the sample set and rejects a wrong key and a duplicate value', async () => {
-    expect((await call('check_assessment', sample)).ok).toBe(true);
+    const checked = await call('check_assessment', sample);
+    expect(checked).toMatchObject({ ok: true, count: 10, verifiedCount: 10, unverifiedCount: 0 });
+    expect(
+      checked.topics.reduce((sum: number, topic: { count: number }) => sum + topic.count, 0),
+    ).toBe(checked.count);
     const bad = structuredClone(sample);
     bad.questions[0]!.correctChoiceId = 'c1';
     expect((await call('check_assessment', bad)).errors[0]).toMatchObject({
@@ -80,7 +143,12 @@ describe('assessment chain', () => {
     const real = publisher.publish;
     publisher.publish = async (a) => {
       published.push(a);
-      return { mode: 'mock', formId: 'f1', url: 'https://example.invalid/f1' };
+      return {
+        mode: 'mock',
+        formId: 'f1',
+        url: 'https://example.invalid/f1',
+        questions: formQuestions(a.questions),
+      };
     };
     try {
       expect(await call('save_assessment', sample)).toMatchObject({
@@ -114,6 +182,15 @@ describe('assessment chain', () => {
 });
 
 describe('get_scores', () => {
+  it.each([{ classId: 'class-p5-3' }, { ownerId: 'unassigned-teacher' }])(
+    'has no scores for an unrelated or unassigned class (%j)',
+    async (identity) => {
+      await expect(call('get_scores', {}, ctx(identity))).rejects.toMatchObject({
+        code: 'no_scores',
+      });
+    },
+  );
+
   it('computes class numbers by code', async () => {
     const r = await call('get_scores', {}, ctx({ classId: 'class-p5-2', ownerId: 't' }));
     expect(r.n).toBe(20);
@@ -141,6 +218,17 @@ describe('budget chain', () => {
     await expect(call('calc', { expr: 'process.exit()' })).rejects.toMatchObject({
       code: 'bad_expression',
     });
+  });
+
+  it('keeps the decimal finite when the exact numerator and denominator exceed Number range', async () => {
+    const digits = '2'.repeat(330);
+    expect(await call('calc', { expr: `${digits}/${'3'.repeat(330)}` })).toMatchObject({
+      exact: '2/3',
+      decimal: 0.666667,
+    });
+    // Coprime operands of comparable size stay large after reducing the fraction.
+    expect(await call('calc', { expr: `${digits}/(${digits}+1)` })).toMatchObject({ decimal: 1 });
+    expect(await call('calc', { expr: '-0.0000005' })).toMatchObject({ decimal: 0 });
   });
 
   it('fill_claim_form totals by code, flags over-budget and leaves the signature empty', async () => {
@@ -171,10 +259,82 @@ describe('budget chain', () => {
     ).rejects.toMatchObject({ code: 'unknown_budget_code' });
   });
 
-  it('submits to the in-system approval box and mails only the test mailbox', async () => {
-    const a = await call('submit_for_approval', { claimId: 'claim-1' });
-    expect(a.status).toBe('pending');
-    expect(approvalBox.at(-1)?.to).toBe('principal');
+  it('rounds each exact decimal line to the satang before totaling', async () => {
+    const claim = await call('fill_claim_form', {
+      ...claimInput,
+      items: [
+        { name: 'A', qty: 1, unitPrice: 1.005 },
+        { name: 'B', qty: 2.675e-6, unitPrice: 1e6 },
+      ],
+    });
+    expect(claim.rows.map((row: { amount: number }) => row.amount)).toEqual([1.01, 2.68]);
+    expect(claim).toMatchObject({ total: 3.69, remainingAfter: 3596.31 });
+    await expect(
+      call('fill_claim_form', {
+        ...claimInput,
+        items: [{ name: 'A', qty: 2, unitPrice: Number.MAX_VALUE }],
+      }),
+    ).rejects.toMatchObject({ code: 'invalid_amount' });
+  });
+
+  it('submits a stored, in-budget claim for the same owner and uses the stored values', async () => {
+    const owner = ctx({ ownerId: 't1', sessionID: 'first' });
+    const sameOwner = ctx({ ownerId: 't1', sessionID: 'second' });
+    const otherOwner = ctx({ ownerId: 't2', sessionID: 'first' });
+    const claim = await call('fill_claim_form', claimInput, owner);
+    const over = await call(
+      'fill_claim_form',
+      {
+        ...claimInput,
+        items: [{ name: 'A', qty: 1, unitPrice: 3600.005 }],
+      },
+      owner,
+    );
+    for (const [claimId, context, code] of [
+      ['claim-unknown', owner, 'claim_not_found'],
+      [claim.claimId, otherOwner, 'claim_not_found'],
+      [over.claimId, owner, 'over_budget'],
+    ] as const) {
+      await expect(call('submit_for_approval', { claimId }, context)).rejects.toMatchObject({
+        code,
+      });
+    }
+    expect(approvals).toHaveLength(0);
+    claim.total = 1;
+    const a = await call(
+      'submit_for_approval',
+      { claimId: claim.claimId, note: 'ส่งตรวจ' },
+      sameOwner,
+    );
+    expect(a).toMatchObject({ status: 'pending', from: 't1' });
+    expect(approvals[0]).toMatchObject({
+      status: 'pending',
+      ownerId: 't1',
+      claim: { claimId: claim.claimId, total: 1200 },
+      note: 'ส่งตรวจ',
+    });
+    expect(await call('submit_for_approval', { claimId: claim.claimId }, owner)).toEqual(a);
+    expect(approvals).toHaveLength(1);
+  });
+
+  it('lets a delegated session of the same teacher submit a claim and the principal read it', async () => {
+    const { claimId } = await call(
+      'fill_claim_form',
+      claimInput,
+      ctx({ sessionID: 'porn-session' }),
+    );
+    const sent = await call('submit_for_approval', { claimId }, ctx({ sessionID: 'porn-session' }));
+    expect(sent).toMatchObject({ status: 'pending' });
+    const pending = await call(
+      'list_pending_approvals',
+      {},
+      ctx({ sessionID: 'principal-session' }),
+    );
+    expect(pending.count).toBe(1);
+    expect(pending.items[0]).toMatchObject({ approvalId: sent.approvalId, claimId });
+  });
+
+  it('mails only the test mailbox', async () => {
     const m = await call('send_email', { to: 'someone@real.example', subject: 's', body: 'b' });
     expect(m.deliveredTo).toBe('test-mailbox');
     expect(testMailbox.at(-1)?.to).toBe('test-mailbox');
