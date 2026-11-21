@@ -13,8 +13,16 @@ import {
   getTableColumns,
   inArray,
 } from 'drizzle-orm';
-import type { RunEvent, CreateRun, AgentId, RunStatus, SchoolActor } from '@repo/shared';
+import type {
+  DelegatedKahoot,
+  RunEvent,
+  CreateRun,
+  AgentId,
+  RunStatus,
+  SchoolActor,
+} from '@repo/shared';
 import { assessments } from '../db/schema/classroom';
+import { ForbiddenError } from '../lib/errors';
 import type { Db } from '../db/client';
 import { agentRuns as runs, runEvents, runOutbox } from '../db/schema/runs';
 
@@ -241,4 +249,48 @@ export async function recentTurns(
         .join(''),
     };
   });
+}
+
+/** Materialize a finished child turn and its replay in one statement on the live parent's lease. */
+export async function saveDelegatedKahoot(
+  db: Db,
+  parentId: string,
+  attempt: string,
+  result: DelegatedKahoot,
+) {
+  const { status, childSessionId } = result;
+  const text = result.text.replaceAll(childSessionId, '[…]');
+  const kahoot = {
+    parentRunId: parentId,
+    status,
+    kahootId: result.kahootId?.includes(childSessionId) ? undefined : result.kahootId,
+    title: result.title?.replaceAll(childSessionId, '[…]'),
+    editorUrl: result.editorUrl?.includes(childSessionId) ? undefined : result.editorUrl,
+  };
+  const terminal: RunEvent =
+    status === 'failed' ? { type: 'error', code: 'kahoot_failed' } : { type: 'done', elapsedMs: 0 };
+  const events: RunEvent[] = [{ type: 'delta', text, kahoot }, terminal];
+
+  // A UUIDv8 derived from the private pair is the unique run key. Public request IDs stay random.
+  const resultRows = await db.execute(sql`
+    with parent as (
+      select school_id,owner_id,membership_id,role,class_id,prompt
+      from agent_runs where id=${parentId} and agent_id='jaew' and role='teacher'
+        and status='running' and attempt_id=${attempt} and lease_until>clock_timestamp()
+      for update
+    ), fingerprint as (
+      select encode(sha256(convert_to(${JSON.stringify(['delegated_kahoot', parentId, result.childSessionId])},'UTF8')),'hex') as hash
+    ), child as (
+      insert into agent_runs(id,school_id,owner_id,membership_id,role,class_id,prompt,request_id,agent_id,status)
+      select (substr(hash,1,12)||'8'||substr(hash,14,3)||'8'||substr(hash,18,15))::uuid,
+        school_id,owner_id,membership_id,role,class_id,prompt,gen_random_uuid(),'jeng',
+        ${status === 'failed' ? 'failed' : 'succeeded'}
+      from parent cross join fingerprint
+      on conflict(id) do nothing returning id
+    ), replay as (
+      insert into run_events(run_id,body)
+      select id,body from child cross join jsonb_array_elements(${JSON.stringify(events)}::jsonb)
+        with ordinality as event(body,seq) order by seq
+    ) select exists(select from parent) as authorized`);
+  if (!resultRows.rows[0]?.authorized) throw new ForbiddenError();
 }
