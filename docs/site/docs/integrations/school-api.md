@@ -11,7 +11,7 @@ The application Worker serves the school API under `/api` on the application ori
 
 Open the application and choose **ครู** to enter the classroom or **ผอ.** to view the school’s morning brief. Each new trial gets a private sample school, class ป.4/1 and two fictional students. Refreshing resumes the same session. Sign out to try the other role in a fresh school.
 
-The browser sends `POST /api/auth/guest` with `{"role":"teacher"}` or `{"role":"principal"}`. The API creates the guest account, memberships, class assignments and session together. The response has the same shape as `GET /api/me`. The session and demo memberships expire after eight hours. An active account must sign out before starting a new trial. The API permits twelve trial starts per source IP per UTC clock hour.
+The browser sends `POST /api/auth/guest` with `{"role":"teacher"}` or `{"role":"principal"}`. The API creates the guest account, memberships, class assignments and session together. The response has the same shape as `GET /api/me`. The session and demo memberships expire after eight hours. An active account must sign out before starting a new trial. Multiple visitors can start trials from the same school network.
 
 ## Sign in and select a classroom
 
