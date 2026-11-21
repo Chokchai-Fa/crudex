@@ -347,12 +347,12 @@ function ChatRoom({
           <ol ref={content} className="space-y-4 py-3">
             {runs.map((run) => (
               <li key={run.id} className="space-y-2">
-                <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
+                <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
                   {teacherMessage(run.prompt)}
                 </p>
                 <div className="flex items-start gap-2">
                   <AssistantIcon id={run.agentId} />
-                  <div className="chat-response min-w-0 px-4 py-3">
+                  <div className="m-msg chat-response min-w-0 px-4 py-3">
                     <RunDetails
                       id={run.id}
                       membershipId={actor.membershipId}
@@ -377,12 +377,12 @@ function ChatRoom({
             ))}
             {pending && (
               <li className="space-y-2">
-                <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
+                <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
                   {pending.prompt}
                 </p>
                 <div className="flex items-start gap-2">
                   <AssistantIcon id={agent} />
-                  <div className="chat-response min-w-0 px-4 py-3">
+                  <div className="m-msg chat-response min-w-0 px-4 py-3">
                     <p className="run-ack" role="status">
                       {pending.ack}
                       <span className="typing-dots" aria-hidden="true">
