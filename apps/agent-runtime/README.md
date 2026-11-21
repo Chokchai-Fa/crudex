@@ -34,6 +34,8 @@ restore the saved state.
 Run `pnpm turbo run lint typecheck test --filter=agent-runtime --filter=agent-gateway`
 to check both packages together.
 
+The harness adds models from `openai-models.json` to the built-in OpenAI provider when it creates the sandbox workspace. An OpenCode `provider.no-route` error can occur before OpenAI receives a request. The gateway supplies the API key separately at runtime.
+
 ## Add an agent
 
 1. Define it in `src/agents/<id>.ts` using `AgentDefinition`. Choose `primary` for a

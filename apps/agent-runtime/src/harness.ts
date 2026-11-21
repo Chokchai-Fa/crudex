@@ -1,9 +1,10 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { SchoolScope } from './school';
 import { OpenCode } from '@opencode/sdk';
 import { resolveToolOwner } from './demo-session';
 import skills from 'virtual:crudex-skills';
+import additionalOpenAIModels from '../openai-models.json';
 import { kahootMcpServer, readKahootConfig } from './kahoot-config';
 import { createRuntimePlugin } from './plugin';
 import { tools } from './tools';
@@ -13,6 +14,12 @@ export type Host = OpenCode.Interface;
 export async function createHarness(dataDir: string) {
   const directory = join(dataDir, 'workspace');
   await mkdir(directory, { recursive: true });
+  // The embedded OpenCode catalog predates this model. Extend the built-in
+  // OpenAI provider so it retains its normal API-key and transport settings.
+  await writeFile(
+    join(directory, 'opencode.jsonc'),
+    JSON.stringify({ providers: { openai: { models: additionalOpenAIModels } } }),
+  );
   const toolCalls = new Map(tools.map(({ name }) => [name, 0]));
   const scopes = new Map<string, SchoolScope>();
   const kahoot = readKahootConfig(process.env);
