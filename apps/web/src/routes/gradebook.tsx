@@ -38,7 +38,10 @@ function Gradebook() {
           </Link>
         </Button>
         <p className="text-sm text-muted-foreground">ครูผู้สอน · ข้อมูลตัวอย่าง</p>
-        <h1 className="text-3xl font-semibold">สมุดคะแนน</h1>
+        <h1 className="flex items-center gap-3 text-3xl font-semibold">
+          <img src="/agents/nun.svg" alt="" width="44" height="44" />
+          สมุดคะแนน
+        </h1>
         {rows.length > 0 && <p>บวกและลบเศษส่วน · 10 ข้อ</p>}
         <p className="text-sm text-muted-foreground">
           คะแนนตัวอย่าง · การส่งฟอร์มจำลองจะไม่เปลี่ยนยอด

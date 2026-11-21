@@ -87,14 +87,14 @@ export function TeacherWorkspace() {
       <div className="min-w-0 space-y-4 rounded-2xl border bg-card p-4 sm:p-5 print:border-0 print:p-0">
         <header className="flex items-center gap-3 border-b pb-3">
           <img
-            src="/roles/teacher.png"
+            src="/agents/jaew.svg"
             alt=""
             width="48"
             height="48"
-            className="size-12 rounded-full object-cover"
+            className="size-12 object-contain"
           />
           <div>
-            <h1 className="text-2xl font-semibold">เลขาครู</h1>
+            <h1 className="text-2xl font-semibold">น้องแจ๋ว · เลขาครู</h1>
             <p className="text-sm text-muted-foreground">ห้อง {room} · บทสนทนาตัวอย่าง</p>
           </div>
         </header>
@@ -113,14 +113,14 @@ export function TeacherWorkspace() {
             </p>
             <div className="flex items-start gap-2">
               <img
-                src="/roles/teacher.png"
+                src="/agents/jaew.svg"
                 alt=""
                 width="32"
                 height="32"
-                className="size-8 rounded-full object-cover"
+                className="size-8 object-contain"
               />
               <div className="min-w-0">
-                <p className="text-sm font-semibold">เลขาครู</p>
+                <p className="text-sm font-semibold">น้องแจ๋ว</p>
                 <p className="mt-1 rounded-2xl rounded-tl-sm bg-muted p-3">
                   เตรียมชุดเศษส่วนให้ห้อง {room} แล้วค่ะ ตรวจใบงาน A4 และฟอร์มจำลองได้ด้านล่าง
                 </p>
@@ -135,7 +135,10 @@ export function TeacherWorkspace() {
             </div>
             <div className="grid gap-3 xl:grid-cols-2">
               <article className="space-y-3 rounded-2xl border p-4">
-                <h2 className="font-semibold">ใบงาน A4 · {room}</h2>
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <img src="/agents/jum.svg" alt="" width="32" height="32" />
+                  ใบงาน A4 · {room}
+                </h2>
                 <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
                 <Button
                   variant="outline"

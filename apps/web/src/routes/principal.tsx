@@ -17,7 +17,7 @@ function PrincipalBrief() {
       </header>
       <article className="min-w-0 space-y-5 rounded-2xl border border-blue-100 bg-white p-5 sm:p-6">
         <div className="flex items-center gap-4 border-b border-slate-200 pb-4">
-          <img src="/roles/principal.png" alt="" width="56" height="56" />
+          <img src="/agents/rungchao.svg" alt="" width="56" height="56" />
           <div>
             <p className="text-sm text-amber-800">ข้อมูลตัวอย่าง</p>
             <h2 className="text-xl font-bold">น้องรุ่งเช้า</h2>

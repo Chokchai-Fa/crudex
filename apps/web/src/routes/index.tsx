@@ -7,7 +7,7 @@ const roles = [
   {
     name: 'ครู',
     path: '/teacher',
-    image: 'teacher',
+    image: 'jaew',
     description: 'คุยกับเลขาครู ทำสื่อ เก็บคะแนน ดูผลแยกตามห้องเรียน',
     scope: 'ครูตัวอย่าง · ป.5/1, ป.5/2, ป.6/1',
     action: 'เข้าใช้เป็นครู',
@@ -15,7 +15,7 @@ const roles = [
   {
     name: 'ผู้อำนวยการ',
     path: '/principal',
-    image: 'principal',
+    image: 'rungchao',
     description: 'รับสรุปเช้าจากน้องรุ่งเช้า เห็นภาพรวมระดับห้อง โดยไม่มีคะแนนรายคน',
     scope: 'ผอ. ตัวอย่าง · ทั้งโรงเรียน',
     action: 'เข้าใช้เป็น ผอ.',
@@ -60,7 +60,7 @@ function RoleChooser() {
               }
             >
               <img
-                src={'/roles/' + role.image + '.png'}
+                src={'/agents/' + role.image + '.svg'}
                 alt=""
                 className="w-12 sm:w-[72px]"
                 width="72"
