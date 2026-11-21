@@ -67,7 +67,7 @@ export class SandboxManager extends DurableObject<Env> {
         startedAt: this.sandbox?.startedAt,
         lastUsedAt: this.sandbox?.lastUsedAt,
         runsToday: countToday(usage, now),
-        limit: dailyRunLimit(now, config.DAILY_RUN_LIMIT),
+        limit: dailyRunLimit(now, config.DAILY_RUN_LIMIT, config.DAILY_RUN_LIMIT_OVERRIDES),
       });
     }
 
@@ -85,7 +85,9 @@ export class SandboxManager extends DurableObject<Env> {
       }
       const admitted = await this.ctx.storage.transaction(async (txn) => {
         const usage = await txn.get<DailyUsage>('usage');
-        const next = consumeRun(usage, Date.now(), config.DAILY_RUN_LIMIT);
+        const now = Date.now();
+        const limit = dailyRunLimit(now, config.DAILY_RUN_LIMIT, config.DAILY_RUN_LIMIT_OVERRIDES);
+        const next = consumeRun(usage, now, limit);
         if (next) await txn.put('usage', next);
         return next !== null;
       });
