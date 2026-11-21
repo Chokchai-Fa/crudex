@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import {
   pgTable,
   uuid,
@@ -9,7 +8,6 @@ import {
   index,
   serial,
   jsonb,
-  check,
   date,
 } from 'drizzle-orm/pg-core';
 import type { AgentId, RunEvent, RunStatus } from '@repo/shared';
@@ -53,14 +51,10 @@ export const runOutbox = pgTable('run_outbox', {
     .primaryKey()
     .references(() => agentRuns.id),
 });
-export const runQuota = pgTable(
-  'run_quota',
-  {
-    day: date().primaryKey(),
-    used: integer().notNull(),
-  },
-  (t) => [check('school_daily_run_limit', sql`${t.used} <= 60`)],
-);
+export const runQuota = pgTable('run_quota', {
+  day: date().primaryKey(),
+  used: integer().notNull(),
+});
 
 export const runMemory = pgTable(
   'run_memory',
@@ -87,8 +81,5 @@ export const ownerRunQuota = pgTable(
     ownerId: uuid('owner_id').notNull(),
     used: integer().notNull(),
   },
-  (t) => [
-    uniqueIndex('owner_run_quota_day').on(t.day, t.ownerId),
-    check('owner_daily_run_limit', sql`${t.used}<=20`),
-  ],
+  (t) => [uniqueIndex('owner_run_quota_day').on(t.day, t.ownerId)],
 );

@@ -11,7 +11,7 @@ The application Worker serves the school API under `/api` on the application ori
 
 Open the application and choose **ครู** to enter the classroom or **ผอ.** to view the school’s morning brief. Each new trial gets a private sample school, class ป.4/1 and two fictional students. Refreshing resumes the same session. Sign out to try the other role in a fresh school.
 
-The browser sends `POST /api/auth/guest` with `{"role":"teacher"}` or `{"role":"principal"}`. The API creates the guest account, memberships, class assignments and session together. The response has the same shape as `GET /api/me`. The session and demo memberships expire after eight hours. An active account must sign out before starting a new trial. The API permits twelve trial starts per source IP per UTC clock hour.
+The browser sends `POST /api/auth/guest` with `{"role":"teacher"}` or `{"role":"principal"}`. The API creates the guest account, memberships, class assignments and session together. The response has the same shape as `GET /api/me`. The session and demo memberships expire after eight hours. An active account must sign out before starting a new trial. Multiple visitors can start trials from the same school network.
 
 ## Sign in and select a classroom
 
@@ -23,7 +23,11 @@ The browser sends `POST /api/auth/guest` with `{"role":"teacher"}` or `{"role":"
 
 ## Teacher chat, replay and worksheet publication
 
-Send `POST /api/agents/jaew/runs` with JSON like the following, using an actual assigned class and a new UUID for each distinct user request.
+For interactive conversation, send `POST /api/agents/{id}/chat` with the same payload shown below. The API reserves the run and dispatches it to the agent on the open HTTP request. A new request returns HTTP 200, an `X-Run-Id` header and a stream of newline-delimited JSON run events. A repeated request ID returns the original run as JSON. Refresh or reconnect using the saved run history and event cursor. The same school permissions, daily model quotas and run recovery apply to both paths.
+
+The classroom sends ordinary messages and questions directly. Artifact-generation presets and explicit creation requests, such as creating a worksheet or slides, use background delivery so the user can leave while work continues.
+
+For background delivery, send `POST /api/agents/jaew/runs` with JSON like the following, using an actual assigned class and a new UUID for each distinct user request.
 
 ```json
 {
@@ -52,6 +56,8 @@ The classroom frontend requests `GET /api/runs/{runId}/events` with the school c
 ```
 
 The envelope ID identifies the event. The ID inside a tool payload identifies the tool call. The six event kinds are `status`, `tool`, `delta`, `approval`, `done` and `error`. Render process steps from the payload and append `delta.text` to the answer. Each response contains up to 128 events in ascending ID order. Send the last consumed ID in `Last-Event-ID` to continue. A 200 response with `[]` means wait and poll again with the same cursor. HTTP 204 means the run has ended and all events have been read.
+
+Newer turns include an optional `delta.messageId`. Group the text by message within the run. When a delta has `interim: true`, it contains an empty string and identifies an earlier message as a progress update. Remove that message from the answer, including on replay. Preserve text from older turns without IDs in arrival order. Clients that simply concatenate `delta.text` continue to work.
 
 ### Read progress as SSE
 

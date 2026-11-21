@@ -1,11 +1,5 @@
 import type { GuestSignIn, LocalSignIn, SchoolActor } from '@repo/shared';
-import {
-  AppError,
-  ConflictError,
-  RateLimitError,
-  ForbiddenError,
-  NotFoundError,
-} from '../lib/errors';
+import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../lib/errors';
 import { createGuestSchool } from '../repositories/guest-school.repository';
 import * as repo from '../repositories/identity.repository';
 import { fixtureMembership, seedLocalSchools } from '../repositories/synthetic-school.repository';
@@ -72,12 +66,7 @@ export async function signIn(deps: Deps, credential: string) {
   }
   return session.token;
 }
-export async function guestSignIn(
-  deps: Deps,
-  input: GuestSignIn,
-  existing: string | undefined,
-  ip: string,
-) {
+export async function guestSignIn(deps: Deps, input: GuestSignIn, existing: string | undefined) {
   if (
     existing &&
     tokenPattern.test(existing) &&
@@ -85,11 +74,6 @@ export async function guestSignIn(
   ) {
     throw new ConflictError('ออกจากระบบก่อนเลือกบทบาทใหม่');
   }
-  const hour = Math.floor(Date.now() / 3_600_000);
-  const key = 'school:guest:' + hour + ':' + (await digest(ip));
-  const [attempts] = await deps.cache.multi().incr(key).expire(key, 3600).exec<[number, number]>();
-  if (attempts > 12)
-    throw new RateLimitError('ทดลองครบจำนวนครั้งในชั่วโมงนี้แล้ว กรุณาลองอีกครั้งในชั่วโมงถัดไป');
   const session = await newSession();
   await createGuestSchool(deps.db, input.role, session.digest, session.expiresAt);
   return session.token;

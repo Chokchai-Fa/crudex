@@ -1,6 +1,11 @@
 import { Link } from '@tanstack/react-router';
 import type { AgentId, SchoolActor } from '@repo/shared';
-import { TeamIcon } from '../workspace/teacher-team';
+import { useState, type CSSProperties } from 'react';
+import secretary from '@/assets/mascots/secretary.svg?raw';
+import paper from '@/assets/mascots/paper.svg?raw';
+import notebook from '@/assets/mascots/notebook.svg?raw';
+import envelope from '@/assets/mascots/envelope.svg?raw';
+import nun from '@/assets/mascots/nun.svg?raw';
 import { BrandLogo } from '@/components/brand-logo';
 import {
   useSchoolAgents,
@@ -17,10 +22,19 @@ const roles: Partial<Record<AgentId, string>> = {
   nun: 'วิเคราะห์คะแนนนักเรียนและห้องเรียน',
 };
 const icons = { jaew: 'secretary', jum: 'paper', jeng: 'notebook', porn: 'envelope' } as const;
-export function AssistantIcon({ id, size }: { id: AgentId; size?: number }) {
-  if (id === 'nun')
-    return <img src="/agents/nun.svg" width={size ?? 40} height={size ?? 40} alt="" />;
-  return <TeamIcon name={icons[id as keyof typeof icons] ?? 'secretary'} size={size} />;
+const mascots = { secretary, paper, notebook, envelope, nun } as const;
+/** Inline SVG (not <img>) so CSS can move the pupils on hover; see .mascot in chat-activity.css. */
+export function AssistantIcon({ id, size = 40 }: { id: AgentId; size?: number }) {
+  const name = id === 'nun' ? 'nun' : (icons[id as keyof typeof icons] ?? 'secretary');
+  return (
+    <span
+      className="mascot"
+      data-mascot={name}
+      aria-hidden="true"
+      style={{ '--mascot-size': size + 'px' } as CSSProperties}
+      dangerouslySetInnerHTML={{ __html: mascots[name] }}
+    />
+  );
 }
 export function SchoolTeam({
   actor,
@@ -39,6 +53,16 @@ export function SchoolTeam({
 }) {
   const directory = useSchoolAgents(actor.membershipId);
   const logout = useSchoolLogout();
+  // The agent list slides in once per browser session, not on every chat switch.
+  const [listIntro] = useState(() => {
+    try {
+      if (sessionStorage.getItem('crudex.agent-list-intro')) return false;
+      sessionStorage.setItem('crudex.agent-list-intro', '1');
+    } catch {
+      // Storage unavailable: play it.
+    }
+    return true;
+  });
   return (
     <nav id="school-team" className="school-team team-nav" aria-label="ห้องและผู้ช่วย">
       <Link to="/school">
@@ -60,14 +84,15 @@ export function SchoolTeam({
           ))}
         </div>
       </fieldset>
-      <div>
+      <div className={listIntro ? 'm-list' : undefined}>
         {directory.error && <p role="alert">{directory.error.message}</p>}
-        {directory.data?.agents.map((a) => (
+        {directory.data?.agents.map((a, i) => (
           <button
             key={a.id}
             disabled={disabled}
             aria-pressed={agent === a.id}
             className={'team-row w-full text-start ' + (agent === a.id ? 'current' : '')}
+            style={{ '--i': i } as CSSProperties}
             onClick={() => onAgent(a.id)}
           >
             <AssistantIcon id={a.id} />

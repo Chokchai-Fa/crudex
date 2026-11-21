@@ -52,6 +52,28 @@ const db = new pg.Client({ connectionString: databaseUrl });
 await db.connect();
 try {
   const classId = teacher.actor.classes[0].id;
+  const question = {
+    clientRequestId: randomUUID(),
+    classId,
+    prompt: 'Can you explain equivalent fractions?',
+  };
+  const chat = () =>
+    call('/api/agents/jaew/chat', { method: 'POST', session: teacher, body: question });
+  const conversation = await chat();
+  assert.match(conversation.headers.get('content-type'), /application\/x-ndjson/);
+  const conversationId = conversation.headers.get('x-run-id');
+  const events = (await conversation.text())
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+  assert(events.some((e) => e.type === 'delta' && e.text === 'One half equals two quarters.'));
+  assert.equal(events.at(-1).type, 'done');
+  assert.equal((await (await chat()).json()).id, conversationId);
+  await call('/api/runs/' + conversationId + '/events', { session: colleague, status: 404 });
+  assert.match(
+    await (await call('/api/runs/' + conversationId + '/events', { session: teacher })).text(),
+    /two quarters/,
+  );
   const submit = { clientRequestId: randomUUID(), prompt: 'ช่วยสร้างแบบฝึกหัดเศษส่วน', classId };
   const postRun = async () =>
     (
@@ -196,7 +218,7 @@ try {
     body: { enabled: false },
   });
   console.log(
-    'School workflow passed: concurrent acceptance, verified worksheet callback, SSE replay, scoped history, quiz grading, two guardian drafts, and principal brief.',
+    'School workflow passed: direct conversation, idempotent retry, conversation replay, concurrent acceptance, verified worksheet callback, SSE replay, scoped history, quiz grading, two guardian drafts, and principal brief.',
   );
 } finally {
   await db.end();

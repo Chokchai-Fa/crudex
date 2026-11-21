@@ -1,11 +1,17 @@
 import { Link, Navigate, useNavigate } from '@tanstack/react-router';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUp, BookOpenCheck, Menu, ListChecks } from 'lucide-react';
+import {
+  ArrowUp,
+  BookOpenCheck,
+  Menu,
+  ListChecks,
+  PanelRightClose,
+  PanelRightOpen,
+} from 'lucide-react';
 import type { AgentId, CreateRun, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { SchoolTeam, SchoolActivity, AssistantIcon } from './chat-panels';
 import { ChatArtifacts } from './chat-artifacts';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { RunDetails, statusLabels, SchoolGradebook } from './classroom';
 import {
   readSchoolWorksheet,
@@ -15,7 +21,10 @@ import {
   useSchoolAgents,
 } from './api/school';
 import { teacherMessage, referencesWorksheet, withWorksheet } from './worksheet-context';
+import { ackFor, isBackgroundRequest, presetsFor } from './presets';
 import '../workspace/chat-activity.css';
+
+const activityKey = 'crudex.teacher.activity-panel';
 
 export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
   const session = useSchoolSession();
@@ -74,6 +83,22 @@ function ChatRoom({
     directory.data?.agents.find((a) => a.id === agent)?.name ??
     (agent === 'jaew' ? 'เลขาครู' : agent);
   const [panel, setPanel] = useState<'chat' | 'team' | 'activity'>('chat');
+  const [showActivity, setShowActivity] = useState(() => {
+    try {
+      return localStorage.getItem(activityKey) === 'open';
+    } catch {
+      return false;
+    }
+  });
+  function toggleActivity() {
+    const next = !showActivity;
+    setShowActivity(next);
+    try {
+      localStorage.setItem(activityKey, next ? 'open' : 'closed');
+    } catch {
+      // Storage can be unavailable (private mode); the choice lasts for this page only.
+    }
+  }
   const draftKey = ['crudex.school.draft', actor.membershipId, room.id, agent].join('.');
   const [draft, setDraft] = useState(() => sessionStorage.getItem(draftKey) ?? '');
   function editDraft(value: string) {
@@ -100,6 +125,22 @@ function ChatRoom({
   const retry = useRef<CreateRun | null>(null);
   const busy = useRef(false);
   const [sending, setSending] = useState(false);
+  // Instant acknowledgement: shown from the moment of sending, then kept per run until real content.
+  const [pending, setPending] = useState<{ prompt: string; ack: string } | null>(null);
+  const acks = useRef(new Map<string, string>());
+  // Google Form links found in each run's reply (the worksheet API only has the in-app /play link).
+  const [formUrls, setFormUrls] = useState<Record<string, string>>({});
+  const formHandlers = useRef(new Map<string, (url: string) => void>());
+  function formHandler(id: string) {
+    let handler = formHandlers.current.get(id);
+    if (!handler) {
+      handler = (url: string) =>
+        setFormUrls((prev) => (prev[id] === url ? prev : { ...prev, [id]: url }));
+      formHandlers.current.set(id, handler);
+    }
+    return handler;
+  }
+  const presets = presetsFor(agent, room.name);
   const [sendError, setSendError] = useState('');
   const input = useRef<HTMLTextAreaElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
@@ -131,14 +172,42 @@ function ChatRoom({
   const localGatewayUnconfirmed =
     import.meta.env.MODE === 'school-local' &&
     import.meta.env.VITE_SCHOOL_GATEWAY_FIXTURE !== 'false';
-  async function send() {
-    const prompt = draft.trim();
+  async function resend(prompt: string) {
+    if (localGatewayUnconfirmed || busy.current) return;
+    notePosition();
+    busy.current = true;
+    setSending(true);
+    setSendError('');
+    const ack = ackFor(agent, teacherMessage(prompt));
+    setPending({ prompt: teacherMessage(prompt), ack });
+    try {
+      const run = await create.mutateAsync({
+        background:
+          presets.find((p) => p.text === teacherMessage(prompt))?.background ??
+          isBackgroundRequest(teacherMessage(prompt)),
+        prompt,
+        classId: room.id,
+        clientRequestId: crypto.randomUUID(),
+      });
+      acks.current.set(run.id, ack);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : 'ส่งคำขอไม่สำเร็จ กรุณาลองอีกครั้ง');
+    } finally {
+      busy.current = false;
+      setSending(false);
+      setPending(null);
+    }
+  }
+  async function send(preset?: string) {
+    const prompt = (preset ?? draft).trim();
     if (localGatewayUnconfirmed || !prompt || busy.current) return;
     notePosition();
     busy.current = true;
     setSending(true);
     setSendError('');
     input.current?.focus({ preventScroll: true });
+    const ack = ackFor(agent, prompt);
+    setPending({ prompt, ack });
     try {
       if (!retry.current || teacherMessage(retry.current.prompt) !== prompt) {
         let message = prompt;
@@ -154,18 +223,28 @@ function ChatRoom({
         }
         retry.current = { prompt: message, classId: room.id, clientRequestId: crypto.randomUUID() };
       }
-      await create.mutateAsync(retry.current);
-      editDraft('');
+      const run = await create.mutateAsync({
+        ...retry.current,
+        background:
+          presets.find((p) => p.text === prompt)?.background ?? isBackgroundRequest(prompt),
+      });
+      acks.current.set(run.id, ack);
+      if (preset === undefined) editDraft('');
       retry.current = null;
     } catch (error) {
       setSendError(error instanceof Error ? error.message : 'ส่งคำขอไม่สำเร็จ กรุณาลองอีกครั้ง');
     } finally {
       busy.current = false;
       setSending(false);
+      setPending(null);
     }
   }
   return (
-    <main className="teacher-chat school-workspace" data-panel={panel}>
+    <main
+      className="teacher-chat school-workspace"
+      data-panel={panel}
+      data-activity={showActivity ? 'open' : 'closed'}
+    >
       <SchoolTeam
         actor={actor}
         agent={agent}
@@ -197,21 +276,24 @@ function ChatRoom({
           <AssistantIcon id={agent} />
           <div className="min-w-0">
             <h1 className="text-xl font-bold">{agentName}</h1>
-            <p className="chat-presence">
-              <span className="availability-dot" aria-hidden="true" />
-              {room.name} ·{' '}
-              {currentTask?.status === 'running' || currentTask?.status === 'queued'
-                ? statusLabels[currentTask.status]
-                : 'ว่าง คุยได้เลย'}
-            </p>
-          </div>
-          <div className="ms-auto">
-            <ThemeToggle />
+            <p className="chat-presence">{room.name}</p>
           </div>
           <Button
             variant="outline"
             size="icon"
-            className="lg:hidden"
+            className="ms-auto hidden lg:inline-flex"
+            aria-label={showActivity ? 'ซ่อนแผงกิจกรรมห้อง' : 'แสดงแผงกิจกรรมห้อง'}
+            title={showActivity ? 'ซ่อนแผงกิจกรรมห้อง' : 'แสดงแผงกิจกรรมห้อง'}
+            aria-controls="school-activity"
+            aria-expanded={showActivity}
+            onClick={toggleActivity}
+          >
+            {showActivity ? <PanelRightClose /> : <PanelRightOpen />}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="ms-auto lg:hidden"
             ref={activityButton}
             aria-label="กิจกรรมห้อง"
             aria-controls="school-activity"
@@ -248,26 +330,59 @@ function ChatRoom({
             </p>
           ) : (
             !runs.length &&
+            !pending &&
             !history.error && (
               <div className="chat-empty">
                 <AssistantIcon id={agent} size={64} />
                 <p className="text-lg font-bold">เริ่มคำขอแรกสำหรับห้อง {room.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  พิมพ์สิ่งที่อยากให้{agentName}ช่วย หรือกดคำสั่งลัดด้านล่าง
+                  พิมพ์สิ่งที่อยากให้{agentName}ช่วย หรือเลือกคำขอที่ทำได้แน่นอนด้านล่าง
                 </p>
+                {presets.length > 0 && !pending && (
+                  <div className="preset-cards">
+                    {presets.map((p) => (
+                      <button
+                        key={p.text}
+                        type="button"
+                        disabled={sending || localGatewayUnconfirmed}
+                        onClick={() => void send(p.text)}
+                      >
+                        <strong>{p.text}</strong>
+                        <small>{p.result}</small>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           )}
           <ol ref={content} className="space-y-4 py-3">
-            {runs.map((run) => (
+            {runs.map((run, index) => (
               <li key={run.id} className="space-y-2">
-                <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
+                <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
                   {teacherMessage(run.prompt)}
                 </p>
                 <div className="flex items-start gap-2">
                   <AssistantIcon id={run.agentId} />
-                  <div className="chat-response min-w-0 px-4 py-3">
-                    <RunDetails id={run.id} membershipId={actor.membershipId} status={run.status} />
+                  <div className="m-msg chat-response min-w-0 px-4 py-3">
+                    <RunDetails
+                      id={run.id}
+                      membershipId={actor.membershipId}
+                      status={run.status}
+                      agentId={run.agentId}
+                      onFormUrl={formHandler(run.id)}
+                      onFollowUp={
+                        index === runs.length - 1 &&
+                        !pending &&
+                        !sending &&
+                        !localGatewayUnconfirmed
+                          ? (text) => void send(text)
+                          : undefined
+                      }
+                      ack={acks.current.get(run.id)}
+                      onRetry={() => void resend(run.prompt)}
+                      retryDisabled={sending || localGatewayUnconfirmed}
+                    />
                   </div>
                 </div>
                 {run.worksheetIds.map((id) => (
@@ -275,6 +390,7 @@ function ChatRoom({
                     key={id}
                     id={id}
                     roomId={room.id}
+                    googleFormUrl={formUrls[run.id]}
                     membershipId={actor.membershipId}
                     open={sheet === id}
                     toggle={() => setSheet(sheet === id ? '' : id)}
@@ -282,6 +398,26 @@ function ChatRoom({
                 ))}
               </li>
             ))}
+            {pending && (
+              <li className="space-y-2">
+                <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
+                  {pending.prompt}
+                </p>
+                <div className="flex items-start gap-2">
+                  <AssistantIcon id={agent} />
+                  <div className="m-msg chat-response min-w-0 px-4 py-3">
+                    <p className="run-ack" role="status">
+                      {pending.ack}
+                      <span className="typing-dots" aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </li>
+            )}
           </ol>
         </div>
         <form
@@ -293,17 +429,19 @@ function ChatRoom({
         >
           {localGatewayUnconfirmed && <p role="status">ยังไม่ได้เปิดใช้ runtime จริงในเครื่อง</p>}
           {sendError && <p role="alert">{sendError}</p>}
-          {sending && <p role="status">กำลังส่งคำขอ…</p>}
           <div className="school-quick-prompts" aria-label="คำสั่งลัด">
-            {(agent === 'jaew' || agent === 'jum') && (
-              <button
-                type="button"
-                disabled={sending}
-                onClick={() => insertPrompt('ช่วยสร้างใบงานสำหรับห้อง ' + room.name)}
-              >
-                สร้างใบงาน
-              </button>
-            )}
+            {runs.length > 0 &&
+              presets.map((p) => (
+                <button
+                  key={p.text}
+                  type="button"
+                  title={p.result}
+                  disabled={sending || localGatewayUnconfirmed}
+                  onClick={() => void send(p.text)}
+                >
+                  {p.text}
+                </button>
+              ))}
             {runs.some((run) => run.worksheetIds.length > 0) && (
               <button
                 type="button"

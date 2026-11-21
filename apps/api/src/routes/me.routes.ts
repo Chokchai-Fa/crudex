@@ -50,15 +50,7 @@ export const meRoutes = new Hono<AppEnv>()
     signedIn(c, await signIn(c.var.deps, c.req.valid('json').credential)),
   )
   .post('/auth/guest', validate('json', guestSignInSchema), async (c) =>
-    signedIn(
-      c,
-      await guestSignIn(
-        c.var.deps,
-        c.req.valid('json'),
-        readSessionCookie(c),
-        c.req.header('CF-Connecting-IP') ?? 'local',
-      ),
-    ),
+    signedIn(c, await guestSignIn(c.var.deps, c.req.valid('json'), readSessionCookie(c))),
   )
   .post('/auth/local', validate('json', localSignInSchema), async (c) =>
     signedIn(c, await localSignIn(c.var.deps, c.req.url, c.req.valid('json'))),

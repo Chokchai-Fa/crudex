@@ -55,7 +55,7 @@ export function sampleHistoryInserts(
         schoolId,
         classId,
         runId,
-        invocationId: 'sample-history',
+        invocationId: 'sample-history-' + id,
         content: sampleContent(a),
         createdAt: at,
       }),
