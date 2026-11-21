@@ -1,5 +1,11 @@
-import { agentIdSchema, createRunSchema } from '@repo/shared';
+import {
+  agentIdSchema,
+  createRunSchema,
+  runEventBatchMediaType,
+  runEventPageSize,
+} from '@repo/shared';
 import { Hono } from 'hono';
+import { accepts } from 'hono/accepts';
 import { z } from 'zod';
 import { validate } from '../lib/validate';
 import { ValidationError } from '../lib/errors';
@@ -43,13 +49,35 @@ export const runRoutes = new Hono<AppEnv>()
         c.req.valid('param').id,
         cursor,
       );
+      c.header('Vary', 'Accept');
       if (terminal && !rows.length) return c.body(null, 204);
+      if (
+        accepts(c, {
+          header: 'Accept',
+          supports: ['text/event-stream', runEventBatchMediaType],
+          default: 'text/event-stream',
+        }) === runEventBatchMediaType
+      ) {
+        const source = '/api/runs/' + c.req.valid('param').id;
+        const batch = rows.map(({ id, body }) => ({
+          specversion: '1.0',
+          id: String(id),
+          source,
+          type: 'work.crudex.run.' + body.type,
+          data: body,
+        }));
+        return c.body(JSON.stringify(batch), 200, { 'Content-Type': runEventBatchMediaType });
+      }
       const frames = rows
         .map(({ id, body }) => 'id: ' + id + '\ndata: ' + JSON.stringify(body) + '\n\n')
         .join('');
-      return c.body('retry: ' + (rows.length === 128 ? '100' : '2500') + '\n\n' + frames, 200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-store, no-transform',
-      });
+      return c.body(
+        'retry: ' + (rows.length === runEventPageSize ? '100' : '2500') + '\n\n' + frames,
+        200,
+        {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-store, no-transform',
+        },
+      );
     },
   );

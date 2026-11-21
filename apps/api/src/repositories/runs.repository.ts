@@ -1,3 +1,4 @@
+import { runEventPageSize } from '@repo/shared';
 import { and, asc, desc, eq, gt, lt, isNull, sql, or, exists, getTableColumns } from 'drizzle-orm';
 import type { RunEvent, CreateRun, AgentId, RunStatus, SchoolActor } from '@repo/shared';
 import { assessments } from '../db/schema/classroom';
@@ -91,7 +92,7 @@ export function events(db: Db, runId: string, cursor: number) {
     .from(runEvents)
     .where(and(eq(runEvents.runId, runId), gt(runEvents.id, cursor)))
     .orderBy(asc(runEvents.id))
-    .limit(128);
+    .limit(runEventPageSize);
 }
 export async function claim(db: Db, id: string, attemptId: string, credentialHash: string) {
   const [rows] = await db.batch([
