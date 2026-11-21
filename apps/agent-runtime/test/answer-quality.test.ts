@@ -34,4 +34,18 @@ describe('answer quality and next-question contract', () => {
       expect(byId[id]?.instructions, id).toMatch(/ยกเว้น.*(กดยืนยัน)/);
     }
   });
+
+  it('keeps the chat short: no full worksheet, key or slide text when a file or card exists', () => {
+    for (const id of ids) {
+      const t = byId[id]?.instructions ?? '';
+      expect(t, id).toContain('ห้ามวางเนื้อหาเต็ม');
+      expect(t, id).toContain('เมื่อสร้างไฟล์ไม่ได้');
+    }
+    const jum = byId['jum']?.instructions ?? '';
+    expect(jum).toContain('ตอบสั้นไม่เกิน 5 บรรทัด');
+    expect(jum).toContain('ห้ามวาง worksheet.text โจทย์ ตัวเลือก หรือเฉลยลงในแชต');
+    expect(jum).toContain('เฉลยลงในแชตเฉพาะเมื่อครูขอเฉลย');
+    expect(jum).toContain('เฉพาะเมื่อสร้างไฟล์หรือการ์ดไม่ได้เลย (ทางสำรอง)');
+    expect(jum).not.toContain('ต่อด้วยร่างคำถามทุกข้อ');
+  });
 });

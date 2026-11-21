@@ -73,7 +73,7 @@ describe('jaew lesson preparation flow', () => {
     expect(jum.instructions).toContain('ห้ามใช้ 1 หรือจำนวนน้อยกว่านั้นโดยครูไม่ได้ขอ');
   });
 
-  it('pastes the chat-only worksheet that check_assessment renders', () => {
+  it('pastes the worksheet that check_assessment renders only as a fallback when no file or card exists', () => {
     expect(jum.instructions).toContain('worksheet.text');
     expect(jum.instructions).toContain('worksheet.answers');
     expect(jum.instructions).toContain('ห้ามเรียงตัวเลือกใหม่');
