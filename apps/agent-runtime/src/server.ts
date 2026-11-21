@@ -184,6 +184,10 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     loginId,
     signal: abort.signal,
     school: Boolean(scope),
+    kahootConnected:
+      scope && 'kahootConnected' in scope && typeof scope.kahootConnected === 'boolean'
+        ? scope.kahootConnected
+        : undefined,
   });
   const needsKahoot =
     scope?.role === 'teacher' && (agent.id === 'jeng' || agent.subagents.includes('jeng'));

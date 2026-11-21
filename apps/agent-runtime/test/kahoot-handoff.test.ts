@@ -1,0 +1,139 @@
+import { expect, it, vi } from 'vitest';
+import { jaew } from '../src/agents/jaew';
+import type { Host } from '../src/harness';
+import { createTurnRunner } from '../src/run';
+
+const uuid = '2934c5dc-821e-4aaf-9cbf-b6a02427f626';
+const childId = 'ses_jeng_private_example';
+const title = 'พีทาโกรัส';
+const editorUrl = 'https://create.kahoot.it/creator/' + uuid;
+const event = (type: string, sessionID: string, data = {}) => ({
+  type,
+  data: { sessionID, ...data },
+});
+const output = (value: unknown) => [{ type: 'text', text: JSON.stringify(value) }];
+
+it.each([
+  { receipt: 'created', status: 'created', connected: true, rootFirst: true },
+  { receipt: 'created', status: 'created', connected: true, rootFirst: false },
+  { receipt: 'structured', status: 'created', connected: true, rootFirst: true },
+  { receipt: 'auth_error', status: 'connect_required', connected: undefined, rootFirst: true },
+  { receipt: 'error', status: 'failed', connected: true, rootFirst: true },
+  { receipt: 'none', status: 'connect_required', connected: false, rootFirst: true },
+  { receipt: 'none', status: 'failed', connected: undefined, rootFirst: true },
+])('separates the Kahoot result from Jaew ($status, root first = $rootFirst)', async (test) => {
+  const rootDone = event('session.execution.succeeded', 'root');
+  const childReply = 'พี่เจ๋งรายงานรายละเอียดของงาน คำถามและตัวเลือกตัวอย่าง';
+  const host = {
+    session: {
+      create: async () => ({ id: 'root' }),
+      get: async () => ({ parentID: 'root', agent: 'jeng' }),
+      prompt: vi.fn(),
+    },
+    event: {
+      async *subscribe() {
+        yield { type: 'server.connected', data: {} };
+        yield event('session.tool.input.started', 'root', {
+          id: childId + '-delegate',
+          name: 'subagent',
+        });
+        yield event('session.tool.called', 'root', {
+          id: childId + '-delegate',
+          input: { agent: 'jeng', prompt: 'สร้าง Kahoot เรื่อง' + title },
+        });
+        yield event('session.tool.success', 'root', {
+          id: childId + '-delegate',
+          metadata: { sessionID: childId },
+        });
+        yield event('session.text.delta', 'root', {
+          assistantMessageID: 'unsupported-claim',
+          delta: 'พี่สร้างเกม Kahoot พีทาโกรัส เรียบร้อยแล้วครับ https://example.test/ปลอม',
+        });
+        if (test.rootFirst) yield rootDone;
+        yield event('session.step.started', childId, { assistantMessageID: 'jeng-message' });
+        if (test.receipt !== 'none') {
+          yield event('session.tool.input.started', childId, {
+            id: childId + '-create',
+            name: 'crudex_kahoot_create_or_update_kahoot',
+          });
+          yield test.receipt === 'auth_error'
+            ? event('session.tool.failed', childId, {
+                id: childId + '-create',
+                error: { message: 'kahoot_not_connected' },
+              })
+            : event('session.tool.success', childId, {
+                id: childId + '-create',
+                content:
+                  test.receipt === 'structured'
+                    ? [{ type: 'text', text: 'Kahoot draft created' }]
+                    : output({ error: test.receipt === 'error', kahoot: { uuid, title } }),
+                metadata:
+                  test.receipt === 'structured'
+                    ? { crudexKahoot: { kahoot: { uuid, title } } }
+                    : undefined,
+              });
+        }
+        if (test.status === 'created') {
+          yield event('session.tool.input.started', childId, {
+            id: childId + '-editor',
+            name: 'crudex_kahoot_get_kahoot_editor_url',
+          });
+          yield event('session.tool.called', childId, { id: childId + '-editor', input: { uuid } });
+          yield event('session.tool.success', childId, {
+            id: childId + '-editor',
+            content: output({ url: editorUrl }),
+          });
+        }
+        yield event('session.text.ended', childId, { text: childReply });
+        yield event('session.execution.succeeded', childId);
+        if (!test.rootFirst) yield rootDone;
+      },
+    },
+  };
+  const events = [];
+  for await (const item of createTurnRunner(host as unknown as Host)({
+    agent: jaew,
+    directory: '.',
+    loginId: 'sample-teacher',
+    text: 'สร้าง Kahoot เรื่อง' + title,
+    signal: new AbortController().signal,
+    school: true,
+    kahootConnected: test.connected,
+  })) {
+    events.push(item);
+  }
+  const report = events.filter(({ type }) => type === 'delegated_kahoot');
+  expect(report).toEqual([
+    {
+      type: 'delegated_kahoot',
+      agentId: 'jeng',
+      childSessionId: childId,
+      status: test.status,
+      text: test.status === 'created' ? childReply + '\n' + editorUrl : expect.any(String),
+      ...(test.status === 'created' ? { kahootId: uuid, title, editorUrl } : {}),
+    },
+  ]);
+  expect(JSON.stringify(events.filter(({ type }) => type !== 'delegated_kahoot'))).not.toContain(
+    childId,
+  );
+  expect(
+    events.filter(
+      (item) => item.type === 'tool' && item.name === 'subagent' && item.agentId === 'jeng',
+    ),
+  ).toHaveLength(2);
+  const reply = events.flatMap((item) => (item.type === 'delta' ? [item.text] : [])).join('');
+  expect(reply).not.toContain(childReply);
+  expect(reply).not.toContain('พี่สร้างเกม Kahoot');
+  expect(reply).not.toContain('example.test');
+  expect(reply).not.toContain(uuid);
+  expect(reply).not.toContain(editorUrl);
+  if (test.status === 'created') {
+    expect(reply).toContain('พี่เจ๋งทำ Kahoot เรื่องพีทาโกรัสให้แล้วค่ะ');
+    expect(reply).toContain('แชตพี่เจ๋ง');
+  } else {
+    expect(reply).not.toContain('ให้แล้วค่ะ');
+    expect(reply).toContain(test.status === 'connect_required' ? 'เชื่อมบัญชี' : 'ยังสร้าง');
+  }
+  expect(events.at(-1)?.type).toBe('done');
+  expect(host.session.prompt).toHaveBeenCalledTimes(1);
+});
