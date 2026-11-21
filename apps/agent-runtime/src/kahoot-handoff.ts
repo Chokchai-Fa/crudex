@@ -3,6 +3,8 @@ import { z } from 'zod';
 const brand = /kahoot|คาฮู[ทตด]/i;
 const action =
   /สร้าง|ทำ|จัด|ออกแบบ|เตรียม|ขอ\s*(?:เกม|แบบทดสอบ|kahoot)|\b(create|make|build|generate|prepare)\b/i;
+const instruction =
+  /^(?:(?:น้องแจ๋ว|แจ๋ว|รบกวน|ช่วย|ขอให้|อยากให้|ลอง|please)[\s,:ๆ]*)*(?:สร้าง|ทำ|จัด|ออกแบบ|เตรียม|ขอ|(?:create|make|build|generate|prepare)\b)\s*(?:(?:เกม|แบบทดสอบ|ควิซ)\s*)?(?:(?:ใน|บน|ด้วย|เป็น|ผ่าน|an?\b)\s*)?(?:kahoot|คาฮู[ทตด])/i;
 
 export function requestsKahoot(text: string) {
   const newest = text.split('ข้อความใหม่จากครู:').at(-1) ?? text;
@@ -10,6 +12,20 @@ export function requestsKahoot(text: string) {
     !/วิธี|ยังไง|เสร็จหรือยัง|เสร็จหรือไม่|\bhow to\b/i.test(newest) &&
     brand.test(newest) &&
     action.test(newest)
+  );
+}
+
+export function directlyRequestsKahoot(text: string) {
+  const newest = (text.split('ข้อความใหม่จากครู:').at(-1) ?? text).trim();
+  if (!requestsKahoot(newest) || !instruction.test(newest)) return false;
+  if (
+    /ไม่(?:ต้อง|ให้|อยาก|ขอ)?\s*(?:สร้าง|ทำ|จัด|เตรียม)|(?:don't|do not)\s+(?:create|make)/i.test(
+      newest,
+    )
+  )
+    return false;
+  return !/(?:แล้ว(?:ก็)?|พร้อม(?:กับ)?|และ|\n|\band\b)\s*(?:ช่วย\s*)?(?:สร้าง|ทำ|ส่ง|สรุป|จัด|ออกแบบ|เตรียม|create|make|send|summarize)\s*(?:ใบงาน|สไลด์|ข้อสอบ|แบบทดสอบ|เอกสาร|ใบเบิก|คะแนน|รายงาน|google form|worksheet|slides)/i.test(
+    newest,
   );
 }
 

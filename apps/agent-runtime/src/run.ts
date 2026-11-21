@@ -1,6 +1,7 @@
 import type { AgentDefinition } from './agents/types';
 import { isOwnedRoot } from './demo-session';
 import type { Host } from './harness';
+import { jeng } from './agents/jeng';
 import { kahootTool } from './kahoot-draft';
 import {
   kahootEditorTool,
@@ -9,6 +10,7 @@ import {
   kahootReceipt,
   kahootRequiresConnection,
   requestsKahoot,
+  directlyRequestsKahoot,
   type KahootResult,
 } from './kahoot-handoff';
 
@@ -117,7 +119,10 @@ export function createTurnRunner(host: Host) {
     const kahootDelegations = new Set<string>();
     const editorRequests = new Map<string, string>();
     const schoolSecretary = turn.school && turn.agent.id === 'jaew';
-    const explicitKahoot = schoolSecretary && requestsKahoot(turn.text);
+    const explicitKahoot =
+      schoolSecretary &&
+      turn.agent.subagents.includes(jeng.id) &&
+      directlyRequestsKahoot(turn.text);
     let kahootHandoff = explicitKahoot;
     let delegationCount = 0;
     let promptSent = false;
@@ -189,6 +194,32 @@ export function createTurnRunner(host: Host) {
               text: 'หนูจะส่งงานสร้าง Kahoot ให้พี่เจ๋งค่ะ',
             };
             yield { type: 'progress', messageId: 'kahoot:handoff' };
+            const child = await host.session.create(
+              {
+                parentID: sessionID,
+                title: 'สร้างเกม Kahoot',
+                agent: jeng.id,
+                model: { providerID: 'openai', id: jeng.model },
+                location: { directory: turn.directory },
+              },
+              opts,
+            );
+            if (child.parentID !== sessionID || child.agent !== jeng.id)
+              throw new Error('invalid_delegation');
+            children.set(child.id, { agentId: jeng.id, text: '', kahootRequested: true });
+            delegated.add(child.id);
+            promptSent = true;
+            await host.session.prompt(
+              {
+                sessionID: child.id,
+                text:
+                  'น้องแจ๋วมอบหมายให้พี่เจ๋งสร้างเกม Kahoot ตามคำขอล่าสุดของครู ทำตามสิทธิ์และขั้นตอนตรวจคำถามของพี่เจ๋ง ใช้ 10 ข้อเมื่อครูไม่ได้ระบุจำนวน\n\n' +
+                  turn.text,
+              },
+              opts,
+            );
+            rootDone = true;
+            continue;
           }
           promptSent = true;
           await host.session.prompt({ sessionID, text: turn.text }, opts);
@@ -210,6 +241,7 @@ export function createTurnRunner(host: Host) {
         if (!('sessionID' in event.data)) continue;
         const source = event.data.sessionID;
         const root = source === sessionID;
+        if (explicitKahoot && root) continue;
         if (!root && !children.has(source)) {
           if (!turn.agent.subagents.length) continue;
           const childSession = await findSession(host, source, signal);
@@ -280,9 +312,8 @@ export function createTurnRunner(host: Host) {
               schoolSecretary &&
               name === 'subagent' &&
               event.data.input?.agent === 'jeng' &&
-              (explicitKahoot ||
-                (typeof event.data.input.prompt === 'string' &&
-                  requestsKahoot(event.data.input.prompt)))
+              typeof event.data.input.prompt === 'string' &&
+              requestsKahoot(event.data.input.prompt)
             )
               kahootDelegations.add(event.data.id);
             if (
@@ -475,8 +506,7 @@ export function createTurnRunner(host: Host) {
                     if (
                       schoolSecretary &&
                       childSession.agent === 'jeng' &&
-                      (explicitKahoot ||
-                        kahootDelegations.has(event.data.id) ||
+                      (kahootDelegations.has(event.data.id) ||
                         children.get(childId)?.kahootRequested)
                     ) {
                       const delegatedChild = children.get(childId) ?? { agentId: 'jeng', text: '' };
@@ -571,7 +601,6 @@ export function createTurnRunner(host: Host) {
           if (progress) yield progress;
           continue;
         }
-        let reportedKahoot = false;
         let failedDelegation = false;
         for (const id of delegated) {
           const result = children.get(id);
@@ -588,7 +617,7 @@ export function createTurnRunner(host: Host) {
             };
             const rootReply =
               outcome.status === 'created'
-                ? `เรียบร้อยค่ะ พี่เจ๋งทำ Kahoot เรื่อง${outcome.title}ให้แล้วค่ะ\nดูรายละเอียดในแชตพี่เจ๋ง`
+                ? `พี่เจ๋งตอบมาแล้วค่ะ เกม Kahoot เรื่อง${outcome.title}สร้างเสร็จแล้ว\nดูรายละเอียดในแชตพี่เจ๋ง`
                 : kahootFailure[outcome.status];
             const childText =
               outcome.status === 'created'
@@ -611,7 +640,6 @@ export function createTurnRunner(host: Host) {
               ...outcome,
             };
             yield { type: 'delta', messageId: crypto.randomUUID(), text: '\n\n' + rootReply };
-            reportedKahoot = true;
             continue;
           }
           if (!result?.completed) {
@@ -638,14 +666,6 @@ export function createTurnRunner(host: Host) {
         if (failedDelegation) {
           yield { type: 'error', code: 'delegation_failed' };
           return;
-        }
-        if (explicitKahoot && !reportedKahoot) {
-          const status = turn.kahootConnected === false ? 'connect_required' : 'failed';
-          yield {
-            type: 'delta',
-            messageId: 'kahoot:missing-result',
-            text: '\n\n' + kahootFailure[status],
-          };
         }
         finished = true;
         yield { type: 'done', elapsedMs: Math.round(performance.now() - started) };
