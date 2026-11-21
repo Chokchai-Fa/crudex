@@ -25,12 +25,20 @@ assert(['stopped', 'starting', 'running'].includes(info.sandbox), 'Unexpected sa
 assert(Number.isInteger(info.runsToday) && Number.isInteger(info.limit), 'Quota status missing');
 console.log(`Sandbox ${info.sandbox}, runs ${info.runsToday}/${info.limit}`);
 
+const catalog = await fetch(new URL('/api/agents', AGENT_URL), {
+  headers: { cookie },
+  signal: AbortSignal.timeout(120_000),
+});
+assert.equal(catalog.status, 200);
+const agents = await catalog.json();
+assert.deepEqual(agents.map(({ id }) => id), ['jaew', 'jum', 'jeng', 'porn', 'nun']);
+
 async function chat(label, text) {
   const start = performance.now();
   const response = await fetch(new URL('/api/chat', AGENT_URL), {
     method: 'POST',
     headers: { cookie, 'content-type': 'application/json' },
-    body: JSON.stringify({ agentId: 'test-agent', text }),
+    body: JSON.stringify({ agentId: 'nun', text }),
     signal: AbortSignal.timeout(270_000),
   });
   const headersAt = performance.now();
@@ -55,18 +63,18 @@ async function chat(label, text) {
   return events;
 }
 
-const clock = await chat('Clock', 'ตอนนี้กี่โมง ใช้เครื่องมือ server_clock');
+const scores = await chat('Scores', 'ขอคะแนนตัวอย่างห้อง ป.5/2 ใช้เครื่องมือ get_scores ก่อนตอบ');
 assert(
-  clock.some((event) => event.type === 'delta' && event.text.length),
-  'Clock reply did not stream text',
+  scores.some((event) => event.type === 'delta' && event.text.length),
+  'Scores reply did not stream text',
 );
 assert(
-  clock.some(
-    (event) => event.type === 'tool' && event.name === 'server_clock' && event.status === 'success',
+  scores.some(
+    (event) => event.type === 'tool' && event.name === 'get_scores' && event.status === 'success',
   ),
-  'The clock tool did not succeed',
+  'The scores tool did not succeed',
 );
-assert.equal(clock.at(-1)?.type, 'done', 'The clock turn did not finish');
+assert.equal(scores.at(-1)?.type, 'done', 'The scores turn did not finish');
 
 const probe = await chat('Unbound probe', 'โปรดเรียกเครื่องมือ restricted_probe แล้วบอกผล');
 assert(['done', 'error'].includes(probe.at(-1)?.type), 'The probe turn did not finish');

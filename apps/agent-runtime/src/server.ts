@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { z } from 'zod';
-import { agents } from './agents';
+import { agents, teacherAgents } from './agents';
 import { createHarness } from './harness';
 import { createTurnRunner } from './run';
 import { tools } from './tools';
@@ -27,7 +27,6 @@ if (!config.success) {
 
 const { UPSTREAM_TOKEN, DATA_DIR, PORT, HOST } = config.data;
 const expectedToken = Buffer.from(UPSTREAM_TOKEN);
-const primaryAgents = agents.filter(({ mode }) => mode === 'primary');
 const { host, directory, toolCalls } = await createHarness(resolve(DATA_DIR));
 const runTurn = createTurnRunner(host);
 const chatBody = z.object({
@@ -84,7 +83,7 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     return json(
       response,
       200,
-      primaryAgents.map(({ id, name, description }) => ({ id, name, description })),
+      teacherAgents.map(({ id, name, description }) => ({ id, name, description })),
     );
   }
   if (request.method !== 'POST' || path !== '/chat') {
@@ -94,7 +93,7 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
   const body = await readChat(request);
   if (!body?.success) return json(response, 400, { error: 'invalid_chat' });
   const { agentId, text, sessionId } = body.data;
-  const agent = primaryAgents.find(({ id }) => id === agentId);
+  const agent = teacherAgents.find(({ id }) => id === agentId);
   if (!agent) return json(response, 400, { error: 'unknown_agent' });
 
   const abort = new AbortController();
