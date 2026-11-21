@@ -25,6 +25,8 @@ Starting or rotating a sandbox can take a minute, and greetings or memory questi
 | `memory` | "Remember that class 5/2 struggles with denominators", "What did I ask you to remember?" | Gateway streams the reply and may call `memory_search` / `memory_save` | `gpt-5.4-mini` |
 | `task` | Worksheets, forms, Kahoot, slides, lesson prep, scores, documents, approvals | Sandbox runtime, unchanged | The agent's own model |
 
+For `task` turns the model depends on the agent doing the work, set by `model` in each [agent definition](https://github.com/Chokchai-Fa/crudex/tree/main/apps/agent-runtime/src/agents). Jeng (slides, Kahoot, activities) and Nun (score analysis) run on `gpt-5.4-mini` for speed. Jaew, Jum (worksheets, quizzes, exams), Porn and the principal agents run on `gpt-6.2-sol`. The `routes` table in the direct reply module sets the models for chat and memory turns.
+
 A direct reply uses Jaew's shared persona and the recent conversation that the run service already prepends to the prompt. Memory tools call the same `/api/internal/runs/{id}/tools/memory_*` callbacks as the runtime, using the attempt credential. Memories are still stored in Neon and still need the teacher's approval. Direct replies use the existing stream events (`delta`, `tool`, `done`, `error`), so the API and the web client handle them like any other run. Direct turns don't count against the sandbox's daily run cap.
 
 The turn goes to the sandbox if:
