@@ -1,0 +1,37 @@
+# The single Worker: Hono API on /api/* + the SPA (apps/web/dist) via Workers Static Assets.
+# Non-secret config only — this file is committed. Secrets are uploaded by CI (see CLAUDE.md).
+name = "app"                                # → https://app.<edbot>.workers.dev
+main = "src/index.ts"
+compatibility_date = "2026-10-01"           # bump deliberately, never automatically
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[triggers]
+# Daily write to Upstash so the free database isn't archived for inactivity (~30 days).
+# Free plan: 5 cron triggers per account. Handler: src/jobs/scheduled-handler.ts.
+crons = ["17 3 * * *"]
+
+[vars]
+APP_ENV = "production"
+APP_URL = "https://app.edbot.workers.dev"   # set by scripts/init-template.sh
+
+# Generated files, 7-day TTL (free: 1K writes/day, 1 GB).
+[[kv_namespaces]]
+binding = "PREVIEWS"
+id = "__KV_PREVIEWS_ID__"                           # replaced in CI from the Terraform output
+
+[assets]                                    # Workers Static Assets: the SPA
+directory = "../web/dist"                   # build apps/web first (turbo does this)
+not_found_handling = "single-page-application"  # unknown paths → index.html (client routing)
+run_worker_first = ["/api/*"]               # only API paths invoke the Worker; assets are free
+
+[[queues.producers]]
+binding = "JOBS_QUEUE"
+queue = "crudex-jobs"                 # must match the Terraform queue name
+
+[[queues.consumers]]
+queue = "crudex-jobs"
+max_batch_size = 10
+max_retries = 3

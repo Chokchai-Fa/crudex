@@ -1,0 +1,161 @@
+name: Terraform destroy
+
+# Manual only. Defaults are safe: a run with the defaults only PLANS the teardown.
+# To really destroy, tick "apply" AND type the workspace name in "confirm".
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Actually destroy (unticked = plan only, nothing is changed)'
+        type: boolean
+        default: false
+      include_database:
+        description: 'Also destroy the Neon database (ALL DATA LOST; overrides prevent_destroy)'
+        type: boolean
+        default: false
+      delete_worker:
+        description: 'Also delete the Worker "app" with wrangler (it is not in Terraform state)'
+        type: boolean
+        default: true
+      forget_missing_redis:
+        description: 'Redis was deleted outside Terraform (plan fails with 404): drop it from state first (needs apply)'
+        type: boolean
+        default: false
+      confirm:
+        description: 'Type "crudex" to confirm when apply is ticked'
+        type: string
+        required: false
+        default: ''
+
+# Never run alongside a deploy (which could re-create what we're removing).
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: terraform-prod
+      cancel-in-progress: false
+    defaults:
+      run:
+        # Explicit `bash` = `bash -eo pipefail`; the implicit default lacks pipefail, so a
+        # failing `terraform plan | tee` would pass and apply would run with no plan file.
+        shell: bash
+        working-directory: infra/envs/prod
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+      UPSTASH_EMAIL: ${{ secrets.UPSTASH_EMAIL }}
+      UPSTASH_API_KEY: ${{ secrets.UPSTASH_API_KEY }}
+      VERCEL_API_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      APPLY: ${{ inputs.apply }}
+      INCLUDE_DATABASE: ${{ inputs.include_database }}
+      DELETE_WORKER: ${{ inputs.delete_worker }}
+      CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - name: Check inputs
+        working-directory: .
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Run destroy from main only (got $GITHUB_REF)."
+            exit 1
+          fi
+          if [ "$APPLY" = "true" ] && [ "$CONFIRM" != "crudex" ]; then
+            echo "::error::apply is ticked but confirm is not \"crudex\" — refusing to destroy."
+            exit 1
+          fi
+          echo "apply=$APPLY include_database=$INCLUDE_DATABASE delete_worker=$DELETE_WORKER"
+
+      - uses: actions/checkout@v4
+
+      # prevent_destroy can't be overridden from the CLI, so lift it in this runner's
+      # checkout only — the committed code keeps protecting the database.
+      - name: Allow destroying the database
+        if: inputs.include_database
+        working-directory: .
+        run: |
+          sed -i 's/prevent_destroy = true/prevent_destroy = false/' infra/modules/neon_db/main.tf
+          grep -n 'prevent_destroy' infra/modules/neon_db/main.tf
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5 # keep in sync with infra/envs/prod/versions.tf
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: terraform init
+        run: terraform init -input=false
+
+      # The Upstash provider errors on refresh (404 "database not found") instead of dropping a
+      # database that no longer exists, which blocks every plan. Forget it in state only —
+      # nothing in Upstash is touched. Changes state, so it only runs with apply.
+      - name: Forget missing Redis database in state
+        if: inputs.apply && inputs.forget_missing_redis
+        run: |
+          addr='module.upstash_redis.upstash_redis_database.this'
+          if terraform state list | grep -qxF "$addr"; then
+            terraform state rm -lock-timeout=5m "$addr"
+          else
+            echo "$addr is not in state; nothing to do."
+          fi
+
+      # Without the database, target every other module (Terraform has no "exclude").
+      # Add new modules from main.tf here when they're created.
+      - name: terraform plan -destroy
+        run: |
+          targets=()
+          if [ "$INCLUDE_DATABASE" != "true" ]; then
+            targets=(-target=module.upstash_redis -target=module.queue)
+          fi
+          terraform plan -destroy -input=false -no-color -lock-timeout=5m \
+            "${targets[@]}" -out=tfplan | tee plan.txt
+          {
+            echo "## Terraform destroy plan"
+            echo "apply=\`$APPLY\` · include_database=\`$INCLUDE_DATABASE\` · delete_worker=\`$DELETE_WORKER\`"
+            echo
+            echo '```hcl'
+            tail -c 60000 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: ./.github/actions/setup
+        if: inputs.apply
+
+      # Cloudflare refuses to delete a Worker that consumes a queue (code 10064), and the
+      # queue is always destroyed below — so detach the consumer first, on every apply.
+      # Queue/script names must match wrangler.toml and the Terraform queue module.
+      - name: Detach Worker from the queue (wrangler)
+        if: inputs.apply
+        working-directory: apps/api
+        run: |
+          set +e
+          out=$(pnpm exec wrangler queues consumer remove crudex-jobs app 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -ne 0 ] && ! grep -qiE 'not found|does not exist|no (worker )?consumer|is not a consumer' <<<"$out"; then
+            exit $code
+          fi
+
+      - name: Delete Worker (wrangler)
+        if: inputs.apply && inputs.delete_worker
+        working-directory: apps/api
+        run: |
+          set +e
+          out=$(pnpm exec wrangler delete --force 2>&1)
+          code=$?
+          echo "$out"
+          if [ $code -ne 0 ] && ! grep -qiE 'not found|does not exist|10007' <<<"$out"; then
+            exit $code
+          fi
+
+      - name: terraform apply (destroy)
+        if: inputs.apply
+        run: terraform apply -input=false -no-color -lock-timeout=5m tfplan

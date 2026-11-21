@@ -1,0 +1,32 @@
+terraform {
+  required_version = "~> 1.16.0" # same as CI (setup-terraform); older CLIs misread newer state
+
+  # State in HCP Terraform (Free), workspace in **Local** execution mode — Terraform runs in
+  # GitHub Actions / locally; HCP only stores, locks, and versions state.
+  cloud {
+    organization = "samongnoi"
+
+    workspaces {
+      name = "crudex"
+    }
+  }
+
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.27"
+    }
+    neon = {
+      source  = "kislerdm/neon"
+      version = "~> 0.18"
+    }
+    upstash = {
+      source  = "upstash/upstash"
+      version = "~> 2.1"
+    }
+    vercel = {
+      source  = "vercel/vercel"
+      version = "~> 5.27"
+    }
+  }
+}
