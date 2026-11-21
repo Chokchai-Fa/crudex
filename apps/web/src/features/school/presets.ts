@@ -14,8 +14,18 @@ export interface Preset {
 }
 
 export const presets: Preset[] = [
-  { agent: 'jaew', text: 'กำลังจะสอน ม.2/1 เตรียมสอนให้หน่อย', result: 'ได้แผนเตรียมสอน', enabled: true },
-  { agent: 'jum', text: 'ทำใบงานพีทาโกรัส ม.2 5 ข้อ เป็น PDF', result: 'ได้ PDF ใบงาน', enabled: true },
+  {
+    agent: 'jaew',
+    text: 'กำลังจะสอน ม.2/1 เตรียมสอนให้หน่อย',
+    result: 'ได้แผนเตรียมสอน',
+    enabled: true,
+  },
+  {
+    agent: 'jum',
+    text: 'ทำใบงานพีทาโกรัส ม.2 5 ข้อ เป็น PDF',
+    result: 'ได้ PDF ใบงาน',
+    enabled: true,
+  },
   {
     agent: 'jum',
     text: 'ทำแบบทดสอบพีทาโกรัส ม.2 5 ข้อ เป็น Google Form',
@@ -30,9 +40,19 @@ export const presets: Preset[] = [
     result: 'ได้ใบเบิกรออนุมัติ',
     enabled: true,
   },
-  { agent: 'nun', text: 'สรุปคะแนน ม.2/1 ใครต้องติวเรื่องไหน', result: 'ได้สรุปรายห้อง', enabled: true },
+  {
+    agent: 'nun',
+    text: 'สรุปคะแนน ม.2/1 ใครต้องติวเรื่องไหน',
+    result: 'ได้สรุปรายห้อง',
+    enabled: true,
+  },
   { agent: 'rungchao', text: 'สรุปเช้าวันนี้', result: 'ได้สรุปเช้า 7 บรรทัด', enabled: true },
-  { agent: 'lekha_por', text: 'มีเอกสารรออนุมัติอะไรบ้าง', result: 'ได้รายการรออนุมัติ', enabled: true },
+  {
+    agent: 'lekha_por',
+    text: 'มีเอกสารรออนุมัติอะไรบ้าง',
+    result: 'ได้รายการรออนุมัติ',
+    enabled: true,
+  },
 ];
 
 export function presetsFor(agent: AgentId, room: string) {
