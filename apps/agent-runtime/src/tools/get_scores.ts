@@ -1,10 +1,6 @@
 import { z } from 'zod';
-import {
-  classHistories,
-  studentIdentity,
-  teacherClasses,
-  type ClassHistory,
-} from '../data/class-history';
+import { classHistories, studentIdentity, type ClassHistory } from '../data/class-history';
+import { classesOf } from '../data/accounts';
 import { pastAssessments, type PastAssessment } from '../data/class-score-history';
 import { classOf, ownerOf, ToolError } from './identity';
 import { validatedTool } from './validated';
@@ -102,7 +98,7 @@ export const getScores = validatedTool(z.strictObject({ classLabel: z.string().o
   gate: 'allow',
   execute: ({ classLabel }, context) => {
     const ownerId = ownerOf(context).id;
-    const rooms = Object.hasOwn(teacherClasses, ownerId) ? (teacherClasses[ownerId] ?? []) : [];
+    const rooms = classesOf(ownerId);
     const sessionClassId = classOf(context);
     const room =
       classLabel !== undefined

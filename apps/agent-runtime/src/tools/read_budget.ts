@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { budgetSheet, sampleOwner } from '../data/sample';
+import { isTeacherOwner } from '../data/accounts';
+import { budgetSheet } from '../data/sample';
 import { activities, principalOwner } from '../data/school';
 import { ownerOf, ToolError } from './identity';
 import { validatedTool } from './validated';
@@ -11,7 +12,7 @@ export const readBudget = validatedTool(z.strictObject({ code: z.string().option
   gate: 'allow',
   execute: ({ code }, context) => {
     const owner = ownerOf(context).id;
-    if (owner !== sampleOwner && owner !== principalOwner)
+    if (!isTeacherOwner(owner) && owner !== principalOwner)
       throw new ToolError('no_budget', 'ยังไม่มีงบที่มอบหมายให้บัญชีนี้');
     const sheet =
       owner === principalOwner
