@@ -1,4 +1,3 @@
-/* global process, Buffer, console */
 // Real-opencode e2e for the five teacher agents with a scripted model (no key, no network).
 // Usage: node e2e/run.mjs   (OPENCODE_BIN=... to choose the binary; E2E_DEBUG=1 for raw output)
 import { execFileSync, spawn } from 'node:child_process';

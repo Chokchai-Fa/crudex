@@ -1,4 +1,3 @@
-/* global process */
 // Scripted OpenAI-compatible model: "CALL <tool> <json>" in the last user message makes it call that tool
 // (only if opencode offered it); "FORCE <tool> <json>" calls it even when it was not offered.
 // After a tool result it echoes the result so the test can read what the agent received.
