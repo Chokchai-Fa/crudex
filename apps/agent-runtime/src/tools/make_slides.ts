@@ -4,7 +4,7 @@ import { nonBlank, validatedTool } from './validated';
 
 const slideSchema = z.strictObject({
   title: nonBlank.max(200),
-  bullets: z.array(nonBlank.max(500)).max(12).default([]),
+  bullets: z.array(nonBlank.max(500)).max(8).default([]),
 });
 
 export const makeSlides = validatedTool(
