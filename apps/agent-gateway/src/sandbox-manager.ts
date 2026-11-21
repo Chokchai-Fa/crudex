@@ -108,7 +108,10 @@ export class SandboxManager extends DurableObject<Env> {
       const headers = new Headers({ [upstreamHeader]: sandbox.token });
       if (path === '/chat') headers.set('content-type', 'application/json');
 
-      const upstream = await fetch(sandbox.url + path, {
+      const url = new URL(path, sandbox.url);
+      const role = new URL(request.url).searchParams.get('role');
+      if (role !== null) url.searchParams.set('role', role);
+      const upstream = await fetch(url, {
         method: request.method,
         headers,
         body: request.body,
