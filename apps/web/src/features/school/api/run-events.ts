@@ -5,6 +5,7 @@ import {
   runEventPageSize,
   type RunEvent,
 } from '@repo/shared';
+import { liveChatKey, type LiveChat } from './direct-chat';
 import { api } from '@/lib/api-client';
 import { ApiError, toApiError } from '@/lib/api-error';
 
@@ -17,7 +18,13 @@ interface Replay {
 export function useRunEvents(membershipId: string, id: string, active: boolean) {
   const client = useQueryClient();
   const queryKey = ['school-data', membershipId, 'events', id] as const;
+  const live = useQuery<LiveChat | null>({
+    queryKey: liveChatKey(membershipId, id),
+    enabled: false,
+    queryFn: () => null,
+  });
   const query = useQuery({
+    enabled: !live.data,
     queryKey,
     staleTime: Infinity,
     queryFn: async ({ signal }): Promise<Replay> => {
@@ -66,9 +73,9 @@ export function useRunEvents(membershipId: string, id: string, active: boolean) 
     refetchOnReconnect: ({ state }) => (state.data?.nextPoll !== false ? 'always' : false),
   });
   return {
-    events: query.data?.events ?? [],
+    events: live.data?.events ?? query.data?.events ?? [],
     error: query.error?.message ?? '',
-    loading: !active && query.isPending,
-    complete: query.data?.nextPoll === false,
+    loading: !live.data && !active && query.isPending,
+    complete: live.data?.complete ?? query.data?.nextPoll === false,
   };
 }

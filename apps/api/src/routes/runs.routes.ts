@@ -5,12 +5,20 @@ import {
   runEventPageSize,
 } from '@repo/shared';
 import { Hono } from 'hono';
+import { stream } from 'hono/streaming';
 import { accepts } from 'hono/accepts';
 import { z } from 'zod';
 import { validate } from '../lib/validate';
 import { ValidationError } from '../lib/errors';
 import { actorMiddleware } from '../middleware/actor';
-import { cancelRun, replay, runHistory, startRun } from '../services/runs.service';
+import {
+  cancelRun,
+  dispatchRun,
+  reserveRun,
+  replay,
+  runHistory,
+  startRun,
+} from '../services/runs.service';
 import type { AppEnv } from '../types/app';
 
 const agentParam = z.object({ id: agentIdSchema });
@@ -25,6 +33,30 @@ export const runRoutes = new Hono<AppEnv>()
         await startRun(c.var.deps, c.var.actor, c.req.valid('param').id, c.req.valid('json')),
         202,
       ),
+  )
+  .post(
+    '/agents/:id/chat',
+    actorMiddleware,
+    validate('param', agentParam),
+    validate('json', createRunSchema),
+    async (c) => {
+      const { run, created } = await reserveRun(
+        c.var.deps,
+        c.var.actor,
+        c.req.valid('param').id,
+        c.req.valid('json'),
+      );
+      // A replay of a client request attaches to history instead of starting a second model turn.
+      if (!created) return c.json(run);
+      c.header('X-Run-Id', run.id);
+      c.header('Content-Type', 'application/x-ndjson');
+      c.header('Cache-Control', 'private, no-store, no-transform');
+      return stream(c, async (output) => {
+        await dispatchRun(c.var.deps, run.id, async (event) => {
+          if (!output.aborted) await output.writeln(JSON.stringify(event));
+        });
+      });
+    },
   )
   .get('/agents/:id/history', actorMiddleware, validate('param', agentParam), async (c) =>
     c.json(await runHistory(c.var.deps, c.var.actor, c.req.valid('param').id)),
