@@ -48,13 +48,14 @@ export function GuestRolePicker() {
         ).map(({ role, label }) => (
           <Button
             variant="outline"
+            size={null}
             key={role}
             disabled={login.isPending}
             onClick={() => login.mutate({ role })}
-            className="h-auto flex-col py-4"
+            className="school-role-card min-w-0 flex-col gap-2 px-2 py-4 text-base font-semibold"
           >
             <img src={'/roles/' + role + '.png'} alt="" width="72" height="72" />
-            {label}
+            <span>{label}</span>
           </Button>
         ))}
       </div>

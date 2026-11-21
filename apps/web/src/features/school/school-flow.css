@@ -43,6 +43,9 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.school-flow .school-role-card {
+  border-radius: var(--radius-xl);
+}
 .school-flow fieldset {
   min-width: 0;
   background: var(--card);

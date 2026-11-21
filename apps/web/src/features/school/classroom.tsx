@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { MessageCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import type { SchoolActor } from '@repo/shared';
@@ -186,9 +187,12 @@ export function SchoolClassroom({ actor }: { actor: SchoolActor }) {
           ))}
         </NativeSelect>
       </label>
-      <Link className="text-primary underline" to="/teacher" search={{ roomId: id }}>
-        เปิดแชตเลขาครู
-      </Link>
+      <Button asChild className="w-full sm:w-auto">
+        <Link to="/teacher" search={{ roomId: id }}>
+          <MessageCircle aria-hidden="true" />
+          เปิดแชตกับน้องแจ๋ว
+        </Link>
+      </Button>
       <SchoolGradebook key={id} membershipId={actor.membershipId} classId={id} />
     </>
   );
