@@ -162,3 +162,34 @@ it('reserves interactive turns without enqueueing; background requests enqueue o
   expect((await reserveRun(deps, a, 'jum', input)).created).toBe(false);
   expect(enqueue).toHaveBeenCalledTimes(1);
 });
+
+it.each(['created', 'connect_required', 'failed'])(
+  'stores the private %s result on the claimed attempt, without sending the frame to the parent chat',
+  async (status) => {
+    const receipt = {
+      type: 'delegated_kahoot',
+      status,
+      agentId: 'jeng',
+      childSessionId: 'ses_private',
+      text: 'ผลจากพี่เจ๋ง',
+    };
+    const frames = [
+      { ...receipt, agentId: 'nun' },
+      { ...receipt, schoolId: 'ignored', ownerId: 'ignored' },
+      { type: 'done', elapsedMs: 1 },
+    ];
+    const { deps } = consumer(frames.map((f) => 'data: ' + JSON.stringify(f) + '\n\n').join(''));
+    vi.mocked(repo.claim).mockResolvedValueOnce({ ...r, agentId: 'jaew' });
+    const publish = vi.fn();
+    await dispatchRun(deps, r.id, publish);
+    const attempt = vi.mocked(repo.claim).mock.calls[0]![2];
+    expect(repo.saveDelegatedKahoot).toHaveBeenCalledExactlyOnceWith(
+      deps.db,
+      r.id,
+      attempt,
+      receipt,
+    );
+    expect(publish.mock.calls.map(([event]) => event.type)).toEqual(['status', 'done']);
+    expect(repo.append).not.toHaveBeenCalled();
+  },
+);

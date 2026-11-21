@@ -74,6 +74,34 @@ try {
     await (await call('/api/runs/' + conversationId + '/events', { session: teacher })).text(),
     /two quarters/,
   );
+  // The fixture repeats the same private receipt. Only one child turn may appear.
+  const parentReply = await call('/api/agents/jaew/chat', {
+    session: teacher,
+    method: 'POST',
+    body: { classId, clientRequestId: randomUUID(), prompt: 'Test delegated Kahoot history' },
+  });
+  const parentText = await parentReply.text();
+  assert(!parentText.includes('ses_private_fixture'));
+  assert(!parentText.includes('delegated_kahoot'));
+  const children = await db.query(
+    `select c.id, c.class_id from agent_runs p join agent_runs c on c.owner_id=p.owner_id
+      and c.membership_id=p.membership_id and c.school_id=p.school_id and c.class_id=p.class_id
+      and c.prompt=p.prompt and c.created_at>=p.created_at
+      where p.id=$1 and c.agent_id='jeng' and c.status='succeeded'`,
+    [parentReply.headers.get('x-run-id')],
+  );
+  assert.equal(children.rowCount, 1);
+  const childId = children.rows[0].id;
+  const history = await (await call('/api/agents/jeng/history', { session: teacher })).json();
+  assert(history.runs.some((run) => run.id === childId && run.classId === classId));
+  const childEvents = await (
+    await call('/api/runs/' + childId + '/events', { session: teacher })
+  ).text();
+  assert.equal(childEvents.match(/Fixture Kahoot ready/g)?.length, 1);
+  assert.equal(childEvents.match(/"type":"done"/g)?.length, 1);
+  assert(childEvents.includes(JSON.stringify(parentReply.headers.get('x-run-id'))));
+  assert(!childEvents.includes('ses_private_fixture'));
+  await call('/api/runs/' + childId + '/events', { session: colleague, status: 404 });
   const submit = { clientRequestId: randomUUID(), prompt: 'ช่วยสร้างแบบฝึกหัดเศษส่วน', classId };
   const postRun = async () =>
     (
