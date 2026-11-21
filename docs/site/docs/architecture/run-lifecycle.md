@@ -50,7 +50,7 @@ Two vars in `apps/agent-gateway/wrangler.toml` control it:
 
 | Var | Values | Effect |
 |-----|--------|--------|
-| `AGENT_BACKEND` | `openai` (current) or `vercel` | `vercel` sends every school turn to the sandbox, including Jaew's chat and memory turns |
+| `AGENT_BACKEND` | `vercel` (current, rolled back while `interrupted` runs are investigated) or `openai` | `vercel` sends every school turn to the sandbox, including Jaew's chat and memory turns |
 | `OPENAI_AGENTS` | Comma-separated agent IDs (currently `nun`) | Agents that run on OpenAI. Unlisted agents, and agents not yet ported, use the sandbox |
 
 **To roll back**, set `AGENT_BACKEND = "vercel"`, or remove an agent from `OPENAI_AGENTS`, then redeploy the gateway with the `deploy-agent.yml` workflow. The sandbox, `SandboxManager` and runtime bundle stay deployed until every agent has moved. A turn also falls back to the sandbox automatically when OpenAI refuses its first request.
