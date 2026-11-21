@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSchoolLogin } from './api/school';
+import { BrandLogo } from '@/components/brand-logo';
 export function SchoolLogin() {
   const login = useSchoolLogin();
   const [invitation, setInvitation] = useState('');
@@ -54,7 +55,7 @@ export function GuestRolePicker() {
   const login = useSchoolLogin();
   return (
     <section className="role-picker">
-      <img src="/roles/brand.png" width="219" height="48" alt="Crudex" />
+      <BrandLogo size={46} />
       <div className="space-y-1.5 text-center">
         <h1 className="text-[32px]/10 font-bold">เข้าใช้ในฐานะ</h1>
         <p className="text-[17px] text-muted-foreground">

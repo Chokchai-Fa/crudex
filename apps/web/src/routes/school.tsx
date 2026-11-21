@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/page-header';
 import { BriefLines, WatchPanel, readBriefExtras } from '@/features/school/principal-brief';
 import { SchoolClassroom } from '@/features/school/classroom';
 import { useSchoolBrief, useSchoolLogout, useSchoolSession } from '@/features/school/api/school';
+import { BrandLogo } from '@/components/brand-logo';
 
 export const Route = createFileRoute('/school')({ component: School });
 function Brief({ membershipId }: { membershipId: string }) {
@@ -78,7 +79,7 @@ function School() {
       ) : (
         <>
           <div className="school-bar">
-            <img src="/roles/brand.png" width="146" height="32" alt="Crudex" />
+            <BrandLogo size={30} />
             <p className="grow font-semibold">
               {me.actor.displayName}{' '}
               <span className="badge-sample ms-1 align-middle">ข้อมูลตัวอย่าง</span>

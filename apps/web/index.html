@@ -10,13 +10,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>crudex</title>
     <script>
-      // Apply the saved theme before first paint to avoid a light/dark flash.
-      try {
-        const t = localStorage.getItem('theme') ?? 'system';
-        const dark =
-          t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('dark', dark);
-      } catch {}
+      // The app ships a white theme only: ignore the OS setting and any saved dark choice.
+      document.documentElement.classList.remove('dark');
     </script>
   </head>
   <body>
