@@ -1,4 +1,4 @@
-import { randomInt } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { Assessment } from '../lib/fractions';
 import { z } from 'zod';
 import { assessmentSchema, runCheck } from './check_assessment';
@@ -23,7 +23,10 @@ type PublishedForm = {
 
 export function formQuestions(questions: Assessment['questions']) {
   const availableBySize = new Map<number, number[]>();
-  return questions.map(({ text, choices, correctChoiceId }) => {
+  const seed = createHash('sha256')
+    .update(JSON.stringify(questions.map((q) => [q.id, q.text])))
+    .digest();
+  return questions.map(({ text, choices, correctChoiceId }, index) => {
     const original = choices.findIndex((choice) => choice.id === correctChoiceId);
     if (original < 0) throw new ToolError('invalid_assessment', 'ไม่พบตัวเลือกที่ถูก');
 
@@ -33,7 +36,7 @@ export function formQuestions(questions: Assessment['questions']) {
       positions = choices.map((_, i) => i);
       availableBySize.set(choices.length, positions);
     }
-    const answerIndex = positions.splice(randomInt(positions.length), 1)[0]!;
+    const answerIndex = positions.splice(seed[index % seed.length]! % positions.length, 1)[0]!;
     const ordered = [...choices];
     [ordered[original], ordered[answerIndex]] = [ordered[answerIndex]!, ordered[original]!];
     return { text, choices: ordered.map((choice) => choice.text), answerIndex, points: 1 };

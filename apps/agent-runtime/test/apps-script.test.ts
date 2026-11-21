@@ -54,6 +54,7 @@ it.each([1, 2, 3, 4, 5, 10, 29, 30])(
     const questions = Array.from({ length: count }, () => input.questions[0]!);
     const before = structuredClone(questions);
     const results = formQuestions(questions);
+    expect(formQuestions(structuredClone(questions))).toEqual(results);
     const counts = [0, 0, 0, 0];
     for (const item of results) {
       counts[item.answerIndex]!++;
