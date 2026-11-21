@@ -45,3 +45,22 @@ export function arrangeAnswers(
     return { id: question.id, choices: order, answer: LETTERS[target] ?? 'ก' };
   });
 }
+
+/** The worksheet exactly as the teacher should read it: the model pastes this text and never reorders or re-labels. */
+export function renderWorksheet(
+  questions: {
+    id: string;
+    text: string;
+    choices: { id: string; text: string }[];
+    correctChoiceId: string;
+  }[],
+): { text: string; answers: string } {
+  const arranged = arrangeAnswers(questions);
+  const blocks = questions.map((question, index) => {
+    const order = arranged[index]!;
+    const lines = order.choices.map((choice, position) => `${LETTERS[position]}. ${choice.text}`);
+    return `${index + 1}. ${question.text}\n${lines.join('\n')}`;
+  });
+  const answers = arranged.map((item, index) => `${index + 1}. ${item.answer}`).join('   ');
+  return { text: blocks.join('\n\n'), answers };
+}

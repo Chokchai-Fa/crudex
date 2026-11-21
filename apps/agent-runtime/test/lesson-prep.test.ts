@@ -73,8 +73,9 @@ describe('jaew lesson preparation flow', () => {
     expect(jum.instructions).toContain('ห้ามใช้ 1 หรือจำนวนน้อยกว่านั้นโดยครูไม่ได้ขอ');
   });
 
-  it('prints a chat-only worksheet in the order check_assessment returns', () => {
-    expect(jum.instructions).toContain('worksheetOrder');
-    expect(jum.instructions).toContain('ห้ามใช้ลำดับที่เขียนเอง');
+  it('pastes the chat-only worksheet that check_assessment renders', () => {
+    expect(jum.instructions).toContain('worksheet.text');
+    expect(jum.instructions).toContain('worksheet.answers');
+    expect(jum.instructions).toContain('ห้ามเรียงตัวเลือกใหม่');
   });
 });
