@@ -106,6 +106,7 @@ export function createTurnRunner(host: Host) {
       let summaryStarted = false;
       let rootDone = false;
       let rootText = '';
+      let endedRootMessage: string | undefined;
       let toolSteps = 0;
       let outputCharacters = 0;
       for await (const event of host.event.subscribe(opts)) {
@@ -187,12 +188,30 @@ export function createTurnRunner(host: Host) {
                 summaryStarted = true;
                 rootDone = false;
               }
-              rootText += event.data.delta;
-              yield { type: 'delta', text: event.data.delta };
+              let text = event.data.delta;
+              if (endedRootMessage && text) {
+                const boundary = rootText.slice(-2) + text.slice(0, 2);
+                if (!boundary.includes('\n\n')) {
+                  text = (rootText.endsWith('\n') || text.startsWith('\n') ? '\n' : '\n\n') + text;
+                }
+                endedRootMessage = undefined;
+              }
+              rootText += text;
+              yield { type: 'delta', text };
             }
             break;
           case 'session.text.ended':
+            if (root && event.data.text) endedRootMessage = event.data.assistantMessageID;
             if (child) child.text += event.data.text + '\n';
+            break;
+          case 'session.step.ended':
+            if (
+              root &&
+              event.data.finish === 'length' &&
+              endedRootMessage === event.data.assistantMessageID
+            ) {
+              endedRootMessage = undefined;
+            }
             break;
           case 'session.tool.input.started':
             calls.set(source + '/' + event.data.id, event.data.name);
@@ -242,6 +261,7 @@ export function createTurnRunner(host: Host) {
                       if (typeof output.bridgeElapsedMs === 'number')
                         bridgeElapsedMs = output.bridgeElapsedMs;
                       renderedWorksheets.add(output.formUrl);
+                      endedRootMessage = undefined;
                       yield { type: 'delta', text: '\n\n' + output.worksheet + '\n\n' };
                     }
                   }

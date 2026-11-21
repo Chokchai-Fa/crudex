@@ -137,6 +137,21 @@ it.each([true, false])(
             metadata: { sessionID: 'current' },
             content: [],
           });
+          yield event('session.text.delta', 'root', {
+            assistantMessageID: 'wait',
+            ordinal: 0,
+            delta: 'รอผล',
+          });
+          yield event('session.text.delta', 'root', {
+            assistantMessageID: 'wait',
+            ordinal: 0,
+            delta: 'ก่อนนะครับ',
+          });
+          yield event('session.text.ended', 'root', {
+            assistantMessageID: 'wait',
+            ordinal: 0,
+            text: 'รอผลก่อนนะครับ',
+          });
           if (rootFirst) yield rootEnd;
           yield event('session.text.ended', 'current', { text: 'RAW_SCORES' });
           yield event('session.execution.succeeded', 'current');
@@ -147,7 +162,23 @@ it.each([true, false])(
           yield event('session.execution.started', 'root');
           yield event('session.inbox.delivered', 'root', { inboxID: 'notice-2' });
           yield event('session.text.delta', 'root', {
-            delta: 'ห้องนี้ควรฝึกตัวส่วน เลือกใบงานหรือเกมได้',
+            assistantMessageID: 'menu',
+            ordinal: 0,
+            delta: 'ม.2/1 ควรฝึกตัวส่วน เลือกใบงาน',
+          });
+          yield event('session.text.ended', 'root', {
+            assistantMessageID: 'menu',
+            ordinal: 0,
+            text: 'ม.2/1 ควรฝึกตัวส่วน เลือกใบงาน',
+          });
+          yield event('session.step.ended', 'root', {
+            assistantMessageID: 'menu',
+            finish: 'length',
+          });
+          yield event('session.text.delta', 'root', {
+            assistantMessageID: 'continuation',
+            ordinal: 0,
+            delta: 'หรือเกมได้',
           });
           yield rootEnd;
         },
@@ -164,7 +195,10 @@ it.each([true, false])(
       events.push(item);
     expect(events.at(-1)?.type).toBe('done');
     expect(events.flatMap((x) => (x.type === 'delta' ? [x.text] : []))).toEqual([
-      'ห้องนี้ควรฝึกตัวส่วน เลือกใบงานหรือเกมได้',
+      'รอผล',
+      'ก่อนนะครับ',
+      '\n\nม.2/1 ควรฝึกตัวส่วน เลือกใบงาน',
+      'หรือเกมได้',
     ]);
     expect(prompt).toHaveBeenCalledTimes(1);
   },
