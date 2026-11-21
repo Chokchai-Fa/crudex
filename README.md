@@ -8,7 +8,9 @@ Crudex is a Thai-language AI assistant for school staff. A teacher can ask Jaew 
 
 The passcode-protected agent demo uses synthetic school data. It has five teacher agents, delegated chat with streamed responses, assessment checking, and a Google Forms integration when configured. OpenCode runs on Node 24 in a disposable Vercel Sandbox and calls OpenAI with a server-side key. A replacement sandbox starts a fresh session. [Gateway API and streaming guide](docs/site/docs/integrations/demo-gateway.md)
 
-The school API authenticates teachers, students, guardians and principals. A teacher can start a worksheet run, reconnect to its event stream, and reopen the saved worksheet after the sandbox stops. Students submit quizzes for server-side grading. Teachers can read gradebooks and schedule family report drafts. Principals can review school totals and decide budget claims. Frontend integration and external report delivery are pending.
+Open the app and choose **ครู** (teacher) or **ผอ.** (principal) to try a private sample school without an invitation. Each trial includes classroom ป.4/1 and two sample students.
+
+The school API authenticates teachers, students, guardians and principals. A teacher can start a worksheet run, reconnect to its event stream, and reopen the saved worksheet after the sandbox stops. Students submit quizzes for server-side grading. Teachers can read gradebooks and schedule family report drafts. Principals can review school totals and decide budget claims. The web app connects the teacher classroom, chat and principal brief to the school API. External report delivery is pending.
 
 [API guide](docs/site/docs/integrations/school-api.md) · [OpenAPI specification](docs/site/static/openapi.yaml) · [Database schema](docs/site/docs/reference/database.md) · [Backend implementation plan](PLAN.md) · [Screen designs](docs/design/README.md)
 

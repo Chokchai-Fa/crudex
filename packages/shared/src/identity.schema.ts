@@ -33,3 +33,6 @@ export const localSignInSchema = z.strictObject({
   account: z.union([z.literal(1), z.literal(2)]).default(1),
 });
 export type LocalSignIn = z.infer<typeof localSignInSchema>;
+
+export const guestSignInSchema = z.strictObject({ role: z.enum(['teacher', 'principal']) });
+export type GuestSignIn = z.infer<typeof guestSignInSchema>;

@@ -1,4 +1,4 @@
-import { meSchema, type CreateRun } from '@repo/shared';
+import { meSchema, type GuestSignIn, type CreateRun } from '@repo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { toApiError } from '@/lib/api-error';
@@ -33,8 +33,11 @@ export function useSchoolSession() {
 export function useSchoolLogin() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { credential: string }) => {
-      const res = await api.auth.session.$post({ json: input });
+    mutationFn: async (input: { credential: string } | GuestSignIn) => {
+      const res =
+        'role' in input
+          ? await api.auth.guest.$post({ json: input })
+          : await api.auth.session.$post({ json: input });
       if (!res.ok) throw await toApiError(res, 'เข้าใช้โรงเรียนไม่สำเร็จ');
       return meSchema.parse(await res.json());
     },
