@@ -52,7 +52,7 @@ function PrincipalBrief() {
           aria-controls="brief-answer"
           onClick={() => setShowAnswer(!showAnswer)}
         >
-          ห้องไหนควรช่วย?
+          {showAnswer ? 'ซ่อนคำตอบ' : 'ห้องไหนควรช่วย?'}
         </Button>
         <div id="brief-answer" aria-live="polite">
           {showAnswer && (
