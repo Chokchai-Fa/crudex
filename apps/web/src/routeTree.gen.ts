@@ -15,8 +15,10 @@ import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as PrincipalRouteImport } from './routes/principal'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SchoolRouteImport } from './routes/school'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as TeacherRouteImport } from './routes/teacher'
+import { Route as PlayTokenRouteImport } from './routes/play.$token'
 import { Route as StudentRoomIdRouteImport } from './routes/student.$roomId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -49,6 +51,11 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SchoolRoute = SchoolRouteImport.update({
+  id: '/school',
+  path: '/school',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
@@ -57,6 +64,11 @@ const SignInRoute = SignInRouteImport.update({
 const TeacherRoute = TeacherRouteImport.update({
   id: '/teacher',
   path: '/teacher',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayTokenRoute = PlayTokenRouteImport.update({
+  id: '/play/$token',
+  path: '/play/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudentRoomIdRoute = StudentRoomIdRouteImport.update({
@@ -72,8 +84,10 @@ export interface FileRoutesByFullPath {
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
+  '/school': typeof SchoolRoute
   '/sign-in': typeof SignInRoute
   '/teacher': typeof TeacherRoute
+  '/play/$token': typeof PlayTokenRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
 export interface FileRoutesByTo {
@@ -83,8 +97,10 @@ export interface FileRoutesByTo {
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
+  '/school': typeof SchoolRoute
   '/sign-in': typeof SignInRoute
   '/teacher': typeof TeacherRoute
+  '/play/$token': typeof PlayTokenRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
 export interface FileRoutesById {
@@ -95,8 +111,10 @@ export interface FileRoutesById {
   '/notes': typeof NotesRoute
   '/principal': typeof PrincipalRoute
   '/reports': typeof ReportsRoute
+  '/school': typeof SchoolRoute
   '/sign-in': typeof SignInRoute
   '/teacher': typeof TeacherRoute
+  '/play/$token': typeof PlayTokenRoute
   '/student/$roomId': typeof StudentRoomIdRoute
 }
 export interface FileRouteTypes {
@@ -108,8 +126,10 @@ export interface FileRouteTypes {
     | '/notes'
     | '/principal'
     | '/reports'
+    | '/school'
     | '/sign-in'
     | '/teacher'
+    | '/play/$token'
     | '/student/$roomId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -119,8 +139,10 @@ export interface FileRouteTypes {
     | '/notes'
     | '/principal'
     | '/reports'
+    | '/school'
     | '/sign-in'
     | '/teacher'
+    | '/play/$token'
     | '/student/$roomId'
   id:
     | '__root__'
@@ -130,8 +152,10 @@ export interface FileRouteTypes {
     | '/notes'
     | '/principal'
     | '/reports'
+    | '/school'
     | '/sign-in'
     | '/teacher'
+    | '/play/$token'
     | '/student/$roomId'
   fileRoutesById: FileRoutesById
 }
@@ -142,8 +166,10 @@ export interface RootRouteChildren {
   NotesRoute: typeof NotesRoute
   PrincipalRoute: typeof PrincipalRoute
   ReportsRoute: typeof ReportsRoute
+  SchoolRoute: typeof SchoolRoute
   SignInRoute: typeof SignInRoute
   TeacherRoute: typeof TeacherRoute
+  PlayTokenRoute: typeof PlayTokenRoute
   StudentRoomIdRoute: typeof StudentRoomIdRoute
 }
 
@@ -191,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/school': {
+      id: '/school'
+      path: '/school'
+      fullPath: '/school'
+      preLoaderRoute: typeof SchoolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-in': {
       id: '/sign-in'
       path: '/sign-in'
@@ -203,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/teacher'
       fullPath: '/teacher'
       preLoaderRoute: typeof TeacherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play/$token': {
+      id: '/play/$token'
+      path: '/play/$token'
+      fullPath: '/play/$token'
+      preLoaderRoute: typeof PlayTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/student/$roomId': {
@@ -222,8 +262,10 @@ const rootRouteChildren: RootRouteChildren = {
   NotesRoute: NotesRoute,
   PrincipalRoute: PrincipalRoute,
   ReportsRoute: ReportsRoute,
+  SchoolRoute: SchoolRoute,
   SignInRoute: SignInRoute,
   TeacherRoute: TeacherRoute,
+  PlayTokenRoute: PlayTokenRoute,
   StudentRoomIdRoute: StudentRoomIdRoute,
 }
 export const routeTree = rootRouteImport

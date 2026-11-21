@@ -25,6 +25,9 @@ function Landing() {
             <Button asChild>
               <Link to="/sign-in">เข้าสู่ระบบด้วยบัญชีเดโม</Link>
             </Button>
+            <Button asChild variant="outline">
+              <Link to="/school">พื้นที่โรงเรียน</Link>
+            </Button>
             <details className="text-sm">
               <summary className="cursor-pointer py-3 text-primary underline">ดูวิธีใช้</summary>
               <p className="max-w-sm py-2">
