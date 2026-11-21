@@ -30,11 +30,19 @@ function Gradebook() {
     <section className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-2">
         <Button variant="link" className="px-0" asChild>
-          <Link to="/teacher">กลับหน้าครู</Link>
+          <Link
+            to="/teacher"
+            onClick={() => sessionStorage.setItem('crudex.demo.teacher.room', room)}
+          >
+            กลับหน้าครู
+          </Link>
         </Button>
         <p className="text-sm text-muted-foreground">ครูผู้สอน · ข้อมูลตัวอย่าง</p>
         <h1 className="text-3xl font-semibold">สมุดคะแนน</h1>
-        <p>บวกและลบเศษส่วน · 10 ข้อ</p>
+        {rows.length > 0 && <p>บวกและลบเศษส่วน · 10 ข้อ</p>}
+        <p className="text-sm text-muted-foreground">
+          คะแนนตัวอย่าง · การส่งฟอร์มจำลองจะไม่เปลี่ยนยอด
+        </p>
       </header>
       <label className="flex items-center gap-3">
         ห้องเรียน
@@ -100,9 +108,6 @@ function Gradebook() {
           </table>
         </>
       )}
-      <p className="text-sm text-muted-foreground">
-        ชุดคะแนนนี้เตรียมไว้สำหรับเดโม การส่งฟอร์มจำลองจะไม่เปลี่ยนยอดในหน้านี้
-      </p>
     </section>
   );
 }
