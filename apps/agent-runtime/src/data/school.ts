@@ -70,3 +70,8 @@ export const teacherActivityLog = [
   { teacher: 'ครูตัวอย่าง ก', date: 'เมื่อวาน', action: 'สร้างใบงาน', count: 2 },
   { teacher: 'ครูตัวอย่าง ก', date: 'เมื่อวาน', action: 'สร้างแบบทดสอบ Google Form', count: 1 },
 ] as const;
+
+/** Short topic names for one brief line; the curriculum name stays in the data. */
+export const briefTopicNames: Readonly<Record<string, string>> = {
+  การนำความรู้เกี่ยวกับทฤษฎีบทพีทาโกรัสและบทกลับไปใช้ในชีวิตจริง: 'การนำพีทาโกรัสไปใช้ในชีวิตจริง',
+};

@@ -42,7 +42,7 @@ it('restores memory search, approvals, notifications and briefs through a JSON s
   saveMemory('owner:teacher-b', 'Use colored graph paper', 20);
   const approval = addApproval(context.ownerId, claim, 'For next term', 30);
   decideApproval.execute({ approvalId: approval.id, decision: 'approve' }, context);
-  publishBrief.execute({ text: 'Summary for the sample class' }, context);
+  publishBrief.execute({ text: 'สรุปเช้าวันเสาร์\n1. ภาพรวมห้องตัวอย่าง' }, context);
   const stores = { approvals, notifications, briefs };
   const snapshot = exportState();
   const encoded = JSON.stringify(snapshot);
@@ -66,7 +66,7 @@ it('restores memory search, approvals, notifications and briefs through a JSON s
   expect(briefs).toEqual(snapshot.briefs);
   expect(approvals[0]).toMatchObject({ status: 'approved', claim });
   expect(notifications.map(({ to }) => to)).toEqual(['porn', 'teacher-a']);
-  expect(briefs[0]).toMatchObject({ text: 'Summary for the sample class' });
+  expect(briefs[0]).toMatchObject({ text: 'สรุปเช้าวันเสาร์\n1. ภาพรวมห้องตัวอย่าง' });
 });
 
 it('rejects malformed nested records without replacing existing state', () => {
@@ -90,9 +90,9 @@ it('writes through tool mutations and reloads the latest state.json', async () =
     expect(await readStateFile()).toMatchObject({
       approvals: [{ id: approval.id, status: 'pending' }],
     });
-    publishBrief.execute({ text: 'Summary for the sample class' }, context);
+    publishBrief.execute({ text: 'สรุปเช้าวันเสาร์\n1. ภาพรวมห้องตัวอย่าง' }, context);
     expect(await readStateFile()).toMatchObject({
-      briefs: [{ text: 'Summary for the sample class' }],
+      briefs: [{ text: 'สรุปเช้าวันเสาร์\n1. ภาพรวมห้องตัวอย่าง' }],
     });
     decideApproval.execute(
       { approvalId: approval.id, decision: 'return', reason: 'Check dates' },
@@ -123,7 +123,7 @@ it('a new sandbox with an empty DATA_DIR gets memory, approvals, briefs and inbo
     loadState();
     saveMemory(owner, 'ม.2/1 ชอบเรียนด้วยภาพ', 10);
     addApproval(context.ownerId, claim, 'ขอเบิก', 20);
-    publishBrief.execute({ text: 'สรุปตัวอย่างสำหรับ ผอ.' }, context);
+    publishBrief.execute({ text: 'สรุปเช้าวันเสาร์\n1. สรุปตัวอย่างสำหรับ ผอ.' }, context);
     await sendEmail.execute({ to: 'x', subject: 'ตัวอย่าง', body: 'ทดสอบ' }, context);
     // The gateway keeps this GET /__state body in Durable Object storage.
     const checkpoint = JSON.stringify(exportState());
@@ -140,7 +140,7 @@ it('a new sandbox with an empty DATA_DIR gets memory, approvals, briefs and inbo
     importState(JSON.parse(checkpoint));
     expect(searchMemory(owner, 'ม.2/1')[0]?.text).toBe('ม.2/1 ชอบเรียนด้วยภาพ');
     expect(approvals[0]).toMatchObject({ status: 'pending', note: 'ขอเบิก' });
-    expect(briefs[0]).toMatchObject({ text: 'สรุปตัวอย่างสำหรับ ผอ.' });
+    expect(briefs[0]).toMatchObject({ text: 'สรุปเช้าวันเสาร์\n1. สรุปตัวอย่างสำหรับ ผอ.' });
     expect(testMailbox[0]).toMatchObject({ to: 'test-mailbox', subject: 'ตัวอย่าง' });
     expect(JSON.parse(await readFile(join(newSandbox, 'state.json'), 'utf8')).inbox).toHaveLength(
       1,

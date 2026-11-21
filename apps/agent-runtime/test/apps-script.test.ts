@@ -219,7 +219,7 @@ describe('scores from published forms', () => {
   });
 
   it('records the form for the room the teacher named when the session has no room', async () => {
-    const demo = { ...teacher, classId: undefined };
+    const demo = { ...teacher, classId: 'class-p5-2' };
     request.mockResolvedValueOnce(
       Response.json({ ...form, formId: 'named', url: form.url.replace('/sample/', '/named/') }),
     );

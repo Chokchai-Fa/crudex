@@ -1,4 +1,4 @@
-import { activities, schoolClasses } from '../data/school';
+import { activities, briefTopicNames, schoolClasses } from '../data/school';
 import { pendingApprovals, pendingLabel } from './list_pending_approvals';
 import { thaiDate } from './server-clock';
 import { scoreLabel } from '../lib/score-label';
@@ -37,13 +37,15 @@ export function schoolSummary(now = new Date()) {
     ? flagged
         .map((c) =>
           c.mean < c.maxScore * THRESHOLD_RATIO
-            ? `ห้องต่ำกว่าเกณฑ์: ${c.label} เฉลี่ย ${c.mean}/${c.maxScore} (${c.meanPercent}%) ต่ำกว่าเกณฑ์ 50%`
-            : `ห้องที่ต้องดู: ${c.label} เฉลี่ย ${c.mean}/${c.maxScore} (${c.meanPercent}%) แต่${c.weakTopics
-                .map((t) => `หัวข้อ${t.topic}ถูกแค่ ${t.correctPercent}%`)
+            ? `${c.label} เฉลี่ย ${c.mean}/${c.maxScore} (${c.meanPercent}%) ต่ำกว่าเกณฑ์ 50%`
+            : `${c.label} เฉลี่ย ${c.mean}/${c.maxScore} (${c.meanPercent}%) แต่${c.weakTopics
+                .map(
+                  (t) => `หัวข้อ${briefTopicNames[t.topic] ?? t.topic}ถูกแค่ ${t.correctPercent}%`,
+                )
                 .join(' และ')} ต่ำกว่าเกณฑ์ 50%`,
         )
         .join('; ')
-    : 'ห้องที่ต้องดู: ไม่มีห้องหรือหัวข้อที่ต่ำกว่าเกณฑ์ 50%';
+    : 'ไม่มีห้องหรือหัวข้อที่ต่ำกว่าเกณฑ์ 50%';
   const budget = activities.reduce((sum, a) => sum + a.budget, 0);
   const spent = activities.reduce((sum, a) => sum + a.spent, 0);
   return {
@@ -56,6 +58,7 @@ export function schoolSummary(now = new Date()) {
     thresholdRatio: THRESHOLD_RATIO,
     classes,
     // Line 2 of the morning brief, worded by code: only a room whose mean is under 50% is called below the bar.
+    briefTitle: `สรุปเช้าวัน${thaiDate(now).weekday}`,
     briefClassLine,
     flaggedClasses: classes.filter((c) => c.belowThreshold).map((c) => c.label),
     lowestClass: [...classes].sort((a, b) => a.mean / a.maxScore - b.mean / b.maxScore)[0]?.label,
@@ -78,7 +81,7 @@ export function schoolSummary(now = new Date()) {
 export const getSchoolSummary: ToolDefinition = {
   name: 'get_school_summary',
   description:
-    'สรุปข้อมูลโรงเรียนระดับห้องและระดับกิจกรรม (ตัวจำลอง: ข้อมูลตัวอย่าง) คืนวันที่วันนี้แบบ พ.ศ. (date.thai) จำนวนเอกสารรออนุมัติในกล่องจริง (pendingApprovals และ pendingApprovalsLabel ให้ใช้ตรงตัว) ค่าเฉลี่ยรายห้องพร้อมหน่วย (meanLabel และ scoreLabel ให้ใช้ตรงตัว) ห้องที่ต่ำกว่าเกณฑ์ (flaggedClasses: ค่าเฉลี่ยห้องหรือหัวข้อใดหัวข้อหนึ่งได้ต่ำกว่า 50% ระบบกำหนด เหตุผลอยู่ใน belowThresholdReason; บรรทัดผลเรียนในสรุปเช้าให้ใช้ briefClassLine ตรงตัว) และงบรวมกับกิจกรรมที่ใกล้เต็ม ไม่มีข้อมูลรายคน ตัวเลขคำนวณโดยระบบ',
+    'สรุปข้อมูลโรงเรียนระดับห้องและระดับกิจกรรม (ตัวจำลอง: ข้อมูลตัวอย่าง) คืนวันที่วันนี้แบบ พ.ศ. (date.thai) จำนวนเอกสารรออนุมัติในกล่องจริง (pendingApprovals และ pendingApprovalsLabel ให้ใช้ตรงตัว) ค่าเฉลี่ยรายห้องพร้อมหน่วย (meanLabel และ scoreLabel ให้ใช้ตรงตัว) ห้องที่ต่ำกว่าเกณฑ์ (flaggedClasses: ค่าเฉลี่ยห้องหรือหัวข้อใดหัวข้อหนึ่งได้ต่ำกว่า 50% ระบบกำหนด เหตุผลอยู่ใน belowThresholdReason; หัวสรุปเช้าให้ใช้ briefTitle และข้อผลเรียนให้ใช้ briefClassLine ตรงตัว) และงบรวมกับกิจกรรมที่ใกล้เต็ม ไม่มีข้อมูลรายคน ตัวเลขคำนวณโดยระบบ',
   input: { type: 'object', properties: {}, additionalProperties: false },
   gate: 'allow',
   execute: () => schoolSummary(),

@@ -31,6 +31,7 @@ describe('principal brief data', () => {
     expect(thaiDate(new Date('2026-11-20T18:30:00Z'))).toEqual({
       thai: '21 พฤศจิกายน 2569',
       iso: '2026-11-21',
+      weekday: 'เสาร์',
     });
     expect(schoolSummary(new Date('2026-11-20T18:30:00Z')).date.thai).toBe('21 พฤศจิกายน 2569');
   });

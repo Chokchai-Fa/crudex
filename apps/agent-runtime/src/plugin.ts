@@ -51,6 +51,8 @@ const schoolLocalTools = new Set([
   'check_assessment',
   'save_assessment',
   'fraction_addition_form',
+  'make_slides',
+  'make_file',
 ]);
 
 export function createRuntimePlugin(

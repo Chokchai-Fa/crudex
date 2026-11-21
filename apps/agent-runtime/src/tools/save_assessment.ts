@@ -83,7 +83,7 @@ export const publisher = {
 
 const saveInputSchema = assessmentSchema.extend({ classLabel: z.string().max(40).optional() });
 
-function formClassId(ownerId: string, grade: string, classLabel: string | undefined) {
+function namedClassId(ownerId: string, grade: string, classLabel: string | undefined) {
   const rooms = classesOf(ownerId);
   for (const wanted of [classLabel, grade]) {
     if (!wanted) continue;
@@ -93,6 +93,10 @@ function formClassId(ownerId: string, grade: string, classLabel: string | undefi
     );
     if (room) return room.id;
   }
+}
+
+function gradeClassId(ownerId: string, grade: string) {
+  const rooms = classesOf(ownerId);
   const level = normalizeClassLabel(grade);
   const matching = rooms.filter(({ label }) => normalizeClassLabel(label).split('/')[0] === level);
   return matching.length === 1 ? matching[0]?.id : undefined;
@@ -107,7 +111,10 @@ export const saveAssessment = validatedTool(saveInputSchema, {
     const published = await saveVerifiedAssessment(input, context.signal, context.scope);
     if (published.mode === 'apps-script') {
       const ownerId = ownerOf(context).id;
-      const classId = classOf(context) ?? formClassId(ownerId, input.grade, classLabel);
+      const classId =
+        namedClassId(ownerId, input.grade, classLabel) ??
+        classOf(context) ??
+        gradeClassId(ownerId, input.grade);
       if (classId) {
         recordForm({
           formId: published.formId,

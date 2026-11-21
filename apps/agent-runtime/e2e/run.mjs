@@ -28,7 +28,7 @@ execFileSync(join(pkg, 'node_modules/.bin/esbuild'), [
   '--log-level=error',
   `--outfile=${join(root, '.opencode/plugins/crudex.js')}`,
 ]);
-// The runtime pins openai/gpt-5.4-mini; route that provider to the scripted model.
+// The agents pin openai/gpt-6.2-sol (test-agent keeps gpt-5.4-mini); route that provider to the scripted model.
 writeFileSync(
   join(root, 'opencode.jsonc'),
   JSON.stringify({
@@ -38,7 +38,10 @@ writeFileSync(
         env: ['MOCK_KEY'],
         package: '@opencode/ai/providers/openai-compatible',
         settings: { baseURL: `http://127.0.0.1:${PORT.mock}/v1` },
-        models: { 'gpt-5.4-mini': { name: 'gpt-5.4-mini' } },
+        models: {
+          'gpt-6.2-sol': { name: 'gpt-6.2-sol' },
+          'gpt-5.4-mini': { name: 'gpt-5.4-mini' },
+        },
       },
     },
   }),
@@ -125,7 +128,7 @@ function run(args) {
           '--server',
           `http://127.0.0.1:${PORT.serve}`,
           '--model',
-          'openai/gpt-5.4-mini',
+          'openai/gpt-6.2-sol',
           '--format',
           'json',
           ...args,
@@ -442,7 +445,7 @@ check(
     const evb = run([
       '--agent',
       'rungchao',
-      `CALL publish_brief ${JSON.stringify({ text: 'สรุปเช้า (ตัวอย่าง)\nห้องที่ต้องดู: ม.2/1 หัวข้อพีทาโกรัสต่ำกว่าเกณฑ์' })}`,
+      `CALL publish_brief ${JSON.stringify({ text: 'สรุปเช้าวันเสาร์\n1. ม.2/1 หัวข้อพีทาโกรัสต่ำกว่าเกณฑ์' })}`,
     ]);
     return tool(evb)?.state?.status === 'completed';
   })(),

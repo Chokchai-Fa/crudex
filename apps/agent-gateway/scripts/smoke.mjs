@@ -60,6 +60,11 @@ const brief = await fetch(new URL('/api/brief', AGENT_URL), {
 assert.equal(brief.status, 200, 'Morning brief schedule was not initialized');
 assert((await brief.json()).nextRunAt > Date.now(), 'Next morning alarm is missing');
 
+if (process.env.SMOKE_SKIP_CHAT === '1') {
+  console.log('Skipping chat probes (SMOKE_SKIP_CHAT=1)');
+  process.exit(0);
+}
+
 async function chat(label, text) {
   const start = performance.now();
   const response = await fetch(new URL('/api/chat', AGENT_URL), {
