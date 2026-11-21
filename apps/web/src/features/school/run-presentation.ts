@@ -70,7 +70,7 @@ export function presentRun(status: RunStatus, events: RunEvent[], complete: bool
         break;
     }
   }
-  const answer = publicRunText(events, final)
+  const answer = publicRunText(events)
     .split(/\r?\n/)
     .filter(
       (line) =>
@@ -85,8 +85,7 @@ export function presentRun(status: RunStatus, events: RunEvent[], complete: bool
   if (phase === 'queued') activity = 'รอคิว';
   if (phase === 'running' && !final) {
     if (activeTool) activity = activeTool;
-    else if (!answer)
-      activity = publicRunText(events, true).trim() ? 'กำลังเรียบเรียงคำตอบ' : 'กำลังคิด';
+    else if (!answer) activity = 'กำลังคิด';
   }
   let notice = '';
   if (phase === 'cancelled') notice = 'ยกเลิกงานแล้ว';
