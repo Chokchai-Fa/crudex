@@ -15,7 +15,11 @@ export function useSchoolSession() {
     refetchOnWindowFocus: true,
     queryFn: async () => {
       const health = await api.health.$get();
-      if (!health.ok || (await health.json()).env !== 'production') {
+      if (
+        !health.ok ||
+        (await health.json()).env !==
+          (import.meta.env.MODE === 'school-local' ? 'development' : 'production')
+      ) {
         throw new Error('ยังไม่ได้เชื่อมต่อ School API ของโรงเรียน');
       }
       const res = await api.me.$get();

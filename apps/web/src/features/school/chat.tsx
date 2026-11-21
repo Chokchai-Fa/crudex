@@ -74,9 +74,12 @@ function ChatRoom({
     observer.observe(list);
     return () => observer.disconnect();
   }, []);
+  const localGatewayUnconfirmed =
+    import.meta.env.MODE === 'school-local' &&
+    import.meta.env.VITE_SCHOOL_GATEWAY_FIXTURE !== 'false';
   async function send() {
     const prompt = draft.trim();
-    if (!prompt || busy.current) return;
+    if (localGatewayUnconfirmed || !prompt || busy.current) return;
     notePosition();
     busy.current = true;
     if (retry.current?.prompt !== prompt)
@@ -180,6 +183,7 @@ function ChatRoom({
           void send();
         }}
       >
+        {localGatewayUnconfirmed && <p role="status">ยังไม่ได้เปิดใช้ runtime จริงในเครื่อง</p>}
         {create.error && <p role="alert">{create.error.message}</p>}
         {create.isPending && <p role="status">กำลังส่งคำขอ…</p>}
         <div className="compose-capsule">
@@ -203,7 +207,7 @@ function ChatRoom({
           <button
             className="submit-arrow"
             aria-label="ส่งข้อความ"
-            disabled={!draft.trim() || create.isPending}
+            disabled={localGatewayUnconfirmed || !draft.trim() || create.isPending}
           >
             <ArrowUp />
           </button>
