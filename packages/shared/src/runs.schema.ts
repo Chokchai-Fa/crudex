@@ -47,7 +47,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     text: z.string(),
     messageId: z.string().min(1).optional(),
     interim: z.literal(true).optional(),
-    kahoot: kahootResultSchema.optional(),
+    kahoot: kahootResultSchema.extend({ parentRunId: z.uuid() }).optional(),
   }),
   z.object({ type: z.literal('approval'), kind: z.literal('memory'), proposalId: z.uuid() }),
   z.object({ type: z.literal('done'), elapsedMs: z.number() }),

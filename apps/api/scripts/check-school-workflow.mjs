@@ -99,6 +99,7 @@ try {
   ).text();
   assert.equal(childEvents.match(/Fixture Kahoot ready/g)?.length, 1);
   assert.equal(childEvents.match(/"type":"done"/g)?.length, 1);
+  assert(childEvents.includes(JSON.stringify(parentReply.headers.get('x-run-id'))));
   assert(!childEvents.includes('ses_private_fixture'));
   await call('/api/runs/' + childId + '/events', { session: colleague, status: 404 });
   const submit = { clientRequestId: randomUUID(), prompt: 'ช่วยสร้างแบบฝึกหัดเศษส่วน', classId };

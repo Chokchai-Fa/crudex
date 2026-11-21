@@ -261,6 +261,7 @@ export async function saveDelegatedKahoot(
   const { status, childSessionId } = result;
   const text = result.text.replaceAll(childSessionId, '[…]');
   const kahoot = {
+    parentRunId: parentId,
     status,
     kahootId: result.kahootId?.includes(childSessionId) ? undefined : result.kahootId,
     title: result.title?.replaceAll(childSessionId, '[…]'),
