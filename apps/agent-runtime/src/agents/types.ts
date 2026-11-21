@@ -6,6 +6,7 @@ export interface AgentDefinition {
   model: string;
   instructions: string;
   tools: readonly string[];
+  mcpTools?: readonly 'crudex_kahoot_create_or_update_kahoot'[];
   skills: readonly string[];
   subagents: readonly string[];
 }

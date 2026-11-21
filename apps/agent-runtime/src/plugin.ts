@@ -1,5 +1,6 @@
 import { Agent, Location, Model, Skill, type Plugin } from '@opencode/plugin';
 import { agents } from './agents';
+import { KahootDrafts, kahootTool, kahootServer } from './kahoot-draft';
 import { decide, permissionsFor } from './permissions';
 import { tools } from './tools';
 
@@ -11,6 +12,7 @@ export interface EmbeddedSkill {
 }
 
 interface RegistrationContext {
+  mcp?: Pick<Plugin.Context['mcp'], 'transform'>;
   agent: Pick<Plugin.Context['agent'], 'transform'>;
   tool: Pick<Plugin.Context['tool'], 'transform'>;
   skill: Pick<Plugin.Context['skill'], 'transform'>;
@@ -27,18 +29,43 @@ class ToolNotBound extends Error {
 
 const builtins = ['build', 'plan', 'general', 'explore'];
 const definitions = new Map(agents.map((agent) => [agent.id, agent]));
-const rulesByAgent = new Map(agents.map((agent) => [agent.id, permissionsFor(agent)]));
 
 export function createRuntimePlugin(
   increment: (name: string) => number,
   skills: readonly EmbeddedSkill[],
+  kahootEnabled = false,
 ) {
+  const drafts = new KahootDrafts();
+  const rulesByAgent = new Map(
+    agents.map((agent) => [agent.id, permissionsFor(agent, kahootEnabled)]),
+  );
   return {
     id: 'crudex-agent-runtime',
     async setup(ctx: RegistrationContext) {
+      if (kahootEnabled) {
+        if (!ctx.mcp) throw new Error('MCP registration unavailable');
+        await ctx.mcp.transform((editor) => {
+          // OpenCode joins a normalized server name and tool name with an underscore.
+          // Reject ambiguous prefixes that could grant another server this action.
+          for (const [server] of editor.list()) {
+            const prefix = server.replace(/[^a-zA-Z0-9_-]/g, '_') + '_';
+            if (server !== 'crudex_kahoot' && kahootTool.startsWith(prefix)) {
+              throw new Error('Ambiguous Kahoot MCP namespace');
+            }
+          }
+          editor.set('crudex_kahoot', { type: 'remote', url: kahootServer, codemode: false });
+        });
+      }
       await ctx.permission.hook('evaluate', (evaluation) => {
         const rules = rulesByAgent.get(evaluation.agent ?? '');
         evaluation.effect = decide(rules ?? [], evaluation.action, evaluation.resources);
+        if (
+          evaluation.effect === 'allow' &&
+          evaluation.action === kahootTool &&
+          !drafts.consume(evaluation.sessionID, evaluation.metadata?.input)
+        ) {
+          evaluation.effect = 'deny';
+        }
       });
 
       await ctx.agent.transform((editor) => {
@@ -51,7 +78,7 @@ export function createRuntimePlugin(
             agent.mode = definition.mode;
             agent.system = definition.instructions;
             agent.model = Model.Ref.parse('openai/' + definition.model);
-            agent.permissions = permissionsFor(definition);
+            agent.permissions = permissionsFor(definition, kahootEnabled);
           });
         }
       });
@@ -90,6 +117,16 @@ export function createRuntimePlugin(
                 sessionID: call.sessionID,
                 signal: call.signal,
               });
+              if (
+                kahootEnabled &&
+                call.agent === 'jeng' &&
+                tool.name === 'check_assessment' &&
+                result &&
+                typeof result === 'object'
+              ) {
+                const kahootDraft = drafts.check(call.sessionID, input);
+                return { content: JSON.stringify({ ...result, kahootDraft }) };
+              }
               return { content: JSON.stringify(result) };
             },
           });
