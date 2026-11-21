@@ -12,7 +12,7 @@ credit card**.
 
 ## Documentation hosting
 
-GitHub Pages serves the Docusaurus build at [Crudex documentation](https://chokchai-fa.github.io/crudex/). The public repository uses the GitHub Actions publishing source in **Settings → Pages**. The Check documentation workflow builds open PRs with the dedicated lockfile in `docs/site`. Deploy documentation runs when a matching PR closes against `main`, verifies that it merged, and builds and publishes the merged revision. The publish job uses the built-in Pages and OIDC permissions. Documentation requests consume no Worker CPU, database connections or model quota.
+GitHub Pages serves the Docusaurus build at [Crudex documentation](https://chokchai-fa.github.io/crudex/). The public repository uses the GitHub Actions publishing source in **Settings → Pages**. The Check documentation workflow builds open PRs with the dedicated lockfile in `docs/site`. For documentation changes pushed to `main`, Deploy documentation checks that the commit SHA belongs to a PR merged into `main`, then builds and publishes that revision from the permitted branch. The publish job uses the built-in Pages and OIDC permissions. Documentation requests consume no Worker CPU, database connections or model quota.
 
 ## School API rollout
 
