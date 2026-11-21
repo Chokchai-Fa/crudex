@@ -22,6 +22,24 @@ export const runStatusSchema = z.enum([
   'interrupted',
   'cancelled',
 ]);
+const kahootResultSchema = z.object({
+  status: z.enum(['created', 'connect_required', 'failed']),
+  kahootId: z.string().min(1).max(512).optional(),
+  title: z.string().min(1).max(4000).optional(),
+  editorUrl: z
+    .url({ protocol: /^https$/ })
+    .max(4096)
+    .optional(),
+});
+// Private gateway frame. Only the result and reply text belong in public history.
+export const delegatedKahootSchema = kahootResultSchema.extend({
+  type: z.literal('delegated_kahoot'),
+  agentId: z.literal('jeng'),
+  childSessionId: z.string().min(1).max(512),
+  text: z.string().min(1).max(64000),
+});
+export type DelegatedKahoot = z.infer<typeof delegatedKahootSchema>;
+
 export const runEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('status'), status: runStatusSchema }),
   z.object({
@@ -29,6 +47,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     text: z.string(),
     messageId: z.string().min(1).optional(),
     interim: z.literal(true).optional(),
+    kahoot: kahootResultSchema.optional(),
   }),
   z.object({ type: z.literal('approval'), kind: z.literal('memory'), proposalId: z.uuid() }),
   z.object({ type: z.literal('done'), elapsedMs: z.number() }),

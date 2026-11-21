@@ -1,5 +1,7 @@
 import {
+  delegatedKahootSchema,
   runEventSchema,
+  type DelegatedKahoot,
   type RunEvent,
   type AgentId,
   type CreateRun,
@@ -97,10 +99,13 @@ export async function recoverRuns(deps: Deps) {
     await deps.queue.enqueue({ type: 'dispatch-run', runId: row.runId });
 }
 const gatewayEventSchema = z.union([
+  delegatedKahootSchema,
   runEventSchema,
   z.object({ type: z.literal('progress'), messageId: z.string().min(1) }),
 ]);
-async function* readStream(body: ReadableStream<Uint8Array>): AsyncGenerator<RunEvent> {
+async function* readStream(
+  body: ReadableStream<Uint8Array>,
+): AsyncGenerator<RunEvent | DelegatedKahoot> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -213,6 +218,10 @@ export async function dispatchRun(
       return;
     }
     for await (const e of readStream(res.body)) {
+      if (e.type === 'delegated_kahoot') {
+        await repo.saveDelegatedKahoot(deps.db, id, attempt, e);
+        continue;
+      }
       if (e.type === 'done' || e.type === 'error') {
         await flush();
         await repo.finish(deps.db, id, attempt, e.type === 'done' ? 'succeeded' : 'failed', e);
