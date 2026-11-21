@@ -10,6 +10,11 @@ import {
 import { directReply } from './direct-reply';
 import { kahootInstanceName, parseKahootState } from './kahoot-state';
 
+// Only the gateway can attach the teacher's connection state to a signed turn.
+const incomingDispatchSchema = dispatchSchema.extend({
+  scope: dispatchSchema.shape.scope.omit({ kahootConnected: true }),
+});
+
 const schoolRedirectUri = z.url().refine((value) => {
   const url = new URL(value);
   return (
@@ -54,7 +59,7 @@ export class SchoolDispatch extends WorkerEntrypoint<Env> implements SchoolKahoo
   override async fetch(request: Request) {
     if (request.method !== 'POST' || new URL(request.url).pathname !== '/dispatch')
       return new Response(null, { status: 404 });
-    const body = dispatchSchema.safeParse(await request.json());
+    const body = incomingDispatchSchema.safeParse(await request.json());
     if (!body.success) return new Response(null, { status: 400 });
     const { scope } = body.data;
     if (
@@ -66,6 +71,16 @@ export class SchoolDispatch extends WorkerEntrypoint<Env> implements SchoolKahoo
     // Chat and memory turns answer without waiting for a sandbox.
     const direct = await directReply(this.env.OPENAI_API_KEY, body.data);
     if (direct) return direct;
+    const kahootConnected =
+      scope.role === 'teacher' && (scope.agentId === 'jaew' || scope.agentId === 'jeng')
+        ? await this.kahootStatus({
+            schoolId: scope.schoolId,
+            ownerId: scope.ownerId,
+            role: scope.role,
+          })
+            .then((status) => status.connected)
+            .catch(() => undefined)
+        : undefined;
     const url = new URL('/school/chat', request.url);
     url.searchParams.set('role', scope.role);
     return this.env.SANDBOX.getByName('main').fetch(url, {
@@ -74,7 +89,7 @@ export class SchoolDispatch extends WorkerEntrypoint<Env> implements SchoolKahoo
         'content-type': 'application/json',
         'x-school-owner': schoolOwner(scope),
       },
-      body: JSON.stringify(body.data),
+      body: JSON.stringify({ ...body.data, scope: { ...scope, kahootConnected } }),
     });
   }
 }

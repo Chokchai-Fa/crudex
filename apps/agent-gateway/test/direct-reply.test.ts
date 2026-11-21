@@ -37,7 +37,9 @@ function turn(agentId = 'jaew') {
 }
 
 function setup() {
-  const sandbox = vi.fn(async () => new Response('sandbox'));
+  const sandbox = vi.fn<(url: URL, init: RequestInit) => Promise<Response>>(
+    async () => new Response('sandbox'),
+  );
   const env = {
     OPENAI_API_KEY: 'synthetic',
     SANDBOX: { getByName: () => ({ fetch: sandbox }) },
@@ -47,7 +49,7 @@ function setup() {
     gateway.fetch(
       new Request('https://agent.test/dispatch', { method: 'POST', body: JSON.stringify(payload) }),
     );
-  return { sandbox, post };
+  return { sandbox, post, gateway };
 }
 
 const label = (route: string) =>
@@ -169,4 +171,47 @@ it('reports a tool the route does not allow as failed and ends with an error aft
   expect(callbacks).toEqual([]);
   expect(out.filter((e) => e.type === 'tool').map((e) => e.status)).toEqual(['started', 'failed']);
   expect(out.at(-1)).toEqual({ type: 'error', code: 'runtime_error' });
+});
+
+it.each([true, false, undefined])(
+  'routes a Kahoot request to the sandbox with teacher status %s',
+  async (connected) => {
+    const { sandbox, post, gateway } = setup();
+    const status = vi.spyOn(gateway, 'kahootStatus');
+    if (connected === undefined) status.mockRejectedValue(new Error('unavailable'));
+    else if (connected) status.mockResolvedValue({ connected: true, connectedAt: 1, expiresAt: 2 });
+    else status.mockResolvedValue({ connected: false });
+    const upstream = vi.stubGlobal('fetch', vi.fn()).mocked(fetch);
+    const payload = { ...turn(), text: 'ช่วยทำ Kahoot เรื่องเศษส่วน' };
+    expect(await (await post(payload)).text()).toBe('sandbox');
+    expect(upstream).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledExactlyOnceWith({
+      schoolId: payload.scope.schoolId,
+      ownerId: payload.scope.ownerId,
+      role: 'teacher',
+    });
+    const [, init] = sandbox.mock.calls[0]!;
+    const forwarded = JSON.parse(String(init.body)) as { scope: { kahootConnected?: boolean } };
+    if (connected === undefined) expect(forwarded.scope).not.toHaveProperty('kahootConnected');
+    else expect(forwarded.scope.kahootConnected).toBe(connected);
+  },
+);
+
+it('classifies the new greeting even when earlier context requested a Kahoot', async () => {
+  const { sandbox, post } = setup();
+  openai(
+    () => label('chat'),
+    () => stream({ content: 'สวัสดี' }),
+  );
+  const payload = { ...turn(), text: 'ครู: สร้าง Kahoot\n\nข้อความใหม่จากครู:\nสวัสดี' };
+  expect((await events(await post(payload))).at(-1)?.type).toBe('done');
+  expect(sandbox).not.toHaveBeenCalled();
+});
+
+it('rejects connection flags supplied by the school app', async () => {
+  const { sandbox, post } = setup();
+  const payload = turn('jeng');
+  Object.assign(payload.scope, { kahootConnected: true });
+  expect((await post(payload)).status).toBe(400);
+  expect(sandbox).not.toHaveBeenCalled();
 });

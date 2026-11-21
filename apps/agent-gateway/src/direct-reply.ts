@@ -195,6 +195,12 @@ interface ToolCall {
 export async function directReply(key: string, turn: Turn): Promise<Response | undefined> {
   const identity = directAgents[turn.agentId];
   if (!identity) return;
+  const newest = turn.text.split('\nข้อความใหม่จากครู:\n').at(-1) ?? turn.text;
+  if (
+    /kahoot|คาฮู[ทตด]/iu.test(newest) &&
+    /สร้าง|ทำ|จัด|เตรียม|ขอ|ออกแบบ|ช่วย|\b(create|make|build|generate|prepare)\b/iu.test(newest)
+  )
+    return;
   const started = Date.now();
   const route = await classify(key, turn.text);
   console.log('direct_route', turn.agentId, route, Date.now() - started);

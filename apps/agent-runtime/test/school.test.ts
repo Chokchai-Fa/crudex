@@ -25,6 +25,15 @@ it('binds school, owner, class, agent, prompt and attempt to the active sandbox'
     .update(signedTurn(claims, 'worksheet'))
     .digest('hex');
   expect(validSchoolTurn(claims, 'worksheet', signature, owner, 'boot-secret')).toBe(true);
+  expect(
+    validSchoolTurn(
+      { ...claims, kahootConnected: true },
+      'worksheet',
+      signature,
+      owner,
+      'boot-secret',
+    ),
+  ).toBe(false);
   expect(validSchoolTurn(claims, 'other', signature, owner, 'boot-secret')).toBe(false);
   expect(
     validSchoolTurn({ ...claims, classId: null }, 'worksheet', signature, owner, 'boot-secret'),
