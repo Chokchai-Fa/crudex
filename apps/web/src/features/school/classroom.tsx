@@ -9,6 +9,7 @@ import { SchoolAnswer } from './answer';
 import { useRunEvents } from './api/run-events';
 import { useRunMemory } from './api/run-memory';
 import { presentRun } from './run-presentation';
+import { parseFollowUps } from './follow-ups';
 import { failureLine } from './presets';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
@@ -71,6 +72,7 @@ export function RunDetails({
   agentId,
   ack,
   onFormUrl,
+  onFollowUp,
   onRetry,
   retryDisabled,
 }: {
@@ -83,6 +85,8 @@ export function RunDetails({
   ack?: string;
   /** Reports a Google Form link found in this reply, for the form card. */
   onFormUrl?: (url: string) => void;
+  /** Sends a "ลองถามต่อ" suggestion; passed only for the latest reply. */
+  onFollowUp?: (text: string) => void;
   /** Sends the same request again; shown only after a failed or interrupted reply. */
   onRetry?: () => void;
   retryDisabled?: boolean;
@@ -95,6 +99,7 @@ export function RunDetails({
     complete,
   );
   const failed = phase === 'failed' || phase === 'interrupted';
+  const { body, items: followUps } = parseFollowUps(answer);
   const googleForm = /https:\/\/docs\.google\.com\/forms\/[^\s"'<>)\]\\]+/.exec(
     JSON.stringify(events),
   )?.[0];
@@ -105,7 +110,16 @@ export function RunDetails({
 
   return (
     <div className="space-y-2">
-      {answer && <SchoolAnswer text={answer} />}
+      {body && <SchoolAnswer text={body} />}
+      {onFollowUp && final && !failed && followUps.length > 0 && (
+        <div className="follow-ups" aria-label="ลองถามต่อ">
+          {followUps.map((item) => (
+            <button key={item} type="button" onClick={() => onFollowUp(item)}>
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
       {acking && (
         <p className="run-ack" role="status">
           {ack}
