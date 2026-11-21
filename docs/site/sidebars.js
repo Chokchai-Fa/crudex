@@ -4,7 +4,12 @@ module.exports = {
     {
       type: 'category',
       label: 'Get started',
-      items: ['product/workflows', 'getting-started/local-development', 'product/design'],
+      items: [
+        'product/workflows',
+        'getting-started/local-development',
+        'getting-started/school-access',
+        'product/design',
+      ],
     },
     {
       type: 'category',

@@ -4,6 +4,8 @@ Crudex is a Thai-language AI assistant for school staff. A teacher can ask Jaew 
 
 [Read the Crudex documentation](https://chokchai-fa.github.io/crudex/) · [Write or preview documentation](skills/write-docusaurus-docs/SKILL.md)
 
+School administrators manage enrollment at `/admin`. Invited users redeem codes at `/account`. See [accounts and invitations](docs/site/docs/getting-started/school-access.md) for first-time setup and role access.
+
 ## What works today
 
 The passcode-protected agent demo uses synthetic school data. It has five teacher agents, delegated chat with streamed responses, assessment checking, and a Google Forms integration when configured. OpenCode runs on Node 24 in a disposable Vercel Sandbox and calls OpenAI with a server-side key. A replacement sandbox starts a fresh session. [Gateway API and streaming guide](docs/site/docs/integrations/demo-gateway.md)

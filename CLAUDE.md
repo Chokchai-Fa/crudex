@@ -2,6 +2,8 @@
 
 Guidance for Claude Code working in this monorepo.
 
+School administrators manage enrollment at `/admin`. Invited users redeem codes at `/account`. See [accounts and invitations](docs/site/docs/getting-started/school-access.md) for first-time setup and role access.
+
 ## Before every task
 
 Run the [rebase-before-task skill](skills/rebase-before-task/SKILL.md) before planning, reviewing or editing so the task starts with the latest development branch and repository context.

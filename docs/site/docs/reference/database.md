@@ -133,6 +133,16 @@ Hashed session token and selected membership.
 
 PK (digest) · membership_id → school_memberships(id).
 
+#### `platform_admins`
+
+Each row grants platform-wide school administration to a dedicated account. Operators manage grants directly in Postgres. The API checks the grant on each admin request.
+
+| Field | PostgreSQL type | Nullable | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `account_id` | `uuid` | No | — | School account permitted to administer schools and enroll members across the platform. |
+
+PK (account_id) · account_id → school_accounts(id).
+
 ### Agent execution
 
 #### `agent_runs`
