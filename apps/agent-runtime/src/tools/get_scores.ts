@@ -38,6 +38,7 @@ function summarize({ assessment, questionTopics, results }: ClassHistory) {
     threshold,
     n: students.length,
     mean: Math.round((total / students.length) * 100) / 100,
+    meanLabel: `${Math.round((total / students.length) * 100) / 100}/${assessment.maxScore} คะแนน`,
     wrongByTopic: [...byTopic]
       .map(([topic, v]) => ({
         topic,
@@ -72,6 +73,7 @@ function historyOf(classId: string) {
       maxScore: s.maxScore,
       n: s.n,
       mean: s.mean,
+      meanLabel: s.meanLabel,
       belowThresholdCount: s.belowThreshold.length,
       wrongByTopic: s.wrongByTopic,
     };

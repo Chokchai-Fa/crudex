@@ -1,11 +1,14 @@
 import { activities, schoolClasses } from '../data/school';
+import { pendingApprovals } from './list_pending_approvals';
+import { thaiDate } from './server-clock';
 import type { ToolDefinition } from './types';
 
 const THRESHOLD_RATIO = 0.5;
 
-export function schoolSummary() {
+export function schoolSummary(now = new Date()) {
   const classes = schoolClasses.map((c) => ({
     ...c,
+    meanLabel: `${c.mean}/${c.maxScore} คะแนน`,
     belowThreshold: c.mean < c.maxScore * THRESHOLD_RATIO,
   }));
   const budget = activities.reduce((sum, a) => sum + a.budget, 0);
@@ -13,6 +16,9 @@ export function schoolSummary() {
   return {
     mode: 'mock',
     label: 'ตัวอย่าง',
+    date: thaiDate(now),
+    // Same box as list_pending_approvals and teacher_activity.
+    pendingApprovals: pendingApprovals().length,
     thresholdRatio: THRESHOLD_RATIO,
     classes,
     lowestClass: [...classes].sort((a, b) => a.mean / a.maxScore - b.mean / b.maxScore)[0]?.label,
@@ -35,7 +41,7 @@ export function schoolSummary() {
 export const getSchoolSummary: ToolDefinition = {
   name: 'get_school_summary',
   description:
-    'สรุปข้อมูลโรงเรียนระดับห้องและระดับกิจกรรม (ตัวจำลอง: ข้อมูลตัวอย่าง) คืนค่าเฉลี่ยรายห้อง ห้องที่ต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบกำหนด) และงบรวมกับกิจกรรมที่ใกล้เต็ม ไม่มีข้อมูลรายคน ตัวเลขคำนวณโดยระบบ',
+    'สรุปข้อมูลโรงเรียนระดับห้องและระดับกิจกรรม (ตัวจำลอง: ข้อมูลตัวอย่าง) คืนวันที่วันนี้แบบ พ.ศ. (date.thai) จำนวนเอกสารรออนุมัติในกล่องจริง (pendingApprovals) ค่าเฉลี่ยรายห้องพร้อมหน่วย (meanLabel) ห้องที่ต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบกำหนด) และงบรวมกับกิจกรรมที่ใกล้เต็ม ไม่มีข้อมูลรายคน ตัวเลขคำนวณโดยระบบ',
   input: { type: 'object', properties: {}, additionalProperties: false },
   gate: 'allow',
   execute: () => schoolSummary(),
