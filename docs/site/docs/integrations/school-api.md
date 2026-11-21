@@ -53,6 +53,8 @@ The classroom frontend requests `GET /api/runs/{runId}/events` with the school c
 
 The envelope ID identifies the event. The ID inside a tool payload identifies the tool call. The six event kinds are `status`, `tool`, `delta`, `approval`, `done` and `error`. Render process steps from the payload and append `delta.text` to the answer. Each response contains up to 128 events in ascending ID order. Send the last consumed ID in `Last-Event-ID` to continue. A 200 response with `[]` means wait and poll again with the same cursor. HTTP 204 means the run has ended and all events have been read.
 
+Newer turns include an optional `delta.messageId`. Group the text by message within the run. When a delta has `interim: true`, it contains an empty string and identifies an earlier message as a progress update. Remove that message from the answer, including on replay. Preserve text from older turns without IDs in arrival order. Clients that simply concatenate `delta.text` continue to work.
+
 ### Read progress as SSE
 
 Open `GET /api/runs/{runId}/events` with the school cookie and `Accept: text/event-stream`. Each response carries up to 128 committed events, ordered by a numeric cursor. A response can end before the run finishes. Native EventSource reconnects using the advertised retry interval and the last event ID. With a fetch-based reader, retain each SSE `id`, reconnect on EOF with `Last-Event-ID`, and honor `retry`. Close on a JSON `done` or `error` event. Reconnecting after the terminal cursor returns HTTP 204. A memory proposal emits an `approval` event with `kind: "memory"` and a `proposalId`. A network interruption alone does not cancel a run.

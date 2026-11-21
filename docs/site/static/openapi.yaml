@@ -1965,6 +1965,13 @@ components:
               const: delta
             text:
               type: string
+            messageId:
+              type: string
+              minLength: 1
+              description: Identifies one assistant message within this run.
+            interim:
+              const: true
+              description: An empty delta marks this message as a progress update.
           required:
             - type
             - text

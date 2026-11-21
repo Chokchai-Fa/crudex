@@ -69,5 +69,6 @@ export function useRunEvents(membershipId: string, id: string, active: boolean) 
     events: query.data?.events ?? [],
     error: query.error?.message ?? '',
     loading: !active && query.isPending,
+    complete: query.data?.nextPoll === false,
   };
 }
