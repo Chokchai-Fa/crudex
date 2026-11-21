@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Menu, Send } from 'lucide-react';
+import { Clock3, Menu, Send } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { RoomNavigation } from './room-navigation';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { chatKey, readConversation, replyTo } from './demo-chat';
 import { Worksheet } from './worksheet';
+import './chat-activity.css';
 
 import { rooms } from './fraction-set';
 import { QuizCard } from './quiz-card';
@@ -48,10 +49,13 @@ export function TeacherWorkspace() {
       rooms.map((name) => [name, sessionStorage.getItem(formFailureKey(name)) === '1']),
     ),
   );
+  const [activeTurn, setActiveTurn] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
   const following = useRef(true);
   const pendingPrompt = pending[room];
+  const prompts = turns.map((turn) => turn.prompt);
+  if (pendingPrompt) prompts.push(pendingPrompt);
   useLayoutEffect(() => {
     const panel = viewport.current;
     if (panel && following.current) panel.scrollTop = panel.scrollHeight;
@@ -75,20 +79,24 @@ export function TeacherWorkspace() {
     // A scroll event can still be queued when the teacher presses Send.
     if (viewport.current) following.current = isNearBottom(viewport.current);
     const previous = history[origin] ?? [];
-    const turn = replyTo(prompt, origin, previous, Boolean(request));
+    setActiveTurn(origin + '-' + previous.length);
     setPending((current) => ({ ...current, [origin]: prompt }));
+    const steps = ['รับคำขอในห้อง ' + origin];
     setDraft('');
-    draftInput.current?.focus();
+    draftInput.current?.focus({ preventScroll: true });
     const id = window.setTimeout(() => {
       timers.current.delete(origin);
-      const conversation = [...previous, turn];
-      sessionStorage.setItem(chatKey(origin), JSON.stringify(conversation));
+      const turn = replyTo(prompt, origin, previous, Boolean(request));
+      steps.push('เตรียมคำตอบจากข้อมูลตัวอย่างแล้ว');
       if (turn.kind === 'worksheet') {
         sessionStorage.setItem(worksheetKey(origin), prompt);
+        steps.push('เก็บชุดใบงานไว้ในห้องนี้แล้ว');
         updateFormFailure(origin, false);
       }
       if (sessionStorage.getItem(draftKey(origin)) === draft)
         sessionStorage.removeItem(draftKey(origin));
+      const conversation = [...previous, { ...turn, steps }];
+      sessionStorage.setItem(chatKey(origin), JSON.stringify(conversation));
       setHistory((current) => ({ ...current, [origin]: conversation }));
       setPending((current) => ({ ...current, [origin]: '' }));
     }, 600);
@@ -103,6 +111,7 @@ export function TeacherWorkspace() {
   function switchRoom(value: string) {
     sessionStorage.setItem(roomKey, value);
     following.current = true;
+    setActiveTurn('');
     setMenuOpen(false);
     setRoom(value);
     setPreviewRoom('');
@@ -111,7 +120,7 @@ export function TeacherWorkspace() {
 
   const latestWorksheet = turns.map((turn) => turn.kind).lastIndexOf('worksheet');
   const artifacts = request && (
-    <div id="room-artifacts" className="space-y-3">
+    <div id="room-artifacts" className="chat-artifacts space-y-3">
       {formFailed && (
         <p role="status">ใบงานพร้อม · ฟอร์มจำลองยังไม่พร้อม ลองใหม่ที่การ์ดฟอร์มได้ค่ะ</p>
       )}
@@ -123,7 +132,6 @@ export function TeacherWorkspace() {
           </h2>
           <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
           <Button
-            variant="outline"
             aria-expanded={previewRoom === room}
             onClick={() => setPreviewRoom(previewRoom === room ? '' : room)}
           >
@@ -198,30 +206,74 @@ export function TeacherWorkspace() {
             </p>
           )}
           <ol aria-label={'บทสนทนาห้อง ' + room} className="space-y-5">
-            {turns.map((turn, i) => (
-              <li key={i} className="space-y-2">
-                <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-accent p-3 text-accent-foreground">
-                  {turn.prompt}
-                </p>
-                <div className="flex items-start gap-2">
-                  <img src="/agents/jaew.svg" alt="น้องแจ๋ว" width="32" height="32" />
-                  <div className="min-w-0 space-y-2">
-                    <p className="rounded-2xl rounded-tl-sm bg-muted p-3">{turn.answer}</p>
-                    {turn.kind === 'scores' && (
-                      <Button asChild variant="outline">
-                        <Link to="/gradebook" search={{ room }}>
-                          เปิดสมุดคะแนน · {room}
-                        </Link>
-                      </Button>
-                    )}
-                    {turn.kind === 'report' && (
-                      <Button asChild variant="outline">
-                        <Link to="/reports" search={{ room }}>
-                          ตรวจร่างรายงาน · {room}
-                        </Link>
-                      </Button>
-                    )}
-                    {(turn.kind === 'worksheet' || turn.kind === 'exercise') && (
+            {prompts.map((prompt, i) => {
+              const turn = turns[i];
+              const turnKey = room + '-' + i;
+              return (
+                <li
+                  key={turnKey}
+                  className={turnKey === activeTurn ? 'chat-turn-active space-y-2' : 'space-y-2'}
+                >
+                  <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-accent p-3 text-accent-foreground">
+                    {prompt}
+                  </p>
+                  <div className="flex items-start gap-2">
+                    <img
+                      src="/agents/jaew.svg"
+                      alt=""
+                      width="32"
+                      height="32"
+                      className="shrink-0"
+                    />
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-sm font-semibold">
+                        น้องแจ๋ว <span className="font-normal text-muted-foreground">· จำลอง</span>
+                      </p>
+                      <div
+                        key={turn ? 'ready' : 'working'}
+                        className="chat-response w-fit rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5"
+                      >
+                        {turn ? (
+                          <p>{turn.answer}</p>
+                        ) : (
+                          <p className="flex items-center gap-2">
+                            <Clock3 aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                            กำลังเตรียมคำตอบตัวอย่าง…
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {i === latestWorksheet && artifacts}
+                  {turn?.steps && turn.steps.length > 0 && (
+                    <details className="text-sm text-muted-foreground">
+                      <summary className="w-fit cursor-pointer py-2 font-medium">
+                        รายละเอียดการทำงานจำลอง
+                      </summary>
+                      <ol className="list-decimal space-y-1 ps-6">
+                        {turn.steps.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ol>
+                    </details>
+                  )}
+                  {turn?.kind === 'scores' && (
+                    <Button asChild variant="outline">
+                      <Link to="/gradebook" search={{ room }}>
+                        เปิดสมุดคะแนน · {room}
+                      </Link>
+                    </Button>
+                  )}
+                  {turn?.kind === 'report' && (
+                    <Button asChild variant="outline">
+                      <Link to="/reports" search={{ room }}>
+                        ตรวจร่างรายงาน · {room}
+                      </Link>
+                    </Button>
+                  )}
+                  {(turn?.kind === 'exercise' ||
+                    (turn?.kind === 'worksheet' && i !== latestWorksheet)) &&
+                    request && (
                       <a
                         className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline"
                         href="#room-artifacts"
@@ -229,26 +281,19 @@ export function TeacherWorkspace() {
                         ดูผลงานชุดนี้
                       </a>
                     )}
-                  </div>
-                </div>
-                {i === latestWorksheet && artifacts}
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ol>
-          {pending[room] && (
-            <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl bg-accent p-3 text-accent-foreground">
-              {pending[room]}
-            </p>
-          )}
-          <p role="status" className="text-sm text-muted-foreground empty:sr-only">
-            {pending[room]
-              ? 'น้องแจ๋วกำลังตอบ…'
-              : turns.length > 0
-                ? 'ตอบแล้ว · ถามต่อในห้องนี้ได้'
+        </div>
+        <div className="relative space-y-1.5 border-t px-3 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-3">
+          <p role="status" className="sr-only">
+            {pendingPrompt
+              ? 'น้องแจ๋วกำลังเตรียมคำตอบตัวอย่าง'
+              : turns.length
+                ? 'น้องแจ๋วตอบแล้ว'
                 : ''}
           </p>
-        </div>
-        <div className="space-y-1.5 border-t px-3 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-3">
           <Label htmlFor="draft" className="sr-only">
             คุยกับน้องแจ๋ว · ห้อง {room}
           </Label>

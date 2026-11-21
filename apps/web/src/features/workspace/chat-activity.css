@@ -1,0 +1,17 @@
+@media screen and (prefers-reduced-motion: no-preference) {
+  .chat-turn-active .chat-response,
+  .chat-turn-active .chat-artifacts {
+    animation: chat-appear 160ms ease-out both;
+  }
+}
+
+@keyframes chat-appear {
+  from {
+    opacity: 0.6;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -7,6 +7,7 @@ export interface DemoTurn {
   answer: string;
   kind: ReplyKind;
   question?: number;
+  steps?: string[];
 }
 
 const kinds: ReplyKind[] = ['worksheet', 'exercise', 'scores', 'report', 'help'];
@@ -21,7 +22,10 @@ export function readConversation(room: string): DemoTurn[] {
             turn &&
             typeof turn.prompt === 'string' &&
             typeof turn.answer === 'string' &&
-            kinds.includes(turn.kind),
+            kinds.includes(turn.kind) &&
+            (turn.steps === undefined ||
+              (Array.isArray(turn.steps) &&
+                turn.steps.every((step: unknown) => typeof step === 'string'))),
         )
       : [];
   } catch {
