@@ -84,6 +84,7 @@ function setup(limit: number, kahootEnabled = false) {
       getByName: () => ({
         fetch: (input: Request | URL, opts?: RequestInit) =>
           manager.fetch(new Request(input, opts)),
+        admitRun: () => manager.admitRun(),
       }),
     },
   });
