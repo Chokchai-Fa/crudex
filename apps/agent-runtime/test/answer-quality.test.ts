@@ -49,3 +49,14 @@ describe('answer quality and next-question contract', () => {
     expect(jum).not.toContain('ต่อด้วยร่างคำถามทุกข้อ');
   });
 });
+
+describe('fast first reply', () => {
+  it('has every agent say one short line before any tool call and answer simple questions without tools', () => {
+    for (const id of ids) {
+      const t = byId[id]?.instructions ?? '';
+      expect(t, id).toContain('เริ่มด้วยประโยคสั้น ๆ 1 ประโยคทันทีก่อนเรียกเครื่องมือใด ๆ');
+      expect(t, id).toContain('ตอบใน 1-3 บรรทัดโดยไม่เรียกเครื่องมือ');
+      expect(t, id).toContain('ไม่ใช้หัวข้อ');
+    }
+  });
+});
