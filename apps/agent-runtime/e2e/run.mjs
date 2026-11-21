@@ -506,14 +506,14 @@ check(
     /fallback_not_allowed|ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
   JSON.stringify(tool(evF)?.state),
 );
-evF = inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
+inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
 evF = inSession(fallbackSession, 'CALL fraction_addition_form {"count":3}');
 check(
   'it is still refused after one failed check',
   tool(evF)?.state?.status === 'error' && /ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
   JSON.stringify(tool(evF)?.state),
 );
-evF = inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
+inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
 evF = inSession(fallbackSession, 'CALL fraction_addition_form {"count":3}');
 check(
   'it runs after two failed checks in the same session and returns a real Google Form link',
