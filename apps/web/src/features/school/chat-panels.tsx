@@ -10,6 +10,8 @@ import paper from '@/assets/mascots/paper.svg?raw';
 import notebook from '@/assets/mascots/notebook.svg?raw';
 import envelope from '@/assets/mascots/envelope.svg?raw';
 import nun from '@/assets/mascots/nun.svg?raw';
+import { Button } from '@/components/ui/button';
+import { LoadError } from '@/components/load-error';
 import { BrandLogo } from '@/components/brand-logo';
 import {
   useSchoolAgents,
@@ -93,6 +95,7 @@ export function SchoolTeam({
   onAgent,
   onRoom,
   disabled,
+  onClose,
 }: {
   actor: SchoolActor;
   roomId: string;
@@ -100,6 +103,7 @@ export function SchoolTeam({
   onAgent: (id: AgentId) => void;
   onRoom: (id: string) => void;
   disabled: boolean;
+  onClose: () => void;
 }) {
   const directory = useSchoolAgents(actor.membershipId);
   const activity = useTeamActivity(actor.membershipId, roomId, agent, directory.data?.agents ?? []);
@@ -115,11 +119,24 @@ export function SchoolTeam({
     return true;
   });
   return (
-    <nav id="school-team" className="school-team team-nav" aria-label="ห้องและผู้ช่วย">
-      <Link to="/school">
-        <BrandLogo size={30} />
-        <span className="sr-only">Crudex · พื้นที่โรงเรียน</span>
-      </Link>
+    <nav
+      id="school-team"
+      tabIndex={-1}
+      className="school-team team-nav"
+      aria-label="ห้องและผู้ช่วย"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          to="/school"
+          className="inline-flex min-h-11 items-center"
+          aria-label="crudex · พื้นที่โรงเรียน"
+        >
+          <BrandLogo size={30} />
+        </Link>
+        <Button variant="outline" size="sm" className="lg:hidden" onClick={onClose}>
+          กลับแชต
+        </Button>
+      </div>
       <fieldset disabled={disabled}>
         <legend>ห้องเรียน</legend>
         <div className="flex flex-wrap gap-1">
@@ -136,7 +153,14 @@ export function SchoolTeam({
         </div>
       </fieldset>
       <div className={listIntro ? 'm-list' : undefined}>
-        {directory.error && <p role="alert">{directory.error.message}</p>}
+        {directory.isPending && <p role="status">กำลังโหลดรายชื่อผู้ช่วย…</p>}
+        {directory.error && (
+          <LoadError
+            message="โหลดรายชื่อผู้ช่วยไม่สำเร็จ"
+            retry={() => void directory.refetch()}
+            busy={directory.isFetching}
+          />
+        )}
         {directory.data?.agents.map((assistant, index) => (
           <TeamRow
             key={assistant.id}
@@ -150,7 +174,6 @@ export function SchoolTeam({
         ))}
       </div>
       <div className="account-panel">
-        <p>ข้อมูลในเดโมนี้เป็นตัวอย่างทั้งหมด</p>
         <strong>บัญชี: {actor.displayName}</strong>
         <Link to="/school">พื้นที่โรงเรียน</Link>
         <button disabled={logout.isPending || disabled} onClick={() => logout.mutate()}>
@@ -189,18 +212,30 @@ export function SchoolActivity({
   actor,
   roomId,
   task,
+  onClose,
 }: {
   actor: SchoolActor;
   roomId: string;
   agentName: string;
   task?: RoomTask;
+  onClose: () => void;
 }) {
   const routines = useSchoolRoutines(actor.membershipId);
   const memory = useSchoolMemories(actor.membershipId);
   const items = routines.data?.routines.filter((r) => r.classId === roomId);
   return (
-    <aside id="school-activity" className="school-activity team-status" aria-label="กิจกรรมห้อง">
-      <h2>งานของ{agentName}ในห้องนี้</h2>
+    <aside
+      id="school-activity"
+      tabIndex={-1}
+      className="school-activity team-status"
+      aria-label="กิจกรรมห้อง"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2>งานของ{agentName}ในห้องนี้</h2>
+        <Button variant="outline" size="sm" className="lg:hidden" onClick={onClose}>
+          กลับแชต
+        </Button>
+      </div>
       <section className="status-job">
         {task ? (
           <CurrentTask membershipId={actor.membershipId} task={task} />
@@ -211,7 +246,11 @@ export function SchoolActivity({
       <h2>นัดไว้แล้ว</h2>
       <section className="status-memory">
         {routines.error ? (
-          <p role="alert">{routines.error.message}</p>
+          <LoadError
+            message="โหลดนัดหมายไม่สำเร็จ"
+            busy={routines.isFetching}
+            retry={() => void routines.refetch()}
+          />
         ) : !items ? (
           'กำลังอ่านนัดหมาย…'
         ) : !items.length ? (
@@ -230,7 +269,11 @@ export function SchoolActivity({
       <h2>ความจำของบัญชีครู</h2>
       <section className="status-memory">
         {memory.error ? (
-          <p role="alert">{memory.error.message}</p>
+          <LoadError
+            message="โหลดความจำไม่สำเร็จ"
+            busy={memory.isFetching}
+            retry={() => void memory.refetch()}
+          />
         ) : !memory.data ? (
           'กำลังอ่านความจำ…'
         ) : !memory.data.items.length ? (

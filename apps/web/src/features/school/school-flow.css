@@ -202,11 +202,15 @@
   .school-workspace > :is(.school-team, .school-activity) {
     display: none;
   }
+  .school-workspace:not([data-panel='chat']) > .school-conversation > :not(header) {
+    display: none;
+  }
   .school-workspace[data-panel='team'] > .school-team,
   .school-workspace[data-panel='activity'] > .school-activity {
-    display: block;
+    display: flex;
+    flex-direction: column;
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 2 / -1;
     z-index: 10;
     border: 0;
     box-shadow: 0 8px 24px #1522381a;
@@ -429,7 +433,8 @@
 }
 
 @media (max-width: 639px) {
-  .school-entry {
+  .school-entry,
+  .school-page {
     padding: 0;
   }
   .role-picker {
@@ -486,6 +491,16 @@
   border-radius: 20px;
   background: var(--card);
   border: 1.5px solid var(--border);
+}
+@media (max-width: 639px) {
+  .school-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px 12px;
+  }
+  .gradebook-table :is(th, td) {
+    padding-inline: 10px;
+  }
 }
 .school-panel {
   padding: 20px;

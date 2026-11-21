@@ -1,3 +1,4 @@
+import { BrandLogo } from '@/components/brand-logo';
 import { Link } from '@tanstack/react-router';
 import { BookOpen } from 'lucide-react';
 import { signOutDemo } from '@/features/workspace/demo-session';
@@ -25,13 +26,7 @@ export function RoomNavigation({
         aria-label="Crudex · เลือกบทบาท"
         className="inline-flex min-h-11 w-fit items-center rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <img
-          src="/roles/brand.png"
-          alt=""
-          width="122"
-          height="27"
-          className="w-28 rounded dark:bg-white dark:p-1 lg:w-[122px]"
-        />
+        <BrandLogo size={26} />
       </Link>
       <p className="col-start-1 row-start-2 text-sm font-semibold">
         ครูผู้สอน <span className="text-muted-foreground font-normal">· บัญชีตัวอย่าง</span>

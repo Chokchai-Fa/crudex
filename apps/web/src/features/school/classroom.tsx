@@ -279,7 +279,6 @@ export function SchoolGradebook({
           <p className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-success-text">
             <span className="availability-dot" aria-hidden="true" />
             คะแนนจากโรงเรียน
-            <span className="badge-sample">ข้อมูลตัวอย่าง</span>
           </p>
         </div>
         <Button
@@ -288,11 +287,11 @@ export function SchoolGradebook({
           disabled={grades.isFetching}
           onClick={() => void grades.refetch()}
         >
-          อ่านคะแนนอีกครั้ง
+          {grades.isFetching ? 'กำลังอ่านคะแนน…' : 'อ่านคะแนนอีกครั้ง'}
         </Button>
       </div>
       {grades.error ? (
-        <p role="alert">{grades.error.message}</p>
+        <p role="alert">โหลดคะแนนไม่สำเร็จ กรุณากดอ่านคะแนนอีกครั้ง</p>
       ) : grades.data ? (
         <>
           <dl className="gradebook-stats">
@@ -303,7 +302,7 @@ export function SchoolGradebook({
                 <small>/{students.length} คน</small>
               </dd>
             </div>
-            <div className="is-low">
+            <div className={low.length ? 'is-low' : undefined}>
               <dt>ต่ำกว่า 50%</dt>
               <dd>
                 {low.length}
@@ -318,9 +317,9 @@ export function SchoolGradebook({
               <thead>
                 <tr>
                   <th scope="col" className="w-20">
-                    เลขที่
+                    ลำดับ
                   </th>
-                  <th scope="col">ชื่อ (ตัวอย่าง)</th>
+                  <th scope="col">ชื่อนักเรียน</th>
                   <th scope="col" className="text-end">
                     คะแนน
                   </th>
@@ -356,12 +355,15 @@ export function SchoolGradebook({
 export function SchoolClassroom({ actor }: { actor: SchoolActor }) {
   const [selected, setSelected] = useState('');
   const id = actor.classes.find((c) => c.id === selected)?.id ?? actor.classes[0]?.id;
-  if (!id) return <p>บัญชีนี้ยังไม่มีห้องเรียนที่ได้รับมอบหมาย</p>;
+  if (!id)
+    return (
+      <p>บัญชีนี้ยังไม่มีห้องเรียนที่ได้รับมอบหมาย โปรดติดต่อผู้ดูแลโรงเรียนเพื่อเพิ่มห้องเรียน</p>
+    );
   return (
     <>
       <div className="classroom-row">
-        <label className="flex items-center gap-3 font-semibold">
-          ห้องเรียน{' '}
+        <label className="flex max-w-full items-center gap-3 font-semibold">
+          <span className="shrink-0">ห้องเรียน</span>
           <NativeSelect value={id} onChange={(e) => setSelected(e.target.value)}>
             {actor.classes.map((c) => (
               <option key={c.id} value={c.id}>

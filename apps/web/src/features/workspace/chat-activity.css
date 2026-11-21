@@ -630,14 +630,18 @@
   gap: 14px;
   padding: 12px 32px;
 }
+.chat-panel-toggle {
+  min-width: 44px;
+  color: var(--muted-foreground);
+}
+.chat-panel-toggle:is(:hover, :focus-visible, [aria-expanded='true']) {
+  color: var(--accent-foreground);
+}
 .school-conversation > header h1 {
   font-size: 20px;
   line-height: 24px;
 }
 .chat-presence {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-size: 13px;
   font-weight: 600;
   color: var(--success-text);
@@ -812,6 +816,8 @@
   background: var(--team-bar);
 }
 .school-team .room-pill {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 0 16px;
   font-size: 15px;
 }
@@ -868,7 +874,8 @@
   align-items: center;
 }
 .school-conversation .compose-capsule textarea {
-  font-size: 15px;
+  field-sizing: content;
+  font-size: 1rem;
 }
 .school-conversation .compose-capsule textarea::placeholder {
   color: var(--subtle-foreground);
@@ -892,6 +899,10 @@
 @media (max-width: 1023px) {
   .school-workspace {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .school-workspace
+    :is(.chat-toolbar button, .account-panel a, .account-panel button, .follow-ups button) {
+    min-height: 44px;
   }
   .school-workspace .chat-artifacts {
     margin-inline-start: 0;

@@ -208,13 +208,18 @@
 .brand-logo {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  width: fit-content;
+  vertical-align: middle;
+  gap: 0.18em;
   font-family: var(--font-logo);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
-  color: #152238;
+  color: var(--foreground);
 }
-.brand-logo > svg {
+.brand-logo > span {
+  text-box: trim-both cap alphabetic;
+}
+.brand-logo > img {
   flex: none;
 }

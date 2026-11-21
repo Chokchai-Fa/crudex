@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { LoadError } from '@/components/load-error';
 import { Button } from '@/components/ui/button';
 import { useSchoolWorksheet, useSchoolGradebook } from './api/school';
 import { SchoolGradebook, Worksheet } from './classroom';
@@ -24,7 +25,14 @@ export function ChatArtifacts({
   const grades = useSchoolGradebook(membershipId, roomId);
   const [copyMessage, setCopyMessage] = useState('');
   const [showGrades, setShowGrades] = useState(false);
-  if (sheet.error) return <p role="alert">{sheet.error.message}</p>;
+  if (sheet.error)
+    return (
+      <LoadError
+        message="โหลดใบงานไม่สำเร็จ"
+        retry={() => void sheet.refetch()}
+        busy={sheet.isFetching}
+      />
+    );
   if (!sheet.data) return <p role="status">กำลังอ่านใบงาน…</p>;
   const { title, questions, formUrl } = sheet.data;
   const token = formUrl.split('/').pop();

@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { roles } from '@/features/school-access/roles';
 import { Link } from '@tanstack/react-router';
 import { logout } from '@/features/school-access/api';
@@ -6,6 +7,8 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Building2, Users, BookOpen, UserRoundPlus, Ticket } from 'lucide-react';
 import { type AdminCommand, type AdminDirectory, type SchoolRole } from '@repo/shared';
 import { PageHeader } from '@/components/page-header';
+import { LoadError } from '@/components/load-error';
+import { NativeSelect } from '@/components/ui/native-select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,13 +42,13 @@ function Select({
   return (
     <label className="grid gap-2 text-sm font-medium">
       {label}
-      <select
+      <NativeSelect
         name={name}
         value={value}
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         defaultValue={value === undefined ? '' : undefined}
         required
-        className="bg-background border-input h-10 w-full rounded-md border px-3"
+        className="w-full"
       >
         <option value="" disabled>
           เลือก{label}
@@ -56,7 +59,7 @@ function Select({
             {showId ? ' · ' + o.id.slice(-8) : ''}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </label>
   );
 }
@@ -80,11 +83,55 @@ function AccountAccess({ denied, onChange }: { denied: boolean; onChange: () => 
         </Button>
       ) : (
         <Button asChild>
-          <Link to="/account">เข้าสู่ระบบด้วยรหัสเชิญ</Link>
+          <Link to="/account" search={{ returnTo: 'admin' }}>
+            เข้าสู่ระบบด้วยรหัสเชิญ
+          </Link>
         </Button>
       )}
       {auth.isError && <p role="alert">ออกจากระบบไม่สำเร็จ</p>}
     </Panel>
+  );
+}
+function InvitationResult({
+  invitation,
+}: {
+  invitation: { credential: string; expiresAt: string };
+}) {
+  const [notice, setNotice] = useState('');
+  return (
+    <div aria-label="รหัสเชิญที่สร้างแล้ว" className="grid gap-2 rounded-md border p-4">
+      <label className="grid gap-2">
+        รหัสเชิญใช้ครั้งเดียว
+        <Input readOnly value={invitation.credential} onFocus={(e) => e.target.select()} />
+      </label>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-fit"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(invitation.credential);
+            setNotice('คัดลอกรหัสเชิญแล้ว');
+          } catch {
+            setNotice('แตะช่องรหัสเชิญเพื่อเลือกทั้งหมด แล้วใช้คำสั่งคัดลอก');
+          }
+        }}
+      >
+        คัดลอกรหัสเชิญ
+      </Button>
+      <p role="status" className="text-sm">
+        {notice || 'ออกรหัสเชิญแล้ว'}
+      </p>
+      <p className="text-muted-foreground text-sm">
+        หมดอายุ{' '}
+        {new Date(invitation.expiresAt).toLocaleString('th-TH', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+          timeZone: 'Asia/Bangkok',
+        })}{' '}
+        น. เวลาไทย
+      </p>
+    </div>
   );
 }
 function SetupForm({
@@ -92,11 +139,13 @@ function SetupForm({
   schoolId,
   data,
   refresh,
+  onTask,
 }: {
   task: Task;
   schoolId: string;
   data: AdminDirectory;
   refresh: (selected?: string) => Promise<void>;
+  onTask: (task: Task) => void;
 }) {
   const [role, setRole] = useState<SchoolRole>('teacher');
   const [id, setId] = useState(() => crypto.randomUUID());
@@ -105,6 +154,7 @@ function SetupForm({
     onSuccess: async (result, c) => {
       if ('id' in result) {
         setId(crypto.randomUUID());
+        if (c.action === 'createSchool') toast.success(`สร้างโรงเรียน ${c.name} แล้ว`);
         await refresh(c.action === 'createSchool' ? result.id : undefined);
       }
     },
@@ -117,9 +167,40 @@ function SetupForm({
   if (needsSchool && !schoolId)
     return (
       <Panel title={title}>
-        <p>เลือกโรงเรียนก่อน หรือสร้างโรงเรียนใหม่</p>
+        <p>
+          {data.schools.length
+            ? 'เลือกโรงเรียนที่ต้องการจัดการจากเมนูโรงเรียน'
+            : 'สร้างโรงเรียนแรกก่อนเริ่มจัดห้องเรียนและสมาชิก'}
+        </p>
+        {!data.schools.length && (
+          <Button className="mt-3" onClick={() => onTask('createSchool')}>
+            สร้างโรงเรียน
+          </Button>
+        )}
       </Panel>
     );
+  if (task === 'enroll' && !data.accounts.length)
+    return (
+      <Panel title={title}>
+        <p>สร้างบัญชีผู้ใช้ก่อนจัดสมาชิกเข้าห้อง</p>
+        <Button className="mt-3" onClick={() => onTask('createAccount')}>
+          สร้างบัญชี
+        </Button>
+      </Panel>
+    );
+  if (task === 'invite' && !data.members.length)
+    return (
+      <Panel title={title}>
+        <p>เพิ่มสมาชิกในโรงเรียนก่อนออกรหัสเชิญ</p>
+        <Button className="mt-3" onClick={() => onTask('enroll')}>
+          จัดสมาชิกเข้าห้อง
+        </Button>
+      </Panel>
+    );
+  const needsClass =
+    task === 'enroll' && (role === 'teacher' || role === 'student') && !data.classes.length;
+  const needsStudent =
+    task === 'enroll' && role === 'guardian' && !data.members.some((m) => m.role === 'student');
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
@@ -174,7 +255,7 @@ function SetupForm({
                 : task === 'createClass'
                   ? 'ชื่อห้องเรียน'
                   : 'ชื่อที่แสดง'}
-              <Input name="name" required maxLength={160} />
+              <Input name="name" required pattern=".*\S.*" title="กรุณาระบุชื่อ" maxLength={160} />
             </label>
           )}
           {task === 'enroll' && (
@@ -208,7 +289,16 @@ function SetupForm({
               showId
             />
           )}
-          <Button className="w-fit" type="submit">
+          {needsClass && (
+            <div>
+              <p>สร้างห้องเรียนก่อนเพิ่มครูหรือนักเรียน</p>
+              <Button type="button" variant="link" onClick={() => onTask('createClass')}>
+                สร้างห้องเรียน
+              </Button>
+            </div>
+          )}
+          {needsStudent && <p>เพิ่มสมาชิกบทบาทนักเรียนก่อนเชื่อมบัญชีผู้ปกครอง</p>}
+          <Button className="w-fit" type="submit" disabled={needsClass || needsStudent}>
             {mutation.isPending ? 'กำลังบันทึก…' : title}
           </Button>
         </fieldset>
@@ -219,23 +309,7 @@ function SetupForm({
         )}
         {mutation.isSuccess &&
           ('credential' in mutation.data ? (
-            <div role="status" className="grid gap-2 rounded-md border p-4">
-              <label>
-                รหัสเชิญใช้ครั้งเดียว
-                <Input
-                  readOnly
-                  value={mutation.data.credential}
-                  onFocus={(e) => e.target.select()}
-                />
-              </label>
-              <p className="text-muted-foreground text-sm">
-                หมดอายุ{' '}
-                {new Date(mutation.data.expiresAt).toLocaleTimeString('th-TH', {
-                  timeZone: 'Asia/Bangkok',
-                })}{' '}
-                น. เวลาไทย
-              </p>
-            </div>
+            <InvitationResult key={mutation.data.credential} invitation={mutation.data} />
           ) : (
             <p role="status">บันทึกข้อมูลแล้ว</p>
           ))}
@@ -290,10 +364,14 @@ export function AdminPage() {
             onChange={() => cache.resetQueries({ queryKey: ['admin-directory'] })}
           />
         ) : (
-          <Button onClick={() => query.refetch()}>ลองโหลดอีกครั้ง</Button>
+          <LoadError
+            message="โหลดข้อมูลโรงเรียนไม่สำเร็จ"
+            busy={query.isFetching}
+            retry={() => void query.refetch()}
+          />
         )
       ) : (
-        <div className="grid items-start gap-6 md:grid-cols-[16rem_1fr]">
+        <div className="grid items-start gap-6 md:grid-cols-[16rem_minmax(0,1fr)]">
           <div className="grid gap-5">
             <Select
               label="โรงเรียน"
@@ -325,6 +403,7 @@ export function AdminPage() {
             data={query.data}
             schoolId={selected}
             refresh={refresh}
+            onTask={setTask}
           />
         </div>
       )}
