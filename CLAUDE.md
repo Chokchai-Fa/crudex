@@ -86,8 +86,9 @@ Do **not** use:
 ## Agent harness
 
 The agent harness has a separate `crudex-agent` Worker in `apps/agent-gateway`.
-One SQLite-backed Durable Object tracks the daily Bangkok run cap and sandbox
-lifecycle. The Worker serves the passcode-gated test page and proxies SSE to
+SQLite-backed `SandboxManager` Durable Objects track sandbox lifecycle: one
+instance per school teacher (`school:<schoolId>/<ownerId>`) plus `main` for the
+demo, which also holds the shared daily Bangkok run cap. The Worker serves the passcode-gated test page and proxies SSE to
 `apps/agent-runtime`, which runs OpenCode on Node 24 in a Vercel Hobby Sandbox.
 The runtime stores sessions in the sandbox's local SQLite database.
 Agents are migrating to the OpenAI API in the gateway Worker (`src/openai-backend.ts`).

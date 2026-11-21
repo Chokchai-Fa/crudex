@@ -4,6 +4,20 @@ import { kahootMcpPath } from './kahoot-mcp';
 
 export const archivePath = '/__sandbox/app.tgz';
 export const upstreamHeader = 'x-crudex-upstream-token';
+/** Query parameter that routes a sandbox's calls back to the Durable Object that booted it. */
+export const sandboxInstanceParam = 'sandbox';
+const schoolInstance = /^school:[0-9a-f-]{36}\/[0-9a-f-]{36}$/;
+
+/** Each school teacher gets their own sandbox; the passcode demo keeps the shared `main`. */
+export function sandboxInstanceName(owner?: string) {
+  return owner ? 'school:' + owner : 'main';
+}
+
+export function sandboxInstanceFrom(url: URL) {
+  const name = url.searchParams.get(sandboxInstanceParam) ?? 'main';
+  return name === 'main' || schoolInstance.test(name) ? name : undefined;
+}
+
 const port = 8790;
 export const sandboxTimeout = 45 * 60_000;
 export const rotateAfter = 40 * 60_000;
@@ -65,11 +79,13 @@ export async function bootSandbox(
   owner?: string,
   kahootToken?: string,
 ) {
+  const instance =
+    '?' + new URLSearchParams({ [sandboxInstanceParam]: sandboxInstanceName(owner) }).toString();
   const setup = await sandbox.runCommand({
     cmd: 'node',
     args: ['--input-type=module', '-e', installApp],
     cwd: '/',
-    env: { ARCHIVE_URL: origin + archivePath, BOOT_TOKEN: bootToken },
+    env: { ARCHIVE_URL: origin + archivePath + instance, BOOT_TOKEN: bootToken },
     signal: AbortSignal.timeout(40_000),
   });
   if (setup.exitCode !== 0) throw new Error('Runtime installation failed');
@@ -82,7 +98,7 @@ export async function bootSandbox(
       OPENAI_API_KEY: config.OPENAI_API_KEY,
       KAHOOT_MCP_ENABLED: config.KAHOOT_MCP_ENABLED ?? 'false',
       ...(kahootToken && {
-        KAHOOT_MCP_URL: origin + kahootMcpPath,
+        KAHOOT_MCP_URL: origin + kahootMcpPath + instance,
         KAHOOT_MCP_TOKEN: kahootToken,
       }),
       ...(config.SCHOOL_BOT_APPS_SCRIPT_URL && {

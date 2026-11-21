@@ -4,7 +4,7 @@ interface __BaseEnv_Env {
 	ASSETS: Fetcher;
 	DAILY_RUN_LIMIT: "60";
 	DAILY_RUN_LIMIT_OVERRIDES: {"2026-11-21":300};
-	IDLE_STOP_MINUTES: "10";
+	IDLE_STOP_MINUTES: "5";
 	AGENT_BACKEND: "vercel";
 	OPENAI_AGENTS: "nun";
 	PASSCODE: string;

@@ -8,7 +8,7 @@ import {
 } from './gate';
 import { isKahootMcpRequest } from './kahoot-mcp';
 import { kahootInstanceName, parseKahootState } from './kahoot-state';
-import { archivePath } from './sandbox';
+import { archivePath, sandboxInstanceFrom } from './sandbox';
 
 export { KahootConnection } from './kahoot-connection';
 export { MorningBrief } from './morning-brief';
@@ -118,8 +118,11 @@ export default {
     const route = request.method + ' ' + url.pathname;
     const sandbox = () => env.SANDBOX.getByName('main');
     const kahoot = () => env.KAHOOT.getByName(kahootInstanceName());
-    if (route === 'GET ' + archivePath || isKahootMcpRequest(url, request.method))
-      return sandbox().fetch(request);
+    if (route === 'GET ' + archivePath || isKahootMcpRequest(url, request.method)) {
+      const instance = sandboxInstanceFrom(url);
+      if (!instance) return Response.json({ error: 'not_found' }, { status: 404 });
+      return env.SANDBOX.getByName(instance).fetch(request);
+    }
 
     if (route === 'GET ' + kahootCallbackPath) {
       const state = url.searchParams.get('state');
