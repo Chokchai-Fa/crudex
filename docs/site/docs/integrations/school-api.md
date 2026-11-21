@@ -35,7 +35,27 @@ Send `POST /api/agents/jaew/runs` with JSON like the following, using an actual 
 
 HTTP 202 returns a run record. Reuse the client request ID when retrying a submission after a network failure. The server returns the original run for a matching payload and HTTP 409 if the same ID was used for different work. Include the classroom for tools that need scores or that save worksheets. The sandbox starts a fresh session after replacement. Business records remain in Postgres.
 
-Open `GET /api/runs/{runId}/events` with the school cookie. Each response carries up to 128 committed events, ordered by a numeric cursor. A response can end before the run finishes. Native EventSource reconnects using the advertised retry interval and the last event ID. With a fetch-based reader, retain each SSE `id`, reconnect on EOF with `Last-Event-ID`, and honor `retry`. Close on a JSON `done` or `error` event. Reconnecting after the terminal cursor returns HTTP 204. A memory proposal emits an `approval` event with `kind: "memory"` and a `proposalId`. A network interruption alone does not cancel a run.
+### Read progress as JSON
+
+The classroom frontend requests `GET /api/runs/{runId}/events` with the school cookie and `Accept: application/cloudevents-batch+json`. The response is a [CloudEvents 1.0 JSON batch](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md). For example, a tool starting produces this batch:
+
+```json
+[
+  {
+    "specversion": "1.0",
+    "id": "104",
+    "source": "/api/runs/c1620cdd-1de5-4477-98c7-556d0d155169",
+    "type": "work.crudex.run.tool",
+    "data": {"type": "tool", "id": "call-1", "name": "save_assessment", "status": "started"}
+  }
+]
+```
+
+The envelope ID identifies the event. The ID inside a tool payload identifies the tool call. The six event kinds are `status`, `tool`, `delta`, `approval`, `done` and `error`. Render process steps from the payload and append `delta.text` to the answer. Each response contains up to 128 events in ascending ID order. Send the last consumed ID in `Last-Event-ID` to continue. A 200 response with `[]` means wait and poll again with the same cursor. HTTP 204 means the run has ended and all events have been read.
+
+### Read progress as SSE
+
+Open `GET /api/runs/{runId}/events` with the school cookie and `Accept: text/event-stream`. Each response carries up to 128 committed events, ordered by a numeric cursor. A response can end before the run finishes. Native EventSource reconnects using the advertised retry interval and the last event ID. With a fetch-based reader, retain each SSE `id`, reconnect on EOF with `Last-Event-ID`, and honor `retry`. Close on a JSON `done` or `error` event. Reconnecting after the terminal cursor returns HTTP 204. A memory proposal emits an `approval` event with `kind: "memory"` and a `proposalId`. A network interruption alone does not cancel a run.
 
 ```text
 id: 104
