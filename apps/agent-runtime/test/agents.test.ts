@@ -129,3 +129,12 @@ describe('gates for anything that leaves the system or cannot be undone', () => 
     expect(byId['porn']?.instructions).toContain('กดยืนยันการส่งอีกชั้น');
   });
 });
+
+describe('model pin', () => {
+  it('runs the seven teacher and principal agents on gpt-6.2-sol', async () => {
+    const { principalAgents } = await import('../src/agents');
+    const all = [...teacherAgents, ...principalAgents];
+    expect(all).toHaveLength(7);
+    for (const agent of all) expect(agent.model, agent.id).toBe('gpt-6.2-sol');
+  });
+});

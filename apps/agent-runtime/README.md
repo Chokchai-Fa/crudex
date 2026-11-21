@@ -26,7 +26,7 @@ restore the saved state.
    `apps/agent-runtime/dist/sandbox/server.mjs` and `apps/agent-runtime/dist/app.tgz`.
 3. Set `OPENAI_API_KEY`, `UPSTREAM_TOKEN` and `DATA_DIR` in your shell and run
    `node apps/agent-runtime/dist/sandbox/server.mjs` with Node 24. Use a sample API
-   key for a health-only check. A live turn needs a key authorized for `gpt-5.4-mini`.
+   key for a health-only check. A live turn needs a key authorized for `gpt-6.2-sol` (the seven teacher and principal agents; `test-agent` still uses `gpt-5.4-mini`).
    `HOST` defaults to `0.0.0.0` and `PORT` defaults to `8790`.
 4. Send `GET /__health` with the `x-crudex-upstream-token` header. The authenticated
    `/__stats` route counts tool executions in the current process.
