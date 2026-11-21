@@ -45,12 +45,33 @@ interface Turn {
   kahootConnected?: boolean;
 }
 
+interface DelegationActivity {
+  id: string;
+  agentId: string;
+  status: 'started' | 'success' | 'failed';
+  hasResult?: boolean;
+  delivered?: boolean;
+  returned?: boolean;
+}
+
+function takeSubagentReturn(activity: DelegationActivity | undefined): RunEvent | undefined {
+  if (!activity || activity.status !== 'success' || activity.returned) return;
+  activity.returned = true;
+  return {
+    type: 'tool',
+    name: 'subagent_return',
+    status: 'success',
+    id: activity.id,
+    agentId: activity.agentId,
+  };
+}
+
 interface ChildTurn {
   text: string;
   formUrl?: string;
   completed?: boolean;
   agentId?: string;
-  activityId?: string;
+  activity?: DelegationActivity;
   kahootRequested?: boolean;
   kahootAuthFailed?: boolean;
   kahoot?: Extract<KahootResult, { status: 'created' }>;
@@ -139,7 +160,10 @@ export function createTurnRunner(host: Host) {
       let lessonPrep = false;
       let lessonSkillCall: string | undefined;
       const scoreReports = new Map<string, boolean>();
-      const reportInbox = new Map<string, string>();
+      const reportInbox = new Map<
+        string,
+        { childId: string; activity?: DelegationActivity } | undefined
+      >();
       let summaryStarted = false;
       let rootDone = false;
       let rootText = '';
@@ -209,35 +233,44 @@ export function createTurnRunner(host: Host) {
         // Announce a named handoff only once the verified child actually starts work.
         if (
           child?.agentId &&
-          !child.activityId &&
+          child.activity?.status !== 'started' &&
           (event.type === 'session.step.started' ||
             event.type === 'session.text.delta' ||
             event.type === 'session.tool.input.started')
         ) {
-          child.activityId = 'delegation:' + ++delegationCount;
+          child.activity = {
+            id: 'delegation:' + ++delegationCount,
+            agentId: child.agentId,
+            status: 'started',
+          };
           child.completed = undefined;
           yield {
             type: 'tool',
             name: 'subagent',
-            id: child.activityId,
+            id: child.activity.id,
             agentId: child.agentId,
             status: 'started',
           };
         }
         if (
-          child?.activityId &&
+          child?.activity?.status === 'started' &&
           (event.type === 'session.execution.succeeded' ||
             event.type === 'session.execution.failed' ||
             event.type === 'session.execution.interrupted')
         ) {
+          const status = event.type === 'session.execution.succeeded' ? 'success' : 'failed';
+          child.activity.status = status;
           yield {
             type: 'tool',
             name: 'subagent',
-            id: child.activityId,
-            agentId: child.agentId,
-            status: event.type === 'session.execution.succeeded' ? 'success' : 'failed',
+            id: child.activity.id,
+            agentId: child.activity.agentId,
+            status,
           };
-          child.activityId = undefined;
+          if (child.activity.delivered && delegated.has(source)) {
+            const returned = takeSubagentReturn(child.activity);
+            if (returned) yield returned;
+          }
         }
         switch (event.type) {
           case 'session.tool.called': {
@@ -270,22 +303,37 @@ export function createTurnRunner(host: Host) {
             break;
           }
           case 'session.inbox.enqueued': {
-            if (!root || !lessonPrep || event.data.item.type !== 'synthetic') break;
+            if (
+              !root ||
+              event.data.item.type !== 'synthetic' ||
+              reportInbox.has(event.data.inboxID)
+            )
+              break;
             const report = event.data.item.payload.metadata;
             if (
               report?.source === 'subagent' &&
               report.state === 'completed' &&
-              typeof report.childID === 'string' &&
-              scoreReports.has(report.childID)
-            )
-              reportInbox.set(event.data.inboxID, report.childID);
+              typeof report.childID === 'string'
+            ) {
+              const activity = children.get(report.childID)?.activity;
+              if (activity || scoreReports.has(report.childID))
+                reportInbox.set(event.data.inboxID, { childId: report.childID, activity });
+            }
             break;
           }
           case 'session.inbox.delivered': {
-            const childId = root && reportInbox.get(event.data.inboxID);
-            if (childId) {
-              scoreReports.set(childId, true);
-              reportInbox.delete(event.data.inboxID);
+            const report = root && reportInbox.get(event.data.inboxID);
+            if (!report) break;
+            reportInbox.set(event.data.inboxID, undefined);
+            if (report.activity) {
+              report.activity.delivered = true;
+              if (delegated.has(report.childId)) {
+                const returned = takeSubagentReturn(report.activity);
+                if (returned) yield returned;
+              }
+            }
+            if (scoreReports.has(report.childId)) {
+              scoreReports.set(report.childId, true);
               summaryStarted = false;
               rootDone = false;
             }
@@ -322,7 +370,11 @@ export function createTurnRunner(host: Host) {
             break;
           case 'session.text.ended':
             if (root && event.data.text) endedRootMessage = event.data.assistantMessageID;
-            if (child) child.text += event.data.text + '\n';
+            if (child) {
+              child.text += event.data.text + '\n';
+              if (child.activity?.status === 'started' && event.data.text.trim())
+                child.activity.hasResult = true;
+            }
             break;
           case 'session.step.started':
             if (root && rootMessageWithText !== event.data.assistantMessageID) {
@@ -385,13 +437,14 @@ export function createTurnRunner(host: Host) {
                   const receipt =
                     kahootReceipt(event.data.metadata?.crudexKahoot) ??
                     toolText.map(kahootReceipt).find(Boolean);
-                  if (receipt)
+                  if (receipt) {
                     child.kahoot = {
                       status: 'created',
                       kahootId: receipt.uuid,
                       title: receipt.title,
                     };
-                  else if (toolText.some(kahootRequiresConnection)) child.kahootAuthFailed = true;
+                    if (child.activity?.status === 'started') child.activity.hasResult = true;
+                  } else if (toolText.some(kahootRequiresConnection)) child.kahootAuthFailed = true;
                 }
               }
               if (
@@ -414,6 +467,11 @@ export function createTurnRunner(host: Host) {
                   const childSession = await findSession(host, childId, signal);
                   if (childSession?.parentID === sessionID) {
                     delegated.add(childId);
+                    const activity = children.get(childId)?.activity;
+                    if (activity?.delivered) {
+                      const returned = takeSubagentReturn(activity);
+                      if (returned) yield returned;
+                    }
                     if (
                       schoolSecretary &&
                       childSession.agent === 'jeng' &&
@@ -473,8 +531,10 @@ export function createTurnRunner(host: Host) {
                     if (
                       (result.mode === 'apps-script' || result.mode === 'school') &&
                       typeof result.formUrl === 'string'
-                    )
+                    ) {
                       child.formUrl = result.formUrl;
+                      if (child.activity?.status === 'started') child.activity.hasResult = true;
+                    }
                   }
                 }
               }
@@ -512,9 +572,14 @@ export function createTurnRunner(host: Host) {
           continue;
         }
         let reportedKahoot = false;
+        let failedDelegation = false;
         for (const id of delegated) {
           const result = children.get(id);
           if (result?.kahootRequested) {
+            if (result.activity?.hasResult) {
+              const returned = takeSubagentReturn(result.activity);
+              if (returned) yield returned;
+            }
             const outcome = result.kahoot ?? {
               status:
                 turn.kahootConnected === false || result.kahootAuthFailed
@@ -550,12 +615,16 @@ export function createTurnRunner(host: Host) {
             continue;
           }
           if (!result?.completed) {
-            yield { type: 'error', code: 'delegation_failed' };
-            return;
+            failedDelegation = true;
+            continue;
           }
           if (scoreReports.has(id)) continue;
           const reply = result.text.trim();
-          const messageId = 'reply:' + id;
+          if (result.activity?.hasResult) {
+            const returned = takeSubagentReturn(result.activity);
+            if (returned) yield returned;
+          }
+          const messageId = 'reply:' + (result.activity?.id ?? crypto.randomUUID());
           if (reply && !rootText.includes(reply))
             yield { type: 'delta', messageId, text: '\n\n' + reply };
           if (
@@ -565,6 +634,10 @@ export function createTurnRunner(host: Host) {
           ) {
             yield { type: 'delta', messageId, text: '\n' + result.formUrl };
           }
+        }
+        if (failedDelegation) {
+          yield { type: 'error', code: 'delegation_failed' };
+          return;
         }
         if (explicitKahoot && !reportedKahoot) {
           const status = turn.kahootConnected === false ? 'connect_required' : 'failed';

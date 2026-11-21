@@ -74,12 +74,19 @@ it.each([true, false])(
     expect(events.filter((e) => e.type === 'tool' && e.agentId)).toEqual([
       { type: 'tool', name: 'subagent', id: 'delegation:1', agentId: 'jum', status: 'started' },
       { type: 'tool', name: 'subagent', id: 'delegation:1', agentId: 'jum', status: 'success' },
+      {
+        type: 'tool',
+        name: 'subagent_return',
+        id: 'delegation:1',
+        agentId: 'jum',
+        status: 'success',
+      },
     ]);
     expect(events.filter(({ type }) => type === 'delta' || type === 'progress')).toEqual([
       { type: 'delta', messageId: 'wait', text: 'รอผลก่อนนะครับ' },
       { type: 'progress', messageId: 'wait' },
-      { type: 'delta', messageId: 'reply:child', text: '\n\nใบงานพร้อมแล้ว' },
-      { type: 'delta', messageId: 'reply:child', text: '\n' + formUrl },
+      { type: 'delta', messageId: 'reply:delegation:1', text: '\n\nใบงานพร้อมแล้ว' },
+      { type: 'delta', messageId: 'reply:delegation:1', text: '\n' + formUrl },
     ]);
     expect(events.findIndex(({ type }) => type === 'progress')).toBeLessThan(
       events.findIndex((item) => item.type === 'tool' && item.id === 'publish'),
@@ -88,6 +95,101 @@ it.each([true, false])(
       'รอผลก่อนนะครับ\n\nใบงานพร้อมแล้ว\n' + formUrl,
     );
     expect(host.session.prompt).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([true, false])(
+  'returns each verified child activity once (report arrives early = %s)',
+  async (early) => {
+    const a = 'ses_private_jum';
+    const b = 'ses_private_nun';
+    const report = (childID: string, inboxID: string, state = 'completed') =>
+      event('session.inbox.enqueued', 'root', {
+        inboxID,
+        item: { type: 'synthetic', payload: { metadata: { source: 'subagent', childID, state } } },
+      });
+    const delivered = (inboxID: string, receiver = 'root') =>
+      event('session.inbox.delivered', receiver, { inboxID });
+    const host = {
+      session: {
+        create: async () => ({ id: 'root' }),
+        get: async ({ sessionID }: { sessionID: string }) =>
+          sessionID === a
+            ? { parentID: 'root', agent: 'jum' }
+            : sessionID === b
+              ? { parentID: 'root', agent: 'nun' }
+              : { parentID: 'unrelated', agent: 'jeng' },
+        prompt: vi.fn(),
+        interrupt: vi.fn(),
+      },
+      event: {
+        async *subscribe() {
+          yield { type: 'server.connected', data: {} };
+          for (const { id, child } of [
+            { id: 'one', child: b },
+            { id: 'two', child: a },
+          ]) {
+            yield event('session.tool.input.started', 'root', { id, name: 'subagent' });
+            yield event('session.tool.success', 'root', { id, metadata: { sessionID: child } });
+            yield event('session.step.started', child);
+          }
+          yield report('foreign', 'forged-report');
+          yield delivered('forged-report');
+          yield report(a, 'one-report');
+          yield delivered('one-report', b);
+          if (early) yield delivered('one-report');
+          yield event('session.execution.succeeded', a);
+          if (!early) yield delivered('one-report');
+          yield report(a, 'one-report');
+          yield delivered('one-report');
+          yield report(b, 'failed-report');
+          yield event('session.execution.failed', b);
+          yield delivered('failed-report');
+          yield event('session.step.started', a);
+          yield event('session.text.ended', a, { text: 'ผลใหม่จากจ๋า' });
+          yield event('session.execution.succeeded', a);
+          yield event('session.execution.succeeded', 'root');
+        },
+      },
+    };
+    const events = [];
+    for await (const item of createTurnRunner(host as unknown as Host)({
+      agent: jaew,
+      directory: '.',
+      loginId: 'teacher',
+      text: 'สรุปคะแนนและทำใบงาน',
+      signal: new AbortController().signal,
+    }))
+      events.push(item);
+    expect(events.filter((item) => item.type === 'tool' && item.agentId)).toEqual([
+      { type: 'tool', name: 'subagent', status: 'started', id: 'delegation:1', agentId: 'nun' },
+      { type: 'tool', name: 'subagent', status: 'started', id: 'delegation:2', agentId: 'jum' },
+      { type: 'tool', name: 'subagent', status: 'success', id: 'delegation:2', agentId: 'jum' },
+      {
+        type: 'tool',
+        name: 'subagent_return',
+        status: 'success',
+        id: 'delegation:2',
+        agentId: 'jum',
+      },
+      { type: 'tool', name: 'subagent', status: 'failed', id: 'delegation:1', agentId: 'nun' },
+      { type: 'tool', name: 'subagent', status: 'started', id: 'delegation:3', agentId: 'jum' },
+      { type: 'tool', name: 'subagent', status: 'success', id: 'delegation:3', agentId: 'jum' },
+      {
+        type: 'tool',
+        name: 'subagent_return',
+        status: 'success',
+        id: 'delegation:3',
+        agentId: 'jum',
+      },
+    ]);
+    expect(events).toContainEqual({
+      type: 'delta',
+      messageId: 'reply:delegation:3',
+      text: '\n\nผลใหม่จากจ๋า',
+    });
+    expect(events.at(-1)).toEqual({ type: 'error', code: 'delegation_failed' });
+    expect(JSON.stringify(events)).not.toContain('ses_private_');
   },
 );
 
@@ -188,6 +290,7 @@ it.each([true, false])(
             text: 'รอผลก่อนนะครับ',
           });
           if (rootFirst) yield rootEnd;
+          yield event('session.step.started', 'current', { assistantMessageID: 'score-report' });
           yield event('session.text.ended', 'current', {
             assistantMessageID: 'score-report',
             ordinal: 0,
@@ -234,6 +337,17 @@ it.each([true, false])(
     }))
       events.push(item);
     expect(events.at(-1)?.type).toBe('done');
+    expect(
+      events.filter((item) => item.type === 'tool' && item.name === 'subagent_return'),
+    ).toEqual([
+      {
+        type: 'tool',
+        name: 'subagent_return',
+        id: 'delegation:1',
+        status: 'success',
+        agentId: 'nun',
+      },
+    ]);
     expect(events.filter(({ type }) => type === 'delta' || type === 'progress')).toEqual([
       { type: 'delta', messageId: 'wait', text: 'รอผล' },
       { type: 'delta', messageId: 'wait', text: 'ก่อนนะครับ' },
