@@ -60,6 +60,7 @@ describe('principal agents', () => {
         'get_school_summary',
         'list_pending_approvals',
         'memory_search',
+        'publish_brief',
         'read_budget',
         'teacher_activity',
       ].sort(),

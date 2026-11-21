@@ -1,3 +1,4 @@
+import { indicators } from '../data/indicators';
 import { checkAssessment, type Assessment } from '../lib/fractions';
 import type { ToolDefinition } from './types';
 
@@ -26,6 +27,7 @@ export const assessmentSchema = {
           },
           correctChoiceId: { type: 'string' },
           topic: { type: 'string' },
+          indicator: { type: 'string', description: 'รหัสตัวชี้วัดจาก curriculum_lookup ตรงตัว' },
           explanation: { type: 'string' },
           verify: {
             type: 'object',
@@ -44,7 +46,19 @@ export const assessmentSchema = {
 
 export function runCheck(input: unknown) {
   const { expectedCount, ...assessment } = input as Assessment & { expectedCount?: number };
-  return { assessment, result: checkAssessment(assessment, { expectedCount }) };
+  const result = checkAssessment(assessment, { expectedCount });
+  const known = new Set(indicators.map((i) => i.id));
+  for (const question of assessment.questions as { id: string; indicator?: string }[]) {
+    if (question.indicator !== undefined && !known.has(question.indicator)) {
+      result.errors.push({
+        questionId: question.id,
+        code: 'unknown_indicator',
+        message: `ไม่พบตัวชี้วัด ${question.indicator} ใช้รหัสจาก curriculum_lookup ตรงตัว`,
+      });
+      result.ok = false;
+    }
+  }
+  return { assessment, result };
 }
 
 export const checkAssessmentTool: ToolDefinition = {

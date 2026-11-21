@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import sample from './fixtures/assessment-sample.json';
 import { tools } from '../src/tools';
 import { approvalBox, testMailbox } from '../src/tools/inbox';
@@ -214,5 +214,52 @@ describe('curriculum_lookup queries', () => {
     expect(none.count).toBeGreaterThan(0);
     expect(none.note).toContain('ทั้งชั้น');
     expect((await call('curriculum_lookup', { query: 'ไม่มีคำนี้แน่นอน' })).count).toBe(0);
+  });
+});
+
+describe('answer spread through the real publisher', () => {
+  it('moves keys the model put first so no position holds more than ceil(n/4)', async () => {
+    const sent: { questions: { answerIndex: number }[] }[] = [];
+    vi.stubEnv('SCHOOL_BOT_APPS_SCRIPT_URL', 'https://bridge.invalid');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: unknown, init: RequestInit) => {
+        sent.push(JSON.parse(String(init.body)));
+        return Response.json({
+          ok: true,
+          formId: 'f_1',
+          url: 'https://docs.google.com/forms/d/f_1/viewform',
+        });
+      }),
+    );
+    try {
+      const allFirst = structuredClone(sample);
+      for (const q of allFirst.questions) {
+        const key = q.choices.find((c) => c.id === q.correctChoiceId)!;
+        q.choices = [key, ...q.choices.filter((c) => c !== key)];
+      }
+      const r = await call('save_assessment', allFirst);
+      const counts = [0, 0, 0, 0];
+      for (const q of sent[0]!.questions) counts[q.answerIndex]!++;
+      expect(Math.max(...counts)).toBeLessThanOrEqual(3);
+      expect(r.questions.map((q: { answer: string }) => q.answer).join('')).toBe(
+        sent[0]!.questions.map((q) => 'กขคง'[q.answerIndex]).join(''),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
+describe('indicator field', () => {
+  it('accepts a listed indicator and rejects an invented one', async () => {
+    const ok = structuredClone(sample);
+    (ok.questions[0] as { indicator?: string }).indicator = 'ค 1.1 ป.5/3';
+    expect((await call('check_assessment', ok)).ok).toBe(true);
+    (ok.questions[0] as { indicator?: string }).indicator = 'ค 9.9 ป.5/9';
+    const r = await call('check_assessment', ok);
+    expect(r.ok).toBe(false);
+    expect(r.errors.map((e: { code: string }) => e.code)).toContain('unknown_indicator');
   });
 });
