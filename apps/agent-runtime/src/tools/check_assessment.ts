@@ -30,8 +30,17 @@ export const assessmentSchema = z.strictObject({
     .max(30),
 });
 
-export function runCheck({ expectedCount, ...assessment }: z.infer<typeof assessmentSchema>) {
-  const result = checkAssessment(assessment, { expectedCount });
+export const DEFAULT_MIN_QUESTIONS = 5;
+
+export function runCheck(
+  { expectedCount, ...assessment }: z.infer<typeof assessmentSchema>,
+  { defaultFloor = false }: { defaultFloor?: boolean } = {},
+) {
+  // Without an explicit count the teacher did not ask for a short set: refuse anything under the default floor.
+  const result = checkAssessment(assessment, {
+    expectedCount,
+    minQuestions: defaultFloor && expectedCount === undefined ? DEFAULT_MIN_QUESTIONS : 1,
+  });
   const known = new Set(indicators.map((i) => i.id));
   for (const question of assessment.questions) {
     if (question.indicator !== undefined && !known.has(question.indicator)) {
@@ -65,7 +74,7 @@ export const checkAssessmentTool = validatedTool(assessmentSchema, {
     'ตรวจชุดข้อสอบด้วยโค้ด: คำนวณเศษส่วนจริง ตรวจเฉลย ตัวเลือกที่ค่าเท่ากันหลังย่อ และจำนวนข้อ (expectedCount = จำนวนที่ครูขอ) การหารเขียน (4/7)/(2/7) ถ้า ok เป็น false ให้แก้ตาม errors แล้วเรียกใหม่',
   gate: 'allow',
   execute: (input, context) => {
-    const { result } = runCheck(input);
+    const { result } = runCheck(input, { defaultFloor: true });
     recordCheckResult(context.sessionID, result.ok);
     return result;
   },

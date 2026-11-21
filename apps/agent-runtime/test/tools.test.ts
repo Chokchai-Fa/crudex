@@ -498,3 +498,15 @@ describe('indicator field', () => {
     expect(r.errors.map((e: { code: string }) => e.code)).toContain('unknown_indicator');
   });
 });
+
+describe('default question floor', () => {
+  it('refuses a one-question set unless the count was asked for, and accepts it when asked', async () => {
+    const one = structuredClone(sample);
+    one.questions = one.questions.slice(0, 1);
+    const refused = await call('check_assessment', one);
+    expect(refused.ok).toBe(false);
+    expect(refused.errors.map((e: { code: string }) => e.code)).toContain('too_few');
+    expect((await call('check_assessment', { ...one, expectedCount: 1 })).ok).toBe(true);
+    await expect(call('save_assessment', one)).rejects.toBeInstanceOf(Error);
+  });
+});

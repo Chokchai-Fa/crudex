@@ -92,7 +92,7 @@ export async function saveVerifiedAssessment(
   signal: AbortSignal,
   scope?: SchoolScope,
 ) {
-  const { assessment, result } = runCheck(input);
+  const { assessment, result } = runCheck(input, { defaultFloor: true });
   if (!result.ok || result.unverified.length) {
     const reasons = result.errors.map((error) => error.message).concat(result.unverified);
     throw new ToolError('invalid_assessment', reasons.join('; '));
