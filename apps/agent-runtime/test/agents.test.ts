@@ -65,7 +65,7 @@ describe('teacher agents', () => {
     const jum = byId['jum']?.instructions ?? '';
     expect(jum.indexOf('memory_search')).toBeLessThan(jum.indexOf('check_assessment'));
     expect(jum.indexOf('check_assessment')).toBeLessThan(jum.indexOf('save_assessment'));
-    expect(jaew.instructions.indexOf('ให้ผมจำไว้ไหม')).toBeLessThan(
+    expect(jaew.instructions.indexOf('ให้หนูจำไว้ไหมคะ')).toBeLessThan(
       jaew.instructions.indexOf('ข) ถ้าเป็นคำขอให้ทำงาน'),
     );
     expect(byId['porn']?.instructions).toContain('ยืนยันทุกครั้ง');
