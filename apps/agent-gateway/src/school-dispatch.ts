@@ -7,6 +7,7 @@ import {
   type SchoolKahootAccount,
   type SchoolKahootRpc,
 } from '../../../packages/shared/src/school-dispatch.schema';
+import { directReply } from './direct-reply';
 import { kahootInstanceName, parseKahootState } from './kahoot-state';
 
 const schoolRedirectUri = z.url().refine((value) => {
@@ -62,6 +63,9 @@ export class SchoolDispatch extends WorkerEntrypoint<Env> implements SchoolKahoo
       scope.agentId !== body.data.agentId
     )
       return new Response(null, { status: 403 });
+    // Chat and memory turns answer without waiting for a sandbox.
+    const direct = await directReply(this.env.OPENAI_API_KEY, body.data);
+    if (direct) return direct;
     const url = new URL('/school/chat', request.url);
     url.searchParams.set('role', scope.role);
     return this.env.SANDBOX.getByName('main').fetch(url, {
