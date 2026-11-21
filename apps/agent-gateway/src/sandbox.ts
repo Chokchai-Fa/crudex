@@ -77,6 +77,7 @@ export async function bootSandbox(
     cwd: workDir + '/app',
     env: {
       OPENAI_API_KEY: config.OPENAI_API_KEY,
+      KAHOOT_MCP_ENABLED: config.KAHOOT_MCP_ENABLED ?? 'false',
       ...(config.SCHOOL_BOT_APPS_SCRIPT_URL && {
         SCHOOL_BOT_APPS_SCRIPT_URL: config.SCHOOL_BOT_APPS_SCRIPT_URL,
       }),
