@@ -12,14 +12,11 @@ const ctx = (extra: Partial<ToolContext> = {}): ToolContext => ({
   ...extra,
 });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const call = async (
-  name: string,
-  input: unknown,
-  context = ctx(),
-): Promise<Record<string, any>> => {
+type ToolResult = Record<string, any>;
+const call = async (name: string, input: unknown, context = ctx()): Promise<ToolResult> => {
   const tool = tools.find((t) => t.name === name);
   if (!tool) throw new Error('missing ' + name);
-  return (await tool.execute(input, context)) as Record<string, never>;
+  return (await tool.execute(input, context)) as ToolResult;
 };
 
 beforeEach(() => resetMemory());
