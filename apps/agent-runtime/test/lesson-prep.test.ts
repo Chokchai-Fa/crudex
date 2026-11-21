@@ -23,11 +23,11 @@ describe('jaew lesson preparation flow', () => {
   it('asks before doing and offers the six choices with the exact labels', () => {
     for (const label of [
       '1) สื่อการสอน/สไลด์ — พี่เจ๋ง',
-      '2) ใบงาน/การบ้าน — น้องจ๋ำ',
-      '3) แบบทดสอบ Google Form — น้องจ๋ำ',
+      '2) ใบงาน/การบ้าน — น้องจ๋า',
+      '3) แบบทดสอบ Google Form — น้องจ๋า',
       '4) เกม Kahoot — พี่เจ๋ง',
       '5) กิจกรรมในคาบ — พี่เจ๋ง',
-      '6) ข้อสอบ — น้องจ๋ำ',
+      '6) ข้อสอบ — น้องจ๋า',
     ]) {
       expect(text, label).toContain(label);
     }
@@ -73,9 +73,14 @@ describe('jaew lesson preparation flow', () => {
     expect(jum.instructions).toContain('ห้ามใช้ 1 หรือจำนวนน้อยกว่านั้นโดยครูไม่ได้ขอ');
   });
 
-  it('pastes the chat-only worksheet that check_assessment renders', () => {
+  it('pastes the worksheet that check_assessment renders only as a fallback when no file or card exists', () => {
     expect(jum.instructions).toContain('worksheet.text');
     expect(jum.instructions).toContain('worksheet.answers');
     expect(jum.instructions).toContain('ห้ามเรียงตัวเลือกใหม่');
+  });
+
+  it('tells jum to paste the worksheet as plain text, never inside a code fence', () => {
+    expect(jum.instructions).toContain('ห้ามครอบด้วย code fence');
+    expect(jum.instructions).toContain('ห้ามใส่ blockquote ตาราง หรือตัวหนาครอบทั้งก้อน');
   });
 });

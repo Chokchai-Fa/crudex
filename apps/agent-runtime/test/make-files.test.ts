@@ -111,6 +111,49 @@ it('accepts rendered worksheet text as content', async () => {
   expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
     action: 'createPdf',
     title: 'ใบงาน',
-    sections: [{ heading: 'ใบงาน', body: '1) 3² + 4² = ?\nเฉลย: 25' }],
+    sections: [
+      { heading: 'ใบงาน', body: '1) 3² + 4² = ?' },
+      { heading: 'เฉลย (สำหรับครู)', body: '25', pageBreakBefore: true },
+    ],
   });
+});
+
+it('puts the answer key on its own last page', async () => {
+  const ok = () =>
+    Response.json({
+      ok: true,
+      fileId: 'pdfFileId000003',
+      url: 'https://drive.google.com/file/d/pdfFileId000003/view',
+    });
+  const bodies = () =>
+    request.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).sections);
+  request.mockImplementation(async () => ok());
+  await makeFile.execute(
+    { title: 'ใบงาน', format: 'pdf', content: '1. 3² + 4² = ?\nก. 25', answerKey: '1. ก' },
+    context,
+  );
+  await makeFile.execute(
+    { title: 'ใบงาน', format: 'pdf', content: '1. 3² + 4² = ?\nก. 25\n\nเฉลย: 1. ก' },
+    context,
+  );
+  await makeFile.execute(
+    {
+      title: 'ใบงาน',
+      format: 'pdf',
+      sections: [
+        { heading: 'เฉลย', body: '1. ก' },
+        { heading: 'โจทย์', body: '1. 3² + 4² = ?' },
+      ],
+    },
+    context,
+  );
+  const [explicit, split, ordered] = bodies();
+  const key = { heading: 'เฉลย (สำหรับครู)', body: '1. ก', pageBreakBefore: true };
+  expect(explicit).toEqual([{ heading: 'ใบงาน', body: '1. 3² + 4² = ?\nก. 25' }, key]);
+  expect(split).toEqual([{ heading: 'ใบงาน', body: '1. 3² + 4² = ?\nก. 25' }, key]);
+  expect(ordered).toEqual([
+    { heading: 'โจทย์', body: '1. 3² + 4² = ?' },
+    { heading: 'เฉลย', body: '1. ก', pageBreakBefore: true },
+  ]);
+  request.mockReset();
 });

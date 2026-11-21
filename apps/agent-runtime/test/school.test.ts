@@ -100,6 +100,7 @@ it('also creates the Google Form in school mode and keeps the school record when
   expect(bridged.questions.map((q: { answerIndex: number }) => 'c' + q.answerIndex)).toEqual(
     recorded.assessment.questions.map((q: { correctChoiceId: string }) => q.correctChoiceId),
   );
+  expect(recorded.assessment.googleFormUrl).toBe(google);
   bridgeUp = false;
   const failed = await saveVerifiedAssessment(data, new AbortController().signal, s);
   expect(failed).toMatchObject({
@@ -108,5 +109,11 @@ it('also creates the Google Form in school mode and keeps the school record when
     googleForm: 'failed',
   });
   expect(failed).not.toHaveProperty('googleFormId');
+  const last = (fetcher.mock.calls as unknown as [URL, RequestInit][])
+    .map(([, init]) => JSON.parse(String(init.body)))
+    .filter((body) => body.assessment)
+    .at(-1);
+  expect(last.assessment).not.toHaveProperty('googleFormUrl');
+  expect(last.assessment.googleFormReason).toMatch(/^[a-z_0-9]+$/);
   vi.unstubAllEnvs();
 });
