@@ -1,3 +1,8 @@
+---
+sidebar_label: Cloud services
+description: Where each backend component runs, which service owns its state, and how the Workers ship.
+---
+
 # Crudex backend on cloud services
 
 Crudex has two independently deployed Cloudflare Workers. **`app`** serves the application and owns the database, cache and background jobs. **`crudex-agent`** runs OpenCode on Vercel Sandbox for authenticated school runs and the separate passcode demo. The application Worker owns school identity and dispatches AI work over a private service binding.
@@ -20,6 +25,7 @@ flowchart TB
         Brief[MorningBrief Durable Object]
         Assets[Agent assets and runtime bundle]
     end
+    Client -->|handbook and API reference| Pages[GitHub Pages]
     Client -->|application files| Web
     Client -->|application API| App
     App -->|enqueue| Jobs
@@ -40,8 +46,11 @@ flowchart TB
     Node -->|authenticated bundle download via gateway| Gate
     Manager -->|authenticated HTTP and SSE| Node
     Node -->|OpenCode model calls| OpenAI[OpenAI API]
-    Node -.->|configured school tools| Google[Google Apps Script]
+    Node -.->|configured demo tools| Google[Google Apps Script]
+    Node -.->|optional demo quiz publishing| Kahoot[Kahoot MCP]
 ```
+
+Explore the internal boundaries in the [per-service architecture diagrams](service-diagrams.md).
 
 ## Component placement and ownership
 
@@ -56,24 +65,24 @@ flowchart TB
 | Preview storage | Cloudflare Workers KV, binding `PREVIEWS` | Terraform provisions the namespace. The intended use is short-lived generated files; the current API has no preview writer or download route. Implement expiration on writes and authorize reads before using this for school artifacts. |
 | Agent gateway and assets | Cloudflare Worker `crudex-agent`, its own Workers Static Assets binding | Checks the demo passcode session, exposes status, agent list and chat, and serves the runtime archive through a one-use boot credential. Streams responses to the caller. |
 | Sandbox coordinator | SQLite-backed Cloudflare Durable Object `SandboxManager`, binding `SANDBOX` | The current singleton `main` holds sandbox lifecycle metadata and daily usage. It serializes startup, drains streams on rotation and uses alarms for idle cleanup. |
-| Morning brief | Cloudflare Durable Object `MorningBrief`, binding `BRIEFS` | Saves the latest validated demo brief and manages its own 07:00 Bangkok alarm. Generation calls the registered `rungchao` agent. [Brief contract](agent-gateway.md) |
+| Morning brief | Cloudflare Durable Object `MorningBrief`, binding `BRIEFS` | Saves the latest validated demo brief and manages its own 07:00 Bangkok alarm. Generation calls the registered `rungchao` agent. [Brief contract](../integrations/demo-gateway.md) |
 | AI execution | Vercel project and ephemeral Vercel Sandbox | The project scopes sandbox creation. The sandbox runs the Node 24 HTTP server, OpenCode plugin, teacher agents and school tools. Its local SQLite session database and scratch files expire with it. The next turn may start fresh. |
 | Model inference | OpenAI API | The runtime selects the model and sends the prompt and permitted tool descriptions. Tool execution happens in the backend. The gateway injects the OpenAI key into the runtime process. |
 | External school actions | Optional Google Apps Script endpoint | Configured adapters can publish Forms or request email delivery. School worksheets use the local quiz API. School routines currently create report drafts. |
 
-Application details are defined in the [Worker configuration](../apps/api/wrangler.toml), [HTTP entry](../apps/api/src/app.ts), [queue consumer](../apps/api/src/jobs/queue-handler.ts) and [scheduler](../apps/api/src/jobs/scheduled-handler.ts). Agent boundaries are defined in the [gateway configuration](../apps/agent-gateway/wrangler.toml), [sandbox manager](../apps/agent-gateway/src/sandbox-manager.ts) and [runtime](../apps/agent-runtime/src/server.ts).
+Application details are defined in the [Worker configuration](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/wrangler.toml), [HTTP entry](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/src/app.ts), [queue consumer](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/src/jobs/queue-handler.ts) and [scheduler](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/src/jobs/scheduled-handler.ts). Agent boundaries are defined in the [gateway configuration](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/wrangler.toml), [sandbox manager](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-gateway/src/sandbox-manager.ts) and [runtime](https://github.com/Chokchai-Fa/crudex/blob/main/apps/agent-runtime/src/server.ts).
 
 ## Contracts across services
 
-The [school request lifecycle](ARCHITECTURE.md) follows a run through the queue, gateway and sandbox. The [API specification](openapi.yaml) defines client operations and runtime callbacks. The [database reference](DATABASE.md) lists the keys that enforce uniqueness for runs, tool effects, submissions and notifications.
+The [school request lifecycle](run-lifecycle.md) follows a run through the queue, gateway and sandbox. The [API specification](../reference/openapi.mdx) defines client operations and runtime callbacks. The [database reference](../reference/database.md) lists the keys that enforce uniqueness for runs, tool effects, submissions and notifications.
 
 ## Provisioning, release and operations
 
 | Service | Ownership |
 | --- | --- |
-| Terraform and HCP Terraform | The production root declares Neon, Upstash, Queue, KV and the Vercel project. HCP holds Terraform state. Product records belong in the application stores. [Terraform root](../infra/envs/prod/main.tf) |
-| GitHub Actions, application release | CI builds the SPA, resolves Terraform outputs for bindings and secrets, runs backward-compatible Drizzle migrations, then deploys the Worker and assets. [Application release](../.github/workflows/deploy.yml) |
-| GitHub Actions, agent release | After an agent PR merges into `main`, or on manual dispatch, a separate workflow bundles the runtime archive, resolves cloud identifiers, deploys the gateway with its runtime revision and invokes the smoke test. It prefers the Vercel project named `crudex` and falls back to another returned project if absent. Confirm the resolved project when tracing a deployment. [Agent release](../.github/workflows/deploy-agent.yml) |
-| Credentials and observability | CI supplies encrypted Worker secrets. The application receives database and Redis access; the agent gateway receives provisioning credentials and injects runtime credentials at launch. The application Worker enables Cloudflare observability. Use request, run and attempt IDs for cross-service diagnosis as school workflows are added. [Infrastructure guide](../infra/README.md) |
+| Terraform and HCP Terraform | The production root declares Neon, Upstash, Queue, KV and the Vercel project. HCP holds Terraform state. Product records belong in the application stores. [Terraform root](https://github.com/Chokchai-Fa/crudex/blob/main/infra/envs/prod/main.tf) |
+| GitHub Actions, application release | CI builds the SPA, resolves Terraform outputs for bindings and secrets, runs backward-compatible Drizzle migrations, then deploys the Worker and assets. [Application release](https://github.com/Chokchai-Fa/crudex/blob/main/.github/workflows/deploy.yml) |
+| GitHub Actions, agent release | After an agent PR merges into `main`, or on manual dispatch, a separate workflow bundles the runtime archive, resolves cloud identifiers, deploys the gateway with its runtime revision and invokes the smoke test. It prefers the Vercel project named `crudex` and falls back to another returned project if absent. Confirm the resolved project when tracing a deployment. [Agent release](https://github.com/Chokchai-Fa/crudex/blob/main/.github/workflows/deploy-agent.yml) |
+| Credentials and observability | CI supplies encrypted Worker secrets. The application receives database and Redis access; the agent gateway receives provisioning credentials and injects runtime credentials at launch. The application Worker enables Cloudflare observability. Use request, run and attempt IDs for cross-service diagnosis as school workflows are added. [Infrastructure guide](https://github.com/Chokchai-Fa/crudex/blob/main/infra/README.md) |
 
 This is a repository-level architecture. Live resource health, free-tier headroom and account eligibility are environment checks before hosted rollout.

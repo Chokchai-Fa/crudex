@@ -33,3 +33,7 @@ crash.log
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Docusaurus cache and generated website
+docs/site/.docusaurus/
+docs/site/build/

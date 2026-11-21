@@ -1,3 +1,8 @@
+---
+sidebar_label: Database schema
+description: Relationships, columns, constraints and lifecycle rules for school records in Neon Postgres.
+---
+
 # School database schema
 
 Neon Postgres owns school identities, runs, saved work, grades and reporting records. Drizzle uses the Neon HTTP driver in the Worker. Local development uses Postgres through a Neon-compatible proxy. The agent sandbox has a separate disposable SQLite database for OpenCode sessions. The gateway’s Durable Objects store demo state and sandbox lifecycle metadata. Those stores contain no canonical school grades or membership records.
@@ -28,7 +33,7 @@ erDiagram
 
 ## Data dictionary
 
-The tables below match the Drizzle migration snapshot. A question mark means nullable. Primary keys, foreign keys and unique constraints are listed explicitly. Some associations, such as the run ID saved with a worksheet, are checked at the service boundary. See the [schema definitions](../apps/api/src/db/schema) and [versioned SQL migrations](../apps/api/drizzle).
+The tables below match the Drizzle migration snapshot. A question mark means nullable. Primary keys, foreign keys and unique constraints are listed explicitly. Some associations, such as the run ID saved with a worksheet, are checked at the service boundary. See the [schema definitions](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/src/db/schema) and [versioned SQL migrations](https://github.com/Chokchai-Fa/crudex/blob/main/apps/api/drizzle).
 
 ### Identity and school scope
 
@@ -175,4 +180,4 @@ PK (id) · Index (created_at).
 - A claim decision updates a pending claim and writes its notifications in a single SQL statement. Prices are integer satang. Claim items and submitted answers are JSONB because each is retained as one immutable submission.
 - The schema currently has no automatic deletion policy for historical school records. Session and invitation expiry controls authorization; expiry alone does not physically purge rows.
 
-For local schema changes, use `pnpm --filter api db:generate`, inspect the SQL and snapshot, then run `pnpm --filter api db:migrate` against a disposable local database. Production migrations must be additive while the prior Worker revision can still serve requests. [API contract](API.md)
+For local schema changes, use `pnpm --filter api db:generate`, inspect the SQL and snapshot, then run `pnpm --filter api db:migrate` against a disposable local database. Production migrations must be additive while the prior Worker revision can still serve requests. [API contract](../integrations/school-api.md)

@@ -1,6 +1,11 @@
+---
+sidebar_label: School API
+description: Authenticate a school account, start a run, replay events, publish a worksheet and retrieve grades.
+---
+
 # School API
 
-The application Worker serves the school API under `/api` on the application origin. The [OpenAPI 3.1 specification](openapi.yaml) contains the paths, request schemas, response fields and authentication schemes. The separate agent demo has its own passcode, routes and cookie. [Demo gateway guide](agent-gateway.md)
+The application Worker serves the school API under `/api` on the application origin. The [OpenAPI 3.1 specification](../reference/openapi.mdx) contains the paths, request schemas, response fields and authentication schemes. The separate agent demo has its own passcode, routes and cookie. [Demo gateway guide](demo-gateway.md)
 
 ## Sign in and select a classroom
 
@@ -51,23 +56,4 @@ Open the teacher copy at `GET /api/assessments/{id}`. Its `formUrl` is an applic
 
 All paths in this table are relative to `/api`. Times in JSON are ISO 8601 unless a field explicitly says milliseconds. Error responses use `{"error":{"code":"…","message":"…"}}` for application errors. Handle 400 for invalid input, 401 for a missing/expired session, 403 for insufficient permission, 404 for an unavailable resource, 409 for conflicting retries and 429 for exhausted run quota. After HTTP 202, execution failures arrive on the run stream. The legacy public notes and health routes are also listed in the specification.
 
-## Local verification
-
-Start the local data services, apply the migrations, and run the identity and approval checks against a disposable database. For the worksheet-to-report flow the test fixture acts as the agent gateway and calls the same authenticated tool callbacks as a live sandbox. It exercises the school HTTP API and Postgres without a paid model call. See the self-contained checks in [identity](../apps/api/scripts/check-school-identity.mjs), [approvals](../apps/api/scripts/check-school-approvals.mjs) and [school workflow](../apps/api/scripts/check-school-workflow.mjs).
-
-To run all three checks from the repository root, start the Compose database and proxies, copy the local Worker settings and apply the migrations as described in the README. Build the static assets once, then start both local Workers in one Wrangler process.
-
-```sh
-pnpm --filter web build
-pnpm --filter api exec wrangler dev --local --config wrangler.toml \
-  --config scripts/fixtures/dispatch.wrangler.jsonc --port 8790 --test-scheduled
-```
-
-In another shell, run the checks against the disposable Compose database.
-
-```sh
-export DATABASE_URL=postgres://postgres:postgres@localhost:5432/main
-node apps/api/scripts/check-school-identity.mjs http://127.0.0.1:8790/api/
-node apps/api/scripts/check-school-approvals.mjs http://127.0.0.1:8790/api/
-node apps/api/scripts/check-school-workflow.mjs http://127.0.0.1:8790
-```
+[Run the API verification locally](../getting-started/local-development.md).

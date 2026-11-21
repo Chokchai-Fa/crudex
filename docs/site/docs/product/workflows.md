@@ -1,14 +1,19 @@
+---
+sidebar_label: School workflows
+description: Teacher, student, guardian and principal workflows supported by the school backend.
+---
+
 # Crudex school backend and AI integration
 
 ## Goal and baseline
 
-A teacher can ask in Thai for a Grade 5 fractions worksheet, watch the secretary delegate to the worksheet agent, receive a verified assessment, and reuse it for a quiz. The same school backend supplies scores, scheduled parent reports and a principal’s morning brief. The [design inventory](design/README.md) and [Paper screen exports](design/paper-export/README.md) define the consumer-visible states. The [gateway guide](agent-gateway.md) describes the existing demo API. The [API guide](API.md) and [OpenAPI specification](openapi.yaml) describe the implemented contract. Frontend implementation is a separate workstream.
+A teacher can ask in Thai for a Grade 5 fractions worksheet, watch the secretary delegate to the worksheet agent, receive a verified assessment, and reuse it for a quiz. The same school backend supplies scores, scheduled parent reports and a principal’s morning brief. The [design inventory](../product/design.md) and [Paper screen exports](https://github.com/Chokchai-Fa/crudex/blob/main/docs/design/paper-export/README.md) define the consumer-visible states. The [gateway guide](../integrations/demo-gateway.md) describes the existing demo API. The [API guide](../integrations/school-api.md) and [OpenAPI specification](../reference/openapi.mdx) describe the implemented contract. Frontend implementation is a separate workstream.
 
 ## Execution and ownership
 
 The public entry is the existing Hono Worker. Routes validate shared Zod contracts, derive school, actor and role from a verified session, then call services. Repositories own Neon queries. The role selection pictured in the designs can only select an existing membership. Start locally with explicitly seeded synthetic memberships. A shared environment requires authenticated memberships.
 
-The merged Crudex agent gateway runs the OpenCode school plugin in disposable Node 24 Vercel Sandboxes. Reuse that runtime for chat and worksheet generation. The [system architecture](ARCHITECTURE.md) describes the school API and AI execution paths.
+The merged Crudex agent gateway runs the OpenCode school plugin in disposable Node 24 Vercel Sandboxes. Reuse that runtime for chat and worksheet generation. The [system architecture](../architecture/run-lifecycle.md) describes the school API and AI execution paths.
 
 The Worker communicates with an authenticated private runtime adapter. Each request carries a short-lived signed identity scoped to a school, actor, agent and run. Bind tool access to that identity. Node owns temporary OpenCode session state scoped to school and owner. A replacement sandbox starts a fresh session. The runtime bundle owns agent definitions. Neon owns memberships, chat/run records, approved memory, assessments, submissions, schedules and delivery records. Keep secret values out of prompts, transcripts and logs. Use only server-side `OPENAI_API_KEY` in the runtime and an allowlisted model setting, initially `openai/gpt-5.4-mini` subject to account access. Offline tests use the scripted provider. Live runs use an existing authorized key and budget.
 
