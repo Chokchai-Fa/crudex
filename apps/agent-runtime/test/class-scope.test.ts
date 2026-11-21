@@ -115,6 +115,8 @@ describe('get_scores room scope', () => {
       hasData: false,
       classId: 'class-m2-2',
       label: 'ม.2/2',
+      mode: 'sample',
+      note: expect.stringContaining('ข้อมูลตัวอย่าง'),
       message: 'ยังไม่มีข้อมูลคะแนนของห้องนี้',
     });
   });

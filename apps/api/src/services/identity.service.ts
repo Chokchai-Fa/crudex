@@ -1,5 +1,6 @@
-import type { LocalSignIn, SchoolActor } from '@repo/shared';
-import { AppError, ForbiddenError, NotFoundError } from '../lib/errors';
+import type { GuestSignIn, LocalSignIn, SchoolActor } from '@repo/shared';
+import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../lib/errors';
+import { createGuestSchool } from '../repositories/guest-school.repository';
 import * as repo from '../repositories/identity.repository';
 import { fixtureMembership, seedLocalSchools } from '../repositories/synthetic-school.repository';
 import type { Deps } from '../types/deps';
@@ -16,13 +17,15 @@ async function digest(token: string) {
     new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))),
   );
 }
-async function newSession() {
+export async function newCredential() {
   const token = hex(crypto.getRandomValues(new Uint8Array(32)));
   return {
     token,
     digest: await digest(token),
-    expiresAt: new Date(Date.now() + sessionSeconds * 1000),
   };
+}
+async function newSession() {
+  return { ...(await newCredential()), expiresAt: new Date(Date.now() + sessionSeconds * 1000) };
 }
 
 export async function loadSchoolActor(deps: Deps, scope: repo.ActorScope): Promise<SchoolActor> {
@@ -61,6 +64,18 @@ export async function signIn(deps: Deps, credential: string) {
   ) {
     throw unauthorized();
   }
+  return session.token;
+}
+export async function guestSignIn(deps: Deps, input: GuestSignIn, existing: string | undefined) {
+  if (
+    existing &&
+    tokenPattern.test(existing) &&
+    (await repo.findSession(deps.db, await digest(existing)))
+  ) {
+    throw new ConflictError('ออกจากระบบก่อนเลือกบทบาทใหม่');
+  }
+  const session = await newSession();
+  await createGuestSchool(deps.db, input.role, session.digest, session.expiresAt);
   return session.token;
 }
 function loopback(url: string) {

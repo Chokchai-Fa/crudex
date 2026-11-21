@@ -5,6 +5,7 @@ import {
   type CreateRun,
   type SchoolActor,
 } from '@repo/shared';
+import { z } from 'zod';
 import { ConflictError, ForbiddenError, NotFoundError, RateLimitError } from '../lib/errors';
 import * as repo from '../repositories/runs.repository';
 import type { Deps } from '../types/deps';
@@ -19,10 +20,18 @@ function authorize(actor: SchoolActor, agentId: AgentId, classId?: string | null
     throw new ForbiddenError();
 }
 type Run = Awaited<ReturnType<typeof repo.accept>>;
-function dto({ id, agentId, classId, prompt, status, createdAt }: Run) {
-  return { id, agentId, classId, prompt, status, createdAt: createdAt.toISOString() };
+function dto({ id, requestId, agentId, classId, prompt, status, createdAt }: Run) {
+  return {
+    id,
+    clientRequestId: requestId,
+    agentId,
+    classId,
+    prompt,
+    status,
+    createdAt: createdAt.toISOString(),
+  };
 }
-export async function startRun(deps: Deps, a: SchoolActor, agent: AgentId, input: CreateRun) {
+export async function reserveRun(deps: Deps, a: SchoolActor, agent: AgentId, input: CreateRun) {
   authorize(a, agent, input.classId);
   const id = crypto.randomUUID();
   const run = await repo
@@ -40,9 +49,13 @@ export async function startRun(deps: Deps, a: SchoolActor, agent: AgentId, input
     run.classId !== (input.classId ?? null)
   )
     throw new ConflictError('Request ID already used');
-  if (run.id === id && run.status === 'queued')
+  return { run: dto(run), created: run.id === id };
+}
+export async function startRun(deps: Deps, a: SchoolActor, agent: AgentId, input: CreateRun) {
+  const { run, created } = await reserveRun(deps, a, agent, input);
+  if (created && run.status === 'queued')
     await deps.queue.enqueue({ type: 'dispatch-run', runId: run.id }).catch(() => undefined);
-  return dto(run);
+  return run;
 }
 export async function ownedRun(deps: Deps, a: SchoolActor, id: string) {
   const run = await repo.owned(deps.db, a, id);
@@ -83,7 +96,11 @@ export async function recoverRuns(deps: Deps) {
   for (const row of await repo.pending(deps.db))
     await deps.queue.enqueue({ type: 'dispatch-run', runId: row.runId });
 }
-async function* readStream(body: ReadableStream<Uint8Array>) {
+const gatewayEventSchema = z.union([
+  runEventSchema,
+  z.object({ type: z.literal('progress'), messageId: z.string().min(1) }),
+]);
+async function* readStream(body: ReadableStream<Uint8Array>): AsyncGenerator<RunEvent> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -98,8 +115,15 @@ async function* readStream(body: ReadableStream<Uint8Array>) {
         buffer = buffer.slice(end + 2);
         if (!frame.startsWith('data: ')) continue;
         const value: unknown = JSON.parse(frame.slice(6));
-        const event = runEventSchema.safeParse(value);
-        if (event.success) yield event.data;
+        const parsed = gatewayEventSchema.safeParse(value);
+        if (!parsed.success) continue;
+        const event = parsed.data;
+        // An empty delta preserves the cursor and remains readable by older classroom clients.
+        if (event.type === 'progress') {
+          yield { type: 'delta', text: '', messageId: event.messageId, interim: true };
+        } else {
+          yield event;
+        }
       }
       if (buffer.length > 256_000) throw new Error('Invalid stream');
     }
@@ -108,13 +132,36 @@ async function* readStream(body: ReadableStream<Uint8Array>) {
     reader.releaseLock();
   }
 }
-export async function dispatchRun(deps: Deps, id: string) {
+const historyTurns = 6;
+const historyChars = 600;
+const clip = (t: string) => (t.length > historyChars ? t.slice(0, historyChars) + '…' : t);
+/** The gateway keeps no reliable session, so each turn carries the recent conversation with it. */
+async function withHistory(
+  deps: Deps,
+  run: Parameters<typeof repo.recentTurns>[1] & { prompt: string },
+) {
+  const turns = await repo.recentTurns(deps.db, run, historyTurns);
+  const room = run.classId
+    ? (await loadSchoolActor(deps, run)).classes.find((c) => c.id === run.classId)?.name
+    : undefined;
+  if (!turns.length && !room) return run.prompt;
+  const lines = ['บทสนทนาก่อนหน้า (ใช้เป็นบริบท ไม่ต้องถามซ้ำสิ่งที่ครูบอกแล้ว):'];
+  if (room) lines.push(`ห้องที่เลือก: ${room}`);
+  for (const t of turns) lines.push(`ครู: ${clip(t.prompt)}`, `ผู้ช่วย: ${clip(t.reply.trim())}`);
+  return `${lines.join('\n')}\n\nข้อความใหม่จากครู:\n${run.prompt}`;
+}
+export async function dispatchRun(
+  deps: Deps,
+  id: string,
+  publish?: (event: RunEvent) => Promise<void>,
+) {
   const attempt = crypto.randomUUID(),
     token = crypto.randomUUID() + crypto.randomUUID();
   const run = await repo.claim(deps.db, id, attempt, await digest(token));
   if (!run) return;
   let buffered: RunEvent[] = [];
   let lastFlush = Date.now();
+  let lastToolUpdate = -Infinity;
   async function flush() {
     if (!buffered.length) return;
     await repo.append(deps.db, id, attempt, buffered);
@@ -122,10 +169,13 @@ export async function dispatchRun(deps: Deps, id: string) {
     lastFlush = Date.now();
   }
   try {
+    await publish?.({ type: 'status', status: 'running' });
     authorize(await loadSchoolActor(deps, run), run.agentId, run.classId);
     if (!deps.agentGateway) throw new Error('Gateway unavailable');
     const gateway = new URL(deps.config.APP_URL);
     gateway.hostname = gateway.hostname.replace(/^[^.]+/, 'crudex-agent');
+    // History is context only; a failed lookup must not block the turn.
+    const text = await withHistory(deps, run).catch(() => run.prompt);
     const previous = await repo.previousStatus(deps.db, run);
     const freshSession =
       previous === 'failed' || previous === 'interrupted' || previous === 'cancelled';
@@ -134,7 +184,7 @@ export async function dispatchRun(deps: Deps, id: string) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         agentId: run.agentId,
-        text: run.prompt,
+        text,
         scope: {
           schoolId: run.schoolId,
           ownerId: run.ownerId,
@@ -159,24 +209,50 @@ export async function dispatchRun(deps: Deps, id: string) {
         type: 'error',
         code,
       });
+      await publish?.({ type: 'error', code });
       return;
     }
     for await (const e of readStream(res.body)) {
       if (e.type === 'done' || e.type === 'error') {
         await flush();
         await repo.finish(deps.db, id, attempt, e.type === 'done' ? 'succeeded' : 'failed', e);
+        await publish?.(e);
         return;
       }
+      await publish?.(e);
       const previous = buffered.at(-1);
-      if (previous?.type === 'delta' && e.type === 'delta') previous.text += e.text;
-      else buffered.push(e);
-      if (Date.now() - lastFlush >= 10_000 || buffered.length >= 64) await flush();
+      if (
+        previous?.type === 'delta' &&
+        e.type === 'delta' &&
+        previous.messageId === e.messageId &&
+        !previous.interim &&
+        !e.interim
+      ) {
+        previous.text += e.text;
+      } else {
+        buffered.push(e);
+      }
+      const now = Date.now();
+      const toolUpdate =
+        e.type === 'tool' &&
+        ((e.name === 'subagent' && e.agentId) ||
+          (now - lastToolUpdate >= 2500 && e.status === 'started'));
+      if (
+        toolUpdate ||
+        e.type === 'approval' ||
+        now - lastFlush >= 10_000 ||
+        buffered.length >= 64
+      ) {
+        await flush();
+        if (toolUpdate) lastToolUpdate = now;
+      }
     }
   } catch {
     /* A disconnect after dispatch has an uncertain outcome. */
   }
   await flush();
   await repo.finish(deps.db, id, attempt, 'interrupted', { type: 'error', code: 'interrupted' });
+  await publish?.({ type: 'error', code: 'interrupted' });
 }
 
 export async function cancelRun(deps: Deps, a: SchoolActor, id: string) {

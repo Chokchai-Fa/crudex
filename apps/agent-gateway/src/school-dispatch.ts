@@ -1,12 +1,65 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
-import { dispatchSchema } from '../../../packages/shared/src/school-dispatch.schema';
+import { z } from 'zod';
+import {
+  dispatchSchema,
+  schoolKahootAccountSchema,
+  schoolKahootCallbackPath,
+  type SchoolKahootAccount,
+  type SchoolKahootRpc,
+} from '../../../packages/shared/src/school-dispatch.schema';
+import { directReply } from './direct-reply';
+import { kahootInstanceName, parseKahootState } from './kahoot-state';
 
-/** Only the app's named service binding can invoke this entrypoint. */
-export class SchoolDispatch extends WorkerEntrypoint<Env> {
+// Only the gateway can attach the teacher's connection state to a signed turn.
+const incomingDispatchSchema = dispatchSchema.extend({
+  scope: dispatchSchema.shape.scope.omit({ kahootConnected: true }),
+});
+
+const schoolRedirectUri = z.url().refine((value) => {
+  const url = new URL(value);
+  return (
+    value === url.origin + schoolKahootCallbackPath &&
+    (url.protocol === 'https:' ||
+      (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)))
+  );
+});
+
+function schoolOwner({ schoolId, ownerId }: Pick<SchoolKahootAccount, 'schoolId' | 'ownerId'>) {
+  return schoolId + '/' + ownerId;
+}
+
+export class SchoolDispatch extends WorkerEntrypoint<Env> implements SchoolKahootRpc {
+  #kahoot(account: SchoolKahootAccount) {
+    const teacher = schoolKahootAccountSchema.parse(account);
+    if (teacher.role !== 'teacher') throw new Error('Forbidden');
+    return this.env.KAHOOT.getByName(kahootInstanceName(schoolOwner(teacher)));
+  }
+
+  async kahootConnect(account: SchoolKahootAccount, redirectUri: string) {
+    const connection = this.#kahoot(account);
+    return { url: await connection.beginAuthorization(schoolRedirectUri.parse(redirectUri)) };
+  }
+
+  async kahootCallback(state: string, code: string | null) {
+    const parsed = parseKahootState(state);
+    if (parsed?.kind !== 'school') return { ok: false };
+    return { ok: await this.env.KAHOOT.getByName(parsed.name).callback(code, state) };
+  }
+
+  async kahootStatus(account: SchoolKahootAccount) {
+    return await this.#kahoot(account).status();
+  }
+
+  async kahootDisconnect(account: SchoolKahootAccount) {
+    const connection = this.#kahoot(account);
+    await connection.disconnect();
+    return await connection.status();
+  }
+
   override async fetch(request: Request) {
     if (request.method !== 'POST' || new URL(request.url).pathname !== '/dispatch')
       return new Response(null, { status: 404 });
-    const body = dispatchSchema.safeParse(await request.json());
+    const body = incomingDispatchSchema.safeParse(await request.json());
     if (!body.success) return new Response(null, { status: 400 });
     const { scope } = body.data;
     if (
@@ -15,15 +68,28 @@ export class SchoolDispatch extends WorkerEntrypoint<Env> {
       scope.agentId !== body.data.agentId
     )
       return new Response(null, { status: 403 });
+    // Chat and memory turns answer without waiting for a sandbox.
+    const direct = await directReply(this.env.OPENAI_API_KEY, body.data);
+    if (direct) return direct;
+    const kahootConnected =
+      scope.role === 'teacher' && (scope.agentId === 'jaew' || scope.agentId === 'jeng')
+        ? await this.kahootStatus({
+            schoolId: scope.schoolId,
+            ownerId: scope.ownerId,
+            role: scope.role,
+          })
+            .then((status) => status.connected)
+            .catch(() => undefined)
+        : undefined;
     const url = new URL('/school/chat', request.url);
     url.searchParams.set('role', scope.role);
     return this.env.SANDBOX.getByName('main').fetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-school-owner': scope.schoolId + '/' + scope.ownerId,
+        'x-school-owner': schoolOwner(scope),
       },
-      body: JSON.stringify(body.data),
+      body: JSON.stringify({ ...body.data, scope: { ...scope, kahootConnected } }),
     });
   }
 }

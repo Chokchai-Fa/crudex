@@ -72,4 +72,10 @@ describe('jaew lesson preparation flow', () => {
     expect(jaew.instructions).toContain('ห้ามเดาน้อยกว่า 10 เอง');
     expect(jum.instructions).toContain('ห้ามใช้ 1 หรือจำนวนน้อยกว่านั้นโดยครูไม่ได้ขอ');
   });
+
+  it('pastes the chat-only worksheet that check_assessment renders', () => {
+    expect(jum.instructions).toContain('worksheet.text');
+    expect(jum.instructions).toContain('worksheet.answers');
+    expect(jum.instructions).toContain('ห้ามเรียงตัวเลือกใหม่');
+  });
 });

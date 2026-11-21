@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import type { Assessment } from '../lib/fractions';
 import { z } from 'zod';
+import { classesOf, normalizeClassLabel } from '../data/accounts';
 import { schoolTool, type SchoolScope } from '../school';
+import { recordForm } from '../state';
 import { assessmentSchema, runCheck } from './check_assessment';
-import { ToolError } from './identity';
+import { classOf, ownerOf, ToolError } from './identity';
 import { validatedTool } from './validated';
 
 const formResponse = z.object({
@@ -20,6 +22,7 @@ type PublishedForm = {
   url: string;
   /** The order and key actually published. */
   questions: ReturnType<typeof formQuestions>;
+  googleFormId?: string;
 };
 
 export function formQuestions(questions: Assessment['questions']) {
@@ -79,12 +82,55 @@ export const publisher = {
   },
 };
 
-export const saveAssessment = validatedTool(assessmentSchema, {
+const saveInputSchema = assessmentSchema.extend({ classLabel: z.string().max(40).optional() });
+
+function namedClassId(ownerId: string, grade: string, classLabel: string | undefined) {
+  const rooms = classesOf(ownerId);
+  for (const wanted of [classLabel, grade]) {
+    if (!wanted) continue;
+    const label = normalizeClassLabel(wanted);
+    const room = rooms.find(
+      (room) => room.id === wanted.trim() || normalizeClassLabel(room.label) === label,
+    );
+    if (room) return room.id;
+  }
+}
+
+function gradeClassId(ownerId: string, grade: string) {
+  const rooms = classesOf(ownerId);
+  const level = normalizeClassLabel(grade);
+  const matching = rooms.filter(({ label }) => normalizeClassLabel(label).split('/')[0] === level);
+  return matching.length === 1 ? matching[0]?.id : undefined;
+}
+
+export const saveAssessment = validatedTool(saveInputSchema, {
   name: 'save_assessment',
   description:
-    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร',
+    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ในระบบโรงเรียนจะคืน formUrl (Google Form) และ playUrl (ลิงก์ให้นักเรียนทำในแอป) ให้แจ้งครูทั้งสองลิงก์ ถ้า googleForm เป็น failed ให้บอกว่าสร้าง Google Form ไม่สำเร็จและส่งเฉพาะ playUrl ถ้าครูระบุห้อง ให้ใส่ classLabel เช่น ม.2/1 เพื่อให้ get_scores อ่านคำตอบของห้องนั้น ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร เมื่อบันทึกฟอร์มให้ห้องสำเร็จ get_scores ใช้ mode form เมื่อมีคำตอบทดสอบ หรือ mode sample เมื่อใช้ข้อมูลตัวอย่าง',
   gate: 'allow',
-  execute: (input, context) => saveVerifiedAssessment(input, context.signal, context.scope),
+  execute: async ({ classLabel, ...input }, context) => {
+    const published = await saveVerifiedAssessment(input, context.signal, context.scope);
+    if (published.mode === 'apps-script') {
+      const ownerId = ownerOf(context).id;
+      const classId =
+        namedClassId(ownerId, input.grade, classLabel) ??
+        classOf(context) ??
+        gradeClassId(ownerId, input.grade);
+      if (classId) {
+        recordForm({
+          formId: published.formId,
+          classId,
+          ownerId,
+          title: input.title,
+          topic: input.topic,
+          questionTopics: input.questions.map(({ topic }) => topic),
+          maxScore: published.maxScore,
+          createdAt: Date.now(),
+        });
+      }
+    }
+    return published;
+  },
 });
 
 export async function saveVerifiedAssessment(
@@ -98,9 +144,29 @@ export async function saveVerifiedAssessment(
     throw new ToolError('invalid_assessment', reasons.join('; '));
   }
   const bridgeStarted = performance.now();
-  const { mode, formId, url, questions } = scope
-    ? await saveSchoolAssessment(scope, assessment, signal)
-    : await publisher.publish(assessment, signal);
+  let school: { playUrl: string; googleForm: 'created' | 'failed'; note?: string } | undefined;
+  let saved: PublishedForm;
+  if (scope) {
+    const [record, google] = await Promise.allSettled([
+      saveSchoolAssessment(scope, assessment, signal),
+      publisher.publish(assessment, signal),
+    ]);
+    if (record.status === 'rejected') throw record.reason;
+    const created = google.status === 'fulfilled' ? google.value : undefined;
+    school = created
+      ? { playUrl: record.value.url, googleForm: 'created' }
+      : {
+          playUrl: record.value.url,
+          googleForm: 'failed',
+          note: 'บันทึกในระบบโรงเรียนแล้ว แต่สร้าง Google Form ไม่สำเร็จ ห้ามแจ้งลิงก์ Google Form',
+        };
+    saved = created
+      ? { ...record.value, url: created.url, googleFormId: created.formId }
+      : record.value;
+  } else {
+    saved = await publisher.publish(assessment, signal);
+  }
+  const { mode, formId, url, questions } = saved;
   const bridgeElapsedMs = Math.round(performance.now() - bridgeStarted);
   const published = questions.map((question, index) => ({
     id: assessment.questions[index]?.id,
@@ -113,6 +179,12 @@ export async function saveVerifiedAssessment(
     formUrl: url,
     mode,
     formId,
+    ...(school && {
+      playUrl: school.playUrl,
+      googleForm: school.googleForm,
+      ...(saved.googleFormId && { googleFormId: saved.googleFormId }),
+      ...(school.note && { note: school.note }),
+    }),
     questions: published,
     bridgeElapsedMs,
     maxScore: questions.length,

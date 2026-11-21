@@ -113,3 +113,60 @@ export function reuseIssue(
   passedSets.set(sessionKey, [...earlier, { hash, signatures: new Set(signatures) }]);
   return undefined;
 }
+
+const numericValue = (text: string) => {
+  const value = parseNumberText(text);
+  return value ? show(value) : undefined;
+};
+
+/** Distractors must come from mistakes a student really makes, not from a tidy list around the answer. */
+export function choiceIssues(question: SemanticQuestion): SemanticIssue[] {
+  const issues: SemanticIssue[] = [];
+  const values = question.choices.map((choice) => parseNumberText(choice.text));
+  const lengthItem = isPythagorean(question.topic) || question.pythagorean !== undefined;
+  if (lengthItem && values.length >= 4 && values.every((value) => value !== undefined)) {
+    const sorted = values.map((value) => Number(value!.n) / Number(value!.d)).sort((a, b) => a - b);
+    const steps = sorted.slice(1).map((value, i) => Math.round((value - sorted[i]!) * 1e9) / 1e9);
+    if (steps.length >= 3 && steps.every((step) => step > 0 && step === steps[0])) {
+      issues.push({
+        questionId: question.id,
+        code: 'evenly_spaced_choices',
+        message:
+          'ตัวเลือกเรียงห่างเท่ากัน (เช่น 9 10 11 12) ให้เปลี่ยนตัวลวงเป็นค่าที่ได้จากความเข้าใจผิดจริง เช่น บวกความยาวสองด้านเฉยๆ หรือลืมถอดรากที่สอง',
+      });
+    }
+  }
+  const roles = question.pythagorean;
+  if (roles) {
+    const { legA, legB, hypotenuse, ask } = roles;
+    const given = { legA, legB, hypotenuse };
+    const known = (Object.keys(given) as (keyof typeof given)[])
+      .filter((side) => side !== ask)
+      .map((side) => given[side]);
+    const [x = 0, y = 0] = known;
+    const mistakes = new Set(
+      [x, y, x + y, Math.abs(x - y), x * x + y * y, Math.abs(x * x - y * y)]
+        .map((value) => numericValue(String(value)))
+        .filter((value): value is string => value !== undefined),
+    );
+    const key = question.choices.find((choice) => choice.id === question.correctChoiceId);
+    const keyValue = key ? numericValue(key.text) : undefined;
+    const hasMistake = question.choices.some((choice) => {
+      const value = numericValue(choice.text);
+      return (
+        choice.id !== question.correctChoiceId &&
+        value !== undefined &&
+        value !== keyValue &&
+        mistakes.has(value)
+      );
+    });
+    if (!hasMistake) {
+      issues.push({
+        questionId: question.id,
+        code: 'no_misconception_distractor',
+        message: `ต้องมีตัวลวงอย่างน้อย 1 ข้อที่มาจากความเข้าใจผิดจริง เช่น ${x}+${y}=${x + y}, ${x}^2+${y}^2 โดยไม่ถอดรากที่สอง หรือค่าด้านที่โจทย์ให้มา`,
+      });
+    }
+  }
+  return issues;
+}

@@ -50,7 +50,7 @@ it('requires the flag, a safe proxy URL and a sandbox credential', () => {
 });
 
 it('prepares a distinct image query for every question', () => {
-  const payload = new KahootDrafts().check('a', sample);
+  const payload = new KahootDrafts().check('a', sample, true);
   expect(payload!.questions.length).toBeGreaterThan(1);
   const queries = payload!.questions.map((question) => question.image_query);
   expect(new Set(queries).size).toBe(queries.length);
@@ -59,7 +59,7 @@ it('prepares a distinct image query for every question', () => {
 it('accepts only the verified, create-only payload once in its own session', () => {
   const drafts = new KahootDrafts();
   const input = { ...sample, questions: sample.questions.slice(0, 1) };
-  const payload = drafts.check('a', input)!;
+  const payload = drafts.check('a', input, true)!;
   expect(payload.questions[0]?.choices.filter((choice) => choice.correct)).toHaveLength(1);
   expect(drafts.consume('b', payload)).toBe(false);
   for (const changed of [
@@ -72,12 +72,16 @@ it('accepts only the verified, create-only payload once in its own session', () 
   }
   expect(drafts.consume('a', structuredClone(payload))).toBe(true);
   expect(drafts.consume('a', payload)).toBe(false);
-  drafts.check('a', input);
+  drafts.check('a', input, true);
   expect(
-    drafts.check('a', {
-      ...input,
-      questions: [{ ...input.questions[0], correctChoiceId: 'unknown' }],
-    }),
+    drafts.check(
+      'a',
+      {
+        ...input,
+        questions: [{ ...input.questions[0], correctChoiceId: 'unknown' }],
+      },
+      false,
+    ),
   ).toBeUndefined();
   expect(drafts.consume('a', payload)).toBe(false);
 });

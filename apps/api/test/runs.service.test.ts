@@ -1,8 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { dispatchRun, replay, startRun } from '../src/services/runs.service';
+import { dispatchRun, replay, reserveRun, startRun } from '../src/services/runs.service';
 import * as repo from '../src/repositories/runs.repository';
 import { loadSchoolActor } from '../src/services/identity.service';
-import { makeFakeDeps } from './support/fake-deps';
+import { makeFakeDeps, makeFakeSchoolGateway } from './support/fake-deps';
 import type { SchoolActor } from '@repo/shared';
 vi.mock('../src/repositories/runs.repository');
 vi.mock('../src/services/identity.service');
@@ -35,6 +35,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(loadSchoolActor).mockResolvedValue(a);
   vi.mocked(repo.claim).mockResolvedValue(r);
+  vi.mocked(repo.recentTurns).mockResolvedValue([]);
 });
 function consumer(body: string, status = 200) {
   const d = makeFakeDeps().deps;
@@ -43,7 +44,7 @@ function consumer(body: string, status = 200) {
     deps: {
       ...d,
       config: { ...d.config, APP_URL: 'https://app.example.com' },
-      agentGateway: { fetch } as unknown as Fetcher,
+      agentGateway: makeFakeSchoolGateway(fetch),
     },
     fetch,
   };
@@ -62,6 +63,26 @@ it('skips a repeated queue message and interrupts an acknowledged stream without
     code: 'interrupted',
   });
 });
+it('preserves message boundaries and reclassifies interim replies without adding a wire event kind', async () => {
+  const frames = [
+    { type: 'delta', text: 'รอ', messageId: 'draft' },
+    { type: 'delta', text: 'สักครู่', messageId: 'draft' },
+    { type: 'delta', text: 'ข้อ 1', messageId: 'answer' },
+    { type: 'progress', messageId: 'draft' },
+    { type: 'delta', text: ' ได้ 4', messageId: 'answer' },
+    { type: 'done', elapsedMs: 100 },
+  ];
+  const { deps } = consumer(
+    frames.map((event) => 'data: ' + JSON.stringify(event) + '\n\n').join(''),
+  );
+  await dispatchRun(deps, r.id);
+  expect(repo.append).toHaveBeenCalledWith(deps.db, r.id, expect.any(String), [
+    { type: 'delta', text: 'รอสักครู่', messageId: 'draft' },
+    { type: 'delta', text: 'ข้อ 1', messageId: 'answer' },
+    { type: 'delta', text: '', messageId: 'draft', interim: true },
+    { type: 'delta', text: ' ได้ 4', messageId: 'answer' },
+  ]);
+});
 it('denies a different class and principal agent before reservation and rejects request ID conflicts', async () => {
   const { deps } = consumer('');
   const input = { prompt: r.prompt, clientRequestId: r.requestId };
@@ -71,6 +92,10 @@ it('denies a different class and principal agent before reservation and rejects 
   await expect(startRun(deps, a, 'rungchao', input)).rejects.toMatchObject({ code: 'forbidden' });
   expect(repo.accept).not.toHaveBeenCalled();
   vi.mocked(repo.accept).mockResolvedValue(r);
+  await expect(startRun(deps, a, 'jum', input)).resolves.toMatchObject({
+    id: r.id,
+    clientRequestId: input.clientRequestId,
+  });
   await expect(startRun(deps, a, 'jum', { ...input, prompt: 'changed' })).rejects.toMatchObject({
     code: 'conflict',
   });
@@ -96,4 +121,44 @@ it('maps gateway capacity exhaustion and provider errors to terminal events', as
     type: 'error',
     code: 'timeout',
   });
+});
+it('sends the recent turns of the same room with the new prompt so the agent does not ask again', async () => {
+  vi.mocked(repo.recentTurns).mockResolvedValue([
+    { prompt: 'กำลังจะสอน ป.4/1 เตรียมสอนให้หน่อย', reply: 'เตรียมแผนเศษส่วน ป.4/1 แล้วค่ะ' },
+  ]);
+  const { deps, fetch } = consumer(
+    'data: ' + JSON.stringify({ type: 'done', elapsedMs: 1 }) + '\n\n',
+  );
+  await dispatchRun(deps, r.id);
+  const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+  const text = JSON.parse(String(init.body)).text as string;
+  expect(text).toContain('ครู: กำลังจะสอน ป.4/1 เตรียมสอนให้หน่อย');
+  expect(text).toContain('ผู้ช่วย: เตรียมแผนเศษส่วน ป.4/1 แล้วค่ะ');
+  expect(text.endsWith('ข้อความใหม่จากครู:\nworksheet')).toBe(true);
+});
+it('sends only the prompt when the history lookup fails', async () => {
+  vi.mocked(repo.recentTurns).mockRejectedValue(new Error('db'));
+  const { deps, fetch } = consumer(
+    'data: ' + JSON.stringify({ type: 'done', elapsedMs: 1 }) + '\n\n',
+  );
+  await dispatchRun(deps, r.id);
+  const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+  expect(JSON.parse(String(init.body)).text).toBe('worksheet');
+});
+
+it('reserves interactive turns without enqueueing; background requests enqueue once', async () => {
+  const { deps, enqueue } = makeFakeDeps();
+  const input = { prompt: r.prompt, clientRequestId: r.requestId };
+  vi.mocked(repo.accept).mockImplementation(async (_db, _actor, _role, _agent, _input, id) => ({
+    ...r,
+    id: id!,
+  }));
+  const direct = await reserveRun(deps, a, 'jum', input);
+  expect(direct.created).toBe(true);
+  expect(enqueue).not.toHaveBeenCalled();
+  const job = await startRun(deps, a, 'jum', { ...input, clientRequestId: crypto.randomUUID() });
+  expect(enqueue).toHaveBeenCalledExactlyOnceWith({ type: 'dispatch-run', runId: job.id });
+  vi.mocked(repo.accept).mockResolvedValue({ ...r, id: direct.run.id });
+  expect((await reserveRun(deps, a, 'jum', input)).created).toBe(false);
+  expect(enqueue).toHaveBeenCalledTimes(1);
 });

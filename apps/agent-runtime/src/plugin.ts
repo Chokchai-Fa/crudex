@@ -2,9 +2,11 @@ import { Agent, Location, Model, Skill, type Plugin } from '@opencode/plugin';
 import { schoolTool, type SchoolScope } from './school';
 import { agents } from './agents';
 import { jeng } from './agents/jeng';
-import type { KahootMcpConfig } from './kahoot-config';
+import { kahootMcpServer, type KahootMcpConfig } from './kahoot-config';
 import { KahootDrafts, kahootTool } from './kahoot-draft';
 import { decide, permissionsFor } from './permissions';
+import { activityActions } from './tools/teacher_activity';
+import { recordActivity } from './state';
 import { tools } from './tools';
 
 export interface EmbeddedSkill {
@@ -49,6 +51,10 @@ const schoolLocalTools = new Set([
   'check_assessment',
   'save_assessment',
   'fraction_addition_form',
+  'make_slides',
+  'make_file',
+  // Checked here by brief-guard, then forwarded so the school app can show it (see below).
+  'publish_brief',
 ]);
 
 export function createRuntimePlugin(
@@ -74,13 +80,13 @@ export function createRuntimePlugin(
           for (const [server] of editor.list()) {
             const prefix = server.replace(/[^a-zA-Z0-9_-]/g, '_') + '_';
             if (
-              server !== 'crudex_kahoot' &&
+              server !== kahootMcpServer &&
               jeng.mcpTools.some((action) => action.startsWith(prefix))
             ) {
               throw new Error('Ambiguous Kahoot MCP namespace');
             }
           }
-          editor.set('crudex_kahoot', {
+          editor.set(kahootMcpServer, {
             type: 'remote',
             url: kahoot.url,
             headers: { 'x-crudex-kahoot-token': kahoot.token },
@@ -89,11 +95,19 @@ export function createRuntimePlugin(
           });
         });
       }
-      await ctx.permission.hook('evaluate', (evaluation) => {
+      await ctx.permission.hook('evaluate', async (evaluation) => {
         const rules = rulesByAgent.get(evaluation.agent ?? '');
         evaluation.effect = decide(rules ?? [], evaluation.action, evaluation.resources);
+        if (evaluation.effect !== 'allow' || !evaluation.action.startsWith(kahootMcpServer + '_'))
+          return;
+        if (resolveScope) {
+          const scope = await resolveScope(evaluation.sessionID).catch(() => undefined);
+          if (scope?.role !== 'teacher') {
+            evaluation.effect = 'deny';
+            return;
+          }
+        }
         if (
-          evaluation.effect === 'allow' &&
           evaluation.action === kahootTool &&
           !drafts.consume(evaluation.sessionID, evaluation.metadata?.input)
         ) {
@@ -154,15 +168,23 @@ export function createRuntimePlugin(
                 const result = await schoolTool(scope, tool.name, input, call.signal);
                 return { content: JSON.stringify(result) };
               }
+              const identity = scope
+                ? { scope, ownerId: scope.ownerId, classId: scope.classId ?? undefined }
+                : await toolOwner?.(call.sessionID, call.agent, call.signal);
               const result = await tool.execute(input, {
-                ...(scope
-                  ? { scope, ownerId: scope.ownerId, classId: scope.classId ?? undefined }
-                  : await toolOwner?.(call.sessionID, call.agent, call.signal)),
+                ...identity,
                 count: increment(tool.name),
                 agent: call.agent,
                 sessionID: call.sessionID,
                 signal: call.signal,
               });
+              if (scope && tool.name === 'publish_brief') {
+                await schoolTool(scope, 'publish_brief', input, call.signal);
+              }
+              const action = Object.hasOwn(activityActions, tool.name)
+                ? activityActions[tool.name]
+                : undefined;
+              if (action && identity?.ownerId) recordActivity(identity.ownerId, action);
               if (
                 kahoot &&
                 call.agent === 'jeng' &&
@@ -170,7 +192,11 @@ export function createRuntimePlugin(
                 result &&
                 typeof result === 'object'
               ) {
-                const kahootDraft = drafts.check(call.sessionID, input);
+                const kahootDraft = drafts.check(
+                  call.sessionID,
+                  input,
+                  'ok' in result && result.ok === true,
+                );
                 return { content: JSON.stringify({ ...result, kahootDraft }) };
               }
               return { content: JSON.stringify(result) };

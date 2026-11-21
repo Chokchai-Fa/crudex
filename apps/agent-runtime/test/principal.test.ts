@@ -93,11 +93,13 @@ describe('principal agents', () => {
     expect(rungchao?.tools).not.toContain('decide_approval');
   });
 
-  it('keeps the 7-line brief order in the instructions', () => {
+  it('keeps the 7-line brief in the design order (title, teacher work, room, documents)', () => {
     const text = rungchao?.instructions ?? '';
     expect(text).toContain('ไม่เกิน 7 บรรทัด');
-    expect(text.indexOf('get_school_summary')).toBeLessThan(text.indexOf('list_pending_approvals'));
-    expect(text.indexOf('list_pending_approvals')).toBeLessThan(text.indexOf('teacher_activity'));
+    const order = ['briefTitle', '1. งานครู', '2. ผลเรียน', '3. เอกสาร', '4. งบ', '5. 1 เรื่อง'];
+    const at = order.map((part) => text.indexOf(part));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
 });
 
@@ -115,8 +117,8 @@ describe('school data stays above the student level', () => {
       lowestClass: string;
       budget: { nearLimit: { code: string }[] };
     };
-    expect(r.classes.filter((c) => c.belowThreshold).map((c) => c.label)).toEqual(['ป.6/1']);
-    expect(r.lowestClass).toBe('ป.6/1');
+    expect(r.classes.filter((c) => c.belowThreshold).map((c) => c.label)).toEqual(['ม.2/1']);
+    expect(r.lowestClass).toBe('ม.2/1');
     expect(r.budget.nearLimit.map((a) => a.code)).toEqual(['A24', 'A07']);
   });
 });
@@ -165,12 +167,12 @@ describe('approval desk', () => {
 
 describe('publish_brief', () => {
   const brief = [
-    'สรุปเช้า (ตัวอย่าง)',
-    'ผลเรียน: ป.6/1 ต่ำกว่าเกณฑ์ ค่าเฉลี่ย 4.6/10',
-    'งบ: ใช้ไป 56% กิจกรรม A24 ใกล้เต็ม',
-    'เอกสารรออนุมัติ: 2 ฉบับ',
-    'งานครูเมื่อวาน: ใบงาน 2 ฉบับ',
-    'ต้องตัดสินใจ: อนุมัติเบิกค่ายคณิตศาสตร์',
+    'สรุปเช้าวันเสาร์',
+    '1. ครูใช้ crudex เมื่อวาน 1 คน ทำสื่อ 3 ชุด',
+    '2. ม.2/1 เฉลี่ย 3.5/6 (58%) แต่หัวข้อการนำพีทาโกรัสไปใช้ถูกแค่ 37.5% ต่ำกว่าเกณฑ์ 50%',
+    '3. เอกสารรออนุมัติ 2 รายการ',
+    '4. งบใช้ไป 56% กิจกรรม A24 ใกล้เต็ม',
+    '5. ต้องตัดสินใจ: อนุมัติเบิกค่ายคณิตศาสตร์',
   ].join('\n');
 
   it('is bound only to rungchao and accepts a clean brief of at most 7 lines', async () => {

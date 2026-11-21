@@ -3,6 +3,8 @@
 Guide for coding agents (Codex, Claude Code, Cursor…) working in this repo. **`CLAUDE.md` is the
 full architecture reference — read it before changing anything**; this file is the short version.
 
+School administrators manage enrollment at `/admin`. Invited users redeem codes at `/account`. See [accounts and invitations](docs/site/docs/getting-started/school-access.md) for first-time setup and role access.
+
 ## Before every task
 
 Run the [rebase-before-task skill](skills/rebase-before-task/SKILL.md) before planning, reviewing or editing so the task starts with the latest development branch and repository context.

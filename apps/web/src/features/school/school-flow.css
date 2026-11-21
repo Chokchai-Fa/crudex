@@ -1,0 +1,648 @@
+/* Presentation for the connected school flow. Shared colour tokens come from the app theme. */
+.teacher-chat > header {
+  background: var(--card);
+  padding: 12px clamp(12px, 2.5vw, 32px);
+}
+.teacher-chat > header img {
+  flex: none;
+}
+.teacher-chat > header label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+.teacher-chat > [role='region'] {
+  background: var(--background);
+}
+.teacher-chat > [role='region'] > ol {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+.teacher-chat > [role='region'] li > div.flex > div {
+  background: var(--team-soft);
+  overflow-wrap: anywhere;
+}
+.teacher-chat [role='alert'],
+.school-flow [role='alert'] {
+  border: 1px solid var(--destructive);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--destructive);
+  overflow-wrap: anywhere;
+}
+.teacher-chat [role='status'],
+.school-flow [role='status'] {
+  overflow-wrap: anywhere;
+}
+.teacher-chat .chat-compose {
+  background: var(--card);
+  padding-top: 10px;
+}
+.school-flow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.school-flow .school-role-card {
+  border-radius: var(--radius-xl);
+}
+.school-flow fieldset {
+  min-width: 0;
+  background: var(--card);
+}
+.school-flow fieldset label {
+  padding: 4px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.school-flow fieldset label:has(input:checked) {
+  background: var(--accent);
+}
+.school-flow input[type='radio'] {
+  accent-color: var(--primary);
+  flex: none;
+}
+/* Shared controls provide their own ring; the composer indicates text focus on its capsule. */
+:where(.school-flow, .teacher-chat)
+  :focus-visible:not(:where([data-slot], .compose-capsule textarea)) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .teacher-chat > header {
+    gap: 6px 10px;
+  }
+  .teacher-chat > header h1 {
+    font-size: 1rem;
+  }
+  .teacher-chat > header img {
+    width: 32px;
+    height: 32px;
+  }
+  .teacher-chat > [role='region'] li > div.flex > div {
+    max-width: calc(100% - 40px);
+  }
+  .school-flow {
+    border-radius: 16px;
+    padding: 16px;
+  }
+}
+
+/* Connected teacher workspace: reuse the demo's team, card and colour vocabulary. */
+.school-workspace {
+  display: grid;
+  grid-template-columns: minmax(200px, 22fr) minmax(0, 55fr) minmax(220px, 23fr);
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+.school-workspace > .school-team,
+.school-workspace > .school-activity {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.school-workspace > .school-team {
+  background: var(--team-nav);
+  border-inline-end: 1px solid var(--border);
+}
+.school-workspace > .school-activity {
+  background: var(--card);
+  border-inline-start: 1px solid var(--border);
+}
+.school-conversation {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--card);
+}
+.school-conversation > header {
+  min-width: 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px clamp(12px, 2.5vw, 32px);
+}
+.school-conversation > header img {
+  flex: none;
+}
+.school-conversation > header label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+.school-conversation > [role='region'] {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--card);
+}
+.school-conversation > [role='region'] > ol {
+  width: 100%;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+.school-conversation .chat-compose {
+  min-width: 0;
+  background: var(--card);
+}
+.school-workspace .chat-artifacts {
+  min-width: 0;
+}
+.school-workspace .output-card {
+  overflow-wrap: anywhere;
+}
+.school-answer {
+  min-width: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.school-answer > * + * {
+  margin-top: 0.55em;
+}
+.school-answer :is(ul, ol) {
+  padding-inline-start: 1.5em;
+}
+.school-answer ul {
+  list-style: disc;
+}
+.school-answer ol {
+  list-style: decimal;
+}
+.school-answer a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.school-answer pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+}
+.school-answer code {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1023px) {
+  .school-workspace {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .school-workspace > .school-conversation {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    grid-template-rows: subgrid;
+  }
+  .school-workspace > :is(.school-team, .school-activity) {
+    display: none;
+  }
+  .school-workspace[data-panel='team'] > .school-team,
+  .school-workspace[data-panel='activity'] > .school-activity {
+    display: block;
+    grid-column: 1;
+    grid-row: 2;
+    z-index: 10;
+    border: 0;
+    box-shadow: 0 8px 24px #1522381a;
+  }
+}
+@media (max-width: 600px) {
+  .school-conversation > header {
+    gap: 6px 10px;
+    padding: 8px 10px;
+  }
+  .school-conversation > header h1 {
+    font-size: 1rem;
+  }
+  .school-conversation > header img {
+    width: 32px;
+    height: 32px;
+  }
+  .school-conversation .teacher-bubble {
+    max-width: 90%;
+    padding: 9px 12px;
+  }
+  .school-conversation > [role='region'] {
+    padding: 12px 10px;
+  }
+}
+
+.school-print-sheet {
+  display: none;
+}
+@media print {
+  body:has(> .school-print-sheet) > :not(.school-print-sheet) {
+    display: none !important;
+  }
+  body > .school-print-sheet {
+    display: block;
+    background: white;
+    color: black;
+    padding: 1cm;
+  }
+  .school-print-sheet li {
+    break-inside: avoid;
+  }
+}
+
+/* The connected worksheet card uses its own class, with the same green as Paper. */
+.school-workspace .worksheet-output {
+  background: var(--team-green);
+}
+.school-workspace .account-panel > strong {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-bottom: 4px;
+}
+.school-workspace .account-panel :is(a, button) {
+  margin-inline-end: 14px;
+}
+.school-quick-prompts {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.school-quick-prompts button {
+  flex: none;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.school-quick-prompts button:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.school-quick-prompts button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+@media (max-width: 600px) {
+  .school-quick-prompts {
+    gap: 5px;
+    padding-bottom: 3px;
+  }
+  .school-quick-prompts button {
+    padding-inline: 10px;
+    font-size: 0.8125rem;
+  }
+}
+
+/* ── Paper polish: 03 สมุดคะแนน ─────────────────────────── */
+.gradebook {
+  min-width: 0;
+}
+.gradebook-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.gradebook-stats > div {
+  flex: 1 1 140px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--muted);
+}
+.gradebook-stats dt {
+  font-size: 13px;
+  color: var(--subtle-foreground);
+}
+.gradebook-stats dd {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+}
+.gradebook-stats small {
+  font-size: 14px;
+  color: var(--subtle-foreground);
+}
+.gradebook-stats .is-low {
+  background: var(--danger-soft);
+}
+.gradebook-stats .is-low :is(dt, dd, small) {
+  color: var(--danger-text);
+}
+.gradebook-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  font-size: 15px;
+  background: var(--card);
+}
+.gradebook-table th {
+  padding: 9px 16px;
+  background: var(--sidebar);
+  border-bottom: 1.5px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: start;
+  white-space: nowrap;
+  color: var(--subtle-foreground);
+}
+.gradebook-table :is(th, td):last-child {
+  text-align: end;
+}
+.gradebook-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.gradebook-table tr:last-child td {
+  border-bottom: 0;
+}
+.gradebook-table tr.is-low td {
+  background: var(--danger-soft);
+}
+.gradebook-table tr.is-low td:last-child {
+  color: var(--danger-text);
+}
+.gradebook-empty {
+  padding: 24px;
+  border: 1.5px dashed var(--border);
+  border-radius: 16px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+.teacher-chat .gradebook {
+  max-width: 48rem;
+  margin: 12px auto 0;
+  padding: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+}
+
+/* ── Paper polish: 08 เลือกบทบาท ─────────────────────────── */
+.role-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: clamp(16px, 6vh, 72px) 0;
+}
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 44rem;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+}
+.role-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+  border-radius: 28px;
+  background: var(--card);
+  border: 2px solid var(--border);
+  transition:
+    border-color 200ms,
+    box-shadow 200ms;
+}
+.role-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--elev-selected);
+}
+.role-card > p:nth-of-type(1) {
+  line-height: 25px;
+}
+.role-card [data-slot='button'] {
+  min-height: 48px;
+  margin-top: auto;
+  white-space: normal;
+}
+
+@media (max-width: 639px) {
+  .school-entry {
+    padding: 0;
+  }
+  .role-picker {
+    gap: 16px;
+    padding-block: 0;
+  }
+  .role-picker > img {
+    height: 32px;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .role-cards {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 26rem;
+    gap: 12px;
+  }
+  .role-card {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 12px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+  .role-card > img {
+    width: 48px;
+    height: 48px;
+    grid-row: 1 / span 2;
+  }
+  .role-card > p,
+  .role-card > h2 {
+    grid-column: 2;
+    margin: 0;
+  }
+  .role-card > p:nth-of-type(1) {
+    line-height: 1.4;
+  }
+  .role-card [data-slot='button'] {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+  }
+}
+
+/* ── Paper polish: /school frame + 09 สรุปเช้า ─────────────── */
+.school-page {
+  max-width: 56rem;
+}
+.school-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+}
+.school-panel {
+  padding: 20px;
+  border-radius: 22px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--elev-card);
+}
+.brief-card ol {
+  display: grid;
+  gap: 9px;
+  font-size: 15px;
+  line-height: 22px;
+}
+.brief-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.brief-tiles > div {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--muted);
+}
+.brief-tiles dt {
+  font-size: 13px;
+  color: var(--subtle-foreground);
+}
+.brief-tiles dd {
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.brief-tiles > div:nth-child(2) dd {
+  color: var(--success-text);
+}
+.brief-tiles > div:nth-child(4) dd {
+  color: var(--foreground);
+}
+.brief-foot {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--subtle-foreground);
+}
+.classroom-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.school-flow .availability-dot {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #18b87a;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #18b87a 22%, transparent);
+}
+.brief-tiles dd[data-text] {
+  padding-top: 4px;
+  font-size: 16px;
+  line-height: 22px;
+  color: var(--foreground);
+}
+
+/* 09: published brief lines + "ห้องที่ควรดู" panel */
+.brief-layout {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .brief-layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+}
+.brief-lines {
+  display: grid;
+  gap: 9px;
+  font-size: 15px;
+  line-height: 22px;
+}
+.badge-date {
+  border-radius: 999px;
+  padding: 2px 10px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.badge-low {
+  border-radius: 6px;
+  padding: 1px 8px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.watch-class {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--muted);
+}
+.watch-class > p {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+.watch-class > p > span {
+  font-size: 13px;
+  color: var(--subtle-foreground);
+}
+.watch-class > p > b {
+  font-size: 15px;
+}
+.watch-topic > b {
+  color: var(--sample-foreground);
+}
+
+.school-run-activity {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.school-run-activity svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .school-run-activity[data-kind='tool'] svg {
+    animation: school-run-turn 1.6s linear infinite;
+  }
+  .school-run-activity:is([data-kind='thinking'], [data-kind='handoff'], [data-kind='writing'])
+    svg {
+    animation: school-work-pulse 1.6s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes school-run-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes school-work-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -1,4 +1,18 @@
-import { and, asc, desc, eq, gt, lt, isNull, sql, or, exists, getTableColumns } from 'drizzle-orm';
+import { runEventPageSize } from '@repo/shared';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  lt,
+  isNull,
+  sql,
+  or,
+  exists,
+  getTableColumns,
+  inArray,
+} from 'drizzle-orm';
 import type { RunEvent, CreateRun, AgentId, RunStatus, SchoolActor } from '@repo/shared';
 import { assessments } from '../db/schema/classroom';
 import type { Db } from '../db/client';
@@ -91,7 +105,7 @@ export function events(db: Db, runId: string, cursor: number) {
     .from(runEvents)
     .where(and(eq(runEvents.runId, runId), gt(runEvents.id, cursor)))
     .orderBy(asc(runEvents.id))
-    .limit(128);
+    .limit(runEventPageSize);
 }
 export async function claim(db: Db, id: string, attemptId: string, credentialHash: string) {
   const [rows] = await db.batch([
@@ -170,4 +184,61 @@ export async function previousStatus(db: Db, run: typeof runs.$inferSelect) {
     .orderBy(desc(runs.createdAt))
     .limit(1);
   return previous?.status;
+}
+
+/** Earlier succeeded turns of the same owner, agent and room, oldest first, with the agent's final text. */
+export async function recentTurns(
+  db: Db,
+  run: {
+    id: string;
+    schoolId: string;
+    ownerId: string;
+    agentId: AgentId;
+    classId: string | null;
+    createdAt: Date;
+  },
+  limit: number,
+) {
+  const rows = await db
+    .select({ id: runs.id, prompt: runs.prompt })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.schoolId, run.schoolId),
+        eq(runs.ownerId, run.ownerId),
+        eq(runs.agentId, run.agentId),
+        run.classId ? eq(runs.classId, run.classId) : isNull(runs.classId),
+        eq(runs.status, 'succeeded'),
+        lt(runs.createdAt, run.createdAt),
+      ),
+    )
+    .orderBy(desc(runs.createdAt))
+    .limit(limit);
+  if (!rows.length) return [];
+  const bodies = await db
+    .select({ runId: runEvents.runId, body: runEvents.body })
+    .from(runEvents)
+    .where(
+      and(
+        inArray(
+          runEvents.runId,
+          rows.map((r) => r.id),
+        ),
+        sql`${runEvents.body}->>'type' = 'delta'`,
+      ),
+    )
+    .orderBy(asc(runEvents.id));
+  return rows.reverse().map((r) => {
+    const deltas = bodies.flatMap((b) =>
+      b.runId === r.id && b.body.type === 'delta' ? [b.body] : [],
+    );
+    const interim = new Set(deltas.filter((d) => d.interim).map((d) => d.messageId));
+    return {
+      prompt: r.prompt,
+      reply: deltas
+        .filter((d) => !interim.has(d.messageId))
+        .map((d) => d.text)
+        .join(''),
+    };
+  });
 }

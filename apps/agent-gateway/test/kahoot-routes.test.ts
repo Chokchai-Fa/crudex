@@ -16,6 +16,7 @@ vi.mock('cloudflare:workers', () => ({
 const origin = 'https://crudex.example';
 const path = '/__kahoot/mcp';
 const credential = 'ab'.repeat(32);
+const demoState = 'a2Fob290.' + 'a'.repeat(64);
 const fixturePasscode = 'example-sign-in';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -26,7 +27,7 @@ it('requires a gate session for connect, status and disconnect and accepts a coo
   const status = vi.fn(async () => ({ connected: true, connectedAt: 10, expiresAt: 20 }));
   const disconnect = vi.fn(async () => {});
   const callback = vi.fn(
-    async (code: string | null, state: string) => !!code && state === 'example',
+    async (code: string | null, state: string) => !!code && state === demoState,
   );
   const getByName = vi.fn(() => ({ beginAuthorization, status, disconnect, callback }));
   const env = { PASSCODE: fixturePasscode, KAHOOT: { getByName } } as unknown as Env;
@@ -45,9 +46,9 @@ it('requires a gate session for connect, status and disconnect and accepts a coo
   const redirect = await call('/kahoot/connect', { headers });
   expect(redirect.status).toBe(303);
   expect(redirect.headers.get('location')).toBe(authorize);
-  expect(beginAuthorization).toHaveBeenCalledWith(origin);
+  expect(beginAuthorization).toHaveBeenCalledWith(origin + '/kahoot/callback');
 
-  const success = await call('/kahoot/callback?code=fixture-code&state=example');
+  const success = await call('/kahoot/callback?code=fixture-code&state=' + demoState);
   expect(success.status).toBe(200);
   expect(success.headers.get('cache-control')).toBe('no-store');
   expect(success.headers.get('referrer-policy')).toBe('no-referrer');
@@ -56,12 +57,12 @@ it('requires a gate session for connect, status and disconnect and accepts a coo
   expect(page).toContain('href="/"');
   expect(page).not.toContain('fixture-code');
 
-  const failed = await call('/kahoot/callback?error=%3Cscript%3E&state=example');
+  const failed = await call('/kahoot/callback?error=%3Cscript%3E&state=' + demoState);
   expect(failed.status).toBe(400);
   expect(await failed.text()).not.toContain('<script>');
   expect(callback.mock.calls).toEqual([
-    ['fixture-code', 'example'],
-    [null, 'example'],
+    ['fixture-code', demoState],
+    [null, demoState],
   ]);
 
   const result = await call('/api/kahoot/status', { headers });

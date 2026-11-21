@@ -9,6 +9,58 @@ security:
   - schoolSession: []
   - localSession: []
 paths:
+  /admin/directory:
+    get:
+      operationId: getAdminDirectory
+      summary: List school setup options
+      description: Requires a platform administrator session.
+      tags:
+        - administration
+      parameters:
+        - name: schoolId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/adminDirectorySchema'
+        default:
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /admin/setup:
+    post:
+      operationId: postAdminSetup
+      summary: Provision school access
+      description: Requires a platform administrator session.
+      tags:
+        - administration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/adminCommandSchema'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/adminResultSchema'
+        default:
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
   /health:
     get:
       summary: Check application Worker health
@@ -138,6 +190,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/errorResponse'
       security: []
+  /auth/guest:
+    post:
+      summary: Start a guest session with a private sample school and class
+      operationId: postAuthGuest
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/me'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/guestSignIn'
   /auth/local:
     post:
       summary: Start a loopback development session
@@ -208,6 +286,103 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
+  /integrations/kahoot/connect:
+    get:
+      summary: Start connecting a teacher's Kahoot account
+      operationId: getKahootConnect
+      description: Use a top-level navigation on the application origin with a teacher session.
+      tags:
+        - integrations
+      responses:
+        '303':
+          description: Continue to Kahoot sign-in.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /integrations/kahoot/callback:
+    get:
+      summary: Complete Kahoot authorization
+      operationId: getKahootCallback
+      description: Kahoot sends the browser here. The single-use state identifies the authorization attempt.
+      tags:
+        - integrations
+      security: []
+      parameters:
+        - in: query
+          name: state
+          schema:
+            type: string
+        - in: query
+          name: code
+          schema:
+            type: string
+        - in: query
+          name: error
+          schema:
+            type: string
+      responses:
+        '303':
+          description: Return to the school app with the connection result.
+          headers:
+            Location:
+              schema:
+                type: string
+                enum: ['/?kahoot=connected', '/?kahoot=failed']
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Referrer-Policy:
+              schema:
+                type: string
+                const: no-referrer
+  /integrations/kahoot/status:
+    get:
+      summary: Read the signed-in teacher's Kahoot connection status
+      operationId: getKahootStatus
+      tags:
+        - integrations
+      responses:
+        '200':
+          description: Connection status for this teacher and school.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/kahootStatus'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /integrations/kahoot/disconnect:
+    post:
+      summary: Disconnect the signed-in teacher's Kahoot account
+      operationId: postKahootDisconnect
+      description: Send from the application origin with a teacher session.
+      tags:
+        - integrations
+      responses:
+        '200':
+          description: Connection status after disconnecting.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/kahootStatus'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
   /agents:
     get:
       summary: List agents available to this membership
@@ -234,6 +409,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
+  /agents/{id}/chat:
+    post:
+      summary: Run an interactive conversation directly and stream its events
+      operationId: postAgentsIdChat
+      tags:
+        - agents
+      responses:
+        '200':
+          description: A new conversation streams newline-delimited JSON. A repeated client request ID returns the original run as JSON for replay.
+          headers:
+            X-Run-Id:
+              description: Run ID for the new stream. Use the events endpoint to recover after a disconnect.
+              schema: { type: string, format: uuid }
+          content:
+            application/x-ndjson:
+              schema: { type: string, description: One runEvent JSON object per line. }
+            application/json:
+              schema:
+                $ref: '#/components/schemas/run'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/agentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/createRun'
   /agents/{id}/runs:
     post:
       summary: Accept an idempotent teacher or principal run
@@ -300,6 +512,7 @@ paths:
   /runs/{id}/events:
     get:
       summary: Replay committed events after the cursor
+      description: Request application/cloudevents-batch+json in Accept for JSON progress pages. The default representation is SSE. Send the last consumed numeric event ID in Last-Event-ID for either representation.
       operationId: getRunsIdEvents
       tags:
         - runs
@@ -307,6 +520,12 @@ paths:
         '200':
           description: Success
           content:
+            application/cloudevents-batch+json:
+              schema:
+                type: array
+                maxItems: 128
+                items:
+                  $ref: '#/components/schemas/runCloudEvent'
             text/event-stream:
               schema:
                 type: string
@@ -1206,6 +1425,271 @@ components:
       scheme: bearer
       description: Secret for an active leased run attempt. Server-to-server only.
   schemas:
+    adminCommandSchema:
+      oneOf:
+        - type: object
+          properties:
+            action:
+              type: string
+              const: createSchool
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            name:
+              type: string
+              minLength: 1
+              maxLength: 160
+          required:
+            - action
+            - id
+            - name
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: createClass
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            name:
+              type: string
+              minLength: 1
+              maxLength: 160
+            schoolId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          required:
+            - action
+            - id
+            - name
+            - schoolId
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: createAccount
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            name:
+              type: string
+              minLength: 1
+              maxLength: 160
+          required:
+            - action
+            - id
+            - name
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: enroll
+            schoolId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            accountId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            placement:
+              oneOf:
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: teacher
+                    classId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - role
+                    - classId
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: student
+                    classId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - role
+                    - classId
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: guardian
+                    studentMembershipId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - role
+                    - studentMembershipId
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: principal
+                  required:
+                    - role
+                  additionalProperties: false
+          required:
+            - action
+            - schoolId
+            - accountId
+            - placement
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: invite
+            schoolId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            membershipId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          required:
+            - action
+            - schoolId
+            - membershipId
+          additionalProperties: false
+    adminDirectorySchema:
+      type: object
+      properties:
+        schools:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+            required:
+              - id
+              - name
+            additionalProperties: false
+        classes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+            required:
+              - id
+              - name
+            additionalProperties: false
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+            required:
+              - id
+              - name
+            additionalProperties: false
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+              role:
+                type: string
+                enum:
+                  - teacher
+                  - principal
+                  - student
+                  - guardian
+              accountId:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            required:
+              - id
+              - name
+              - role
+              - accountId
+            additionalProperties: false
+      required:
+        - schools
+        - classes
+        - accounts
+        - members
+      additionalProperties: false
+    adminResultSchema:
+      anyOf:
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          required:
+            - id
+          additionalProperties: false
+        - type: object
+          properties:
+            credential:
+              type: string
+              pattern: ^[0-9a-f]{64}$
+            expiresAt:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          required:
+            - credential
+            - expiresAt
+          additionalProperties: false
+    kahootStatus:
+      type: object
+      required: [connected]
+      properties:
+        connected:
+          type: boolean
+        connectedAt:
+          type: integer
+          description: Unix milliseconds when the grant was connected.
+        expiresAt:
+          type: integer
+          description: Unix milliseconds when the current access grant expires.
     credential:
       type: object
       properties:
@@ -1215,6 +1699,14 @@ components:
       required:
         - credential
       additionalProperties: false
+    guestSignIn:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [teacher, principal]
     localSignIn:
       type: object
       properties:
@@ -1465,6 +1957,25 @@ components:
         - clientRequestId
         - prompt
       additionalProperties: false
+    runCloudEvent:
+      type: object
+      required: [specversion, id, source, type, data]
+      properties:
+        specversion: { type: string, const: '1.0' }
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        source: { type: string, format: uri-reference }
+        type:
+          type: string
+          enum:
+            [
+              work.crudex.run.status,
+              work.crudex.run.delta,
+              work.crudex.run.tool,
+              work.crudex.run.approval,
+              work.crudex.run.done,
+              work.crudex.run.error,
+            ]
+        data: { $ref: '#/components/schemas/runEvent' }
     runEvent:
       oneOf:
         - type: object
@@ -1491,6 +2002,13 @@ components:
               const: delta
             text:
               type: string
+            messageId:
+              type: string
+              minLength: 1
+              description: Identifies one assistant message within this run.
+            interim:
+              const: true
+              description: An empty delta marks this message as a progress update.
           required:
             - type
             - text
@@ -1546,6 +2064,8 @@ components:
                 - started
                 - failed
                 - success
+            agentId:
+              $ref: '#/components/schemas/agentId'
             bridgeElapsedMs:
               type: number
           required:
@@ -2012,6 +2532,9 @@ components:
         id:
           type: string
           format: uuid
+        clientRequestId:
+          type: string
+          format: uuid
         agentId:
           $ref: '#/components/schemas/agentId'
         classId:
@@ -2028,6 +2551,7 @@ components:
           format: date-time
       required:
         - id
+        - clientRequestId
         - agentId
         - classId
         - prompt
@@ -2037,6 +2561,9 @@ components:
       type: object
       properties:
         id:
+          type: string
+          format: uuid
+        clientRequestId:
           type: string
           format: uuid
         agentId:
@@ -2060,6 +2587,7 @@ components:
             format: uuid
       required:
         - id
+        - clientRequestId
         - agentId
         - classId
         - prompt

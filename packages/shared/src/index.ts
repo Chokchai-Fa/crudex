@@ -7,3 +7,12 @@ export * from './classroom.schema';
 export { checkAssessment } from './fractions';
 export * from './memory.schema';
 export * from './approvals.schema';
+export {
+  schoolKahootCallbackPath,
+  type KahootStatus,
+  type SchoolKahootAccount,
+  type SchoolKahootRpc,
+} from './school-dispatch.schema';
+export * from './admin.schema';
+export * from './morning-brief.schema';
+export * from './sample-class';

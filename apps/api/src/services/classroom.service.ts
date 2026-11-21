@@ -1,4 +1,12 @@
-import { checkAssessment, type AssessmentContent, type SchoolActor } from '@repo/shared';
+import {
+  checkAssessment,
+  publishedBriefSchema,
+  sampleFlaggedClasses,
+  splitBrief,
+  type AssessmentContent,
+  type SchoolActor,
+} from '@repo/shared';
+import { setWithTtl } from '../lib/cache';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors';
 import * as repository from '../repositories/classroom.repository';
 import type { Deps } from '../types/deps';
@@ -132,7 +140,34 @@ export async function reportList(deps: Deps, actor: SchoolActor) {
 export async function brief(deps: Deps, actor: SchoolActor, date?: string) {
   if (actor.role !== 'principal') throw new ForbiddenError();
   const day = date ?? new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
-  return { date: day, ...(await repository.morningBrief(deps.db, actor.schoolId, day)) };
+  const published = publishedBriefSchema.safeParse(
+    await deps.cache.get(briefKey(actor.schoolId, day)),
+  );
+  return {
+    date: day,
+    ...(await repository.morningBrief(deps.db, actor.schoolId, day)),
+    // The brief rungchao published for this school today, title and numbered lines verbatim.
+    briefTitle: published.success ? published.data.title : null,
+    briefLines: published.success ? published.data.lines : [],
+    publishedAt: published.success ? published.data.publishedAt : null,
+    // Class-level sample data (ตัวอย่าง); no student rows.
+    flaggedClasses: sampleFlaggedClasses,
+    flaggedSource: 'sample' as const,
+  };
+}
+
+const bangkokDay = (now = Date.now()) => new Date(now + 7 * 3600000).toISOString().slice(0, 10);
+const briefKey = (schoolId: string, day: string) => `brief:${schoolId}:${day}`;
+
+/** rungchao's publish_brief callback; the runtime has already checked format and student references. */
+export async function publishBrief(deps: Deps, runId: string, token: string, text: string) {
+  const run = await authorizeRunTool(deps, runId, token);
+  if (run.role !== 'principal') throw new ForbiddenError();
+  const brief = splitBrief(text, new Date().toISOString());
+  if (!brief.title || brief.lines.length === 0 || brief.lines.length > 6)
+    throw new ValidationError('Invalid brief');
+  await setWithTtl(deps.cache, briefKey(run.schoolId, bangkokDay()), brief, 3 * 86400);
+  return { published: true, ...brief };
 }
 export async function enqueueDueReports(deps: Deps) {
   for (const row of await repository.dueRoutines(deps.db))
@@ -147,7 +182,7 @@ export function draftReports(deps: Deps, id: string, occurrence: string) {
 }
 export async function toolGradebook(deps: Deps, runId: string, token: string) {
   const scope = await toolScope(deps, runId, token, ['jaew', 'nun']);
-  return repository.classGradebook(deps.db, scope.schoolId, scope.classId);
+  return repository.classScoreHistory(deps.db, scope.schoolId, scope.classId);
 }
 export async function principalTool(deps: Deps, runId: string, token: string, activity: boolean) {
   const run = await authorizeRunTool(deps, runId, token);
@@ -155,10 +190,23 @@ export async function principalTool(deps: Deps, runId: string, token: string, ac
   const date = new Date(Date.now() + 7 * 3600000 - (activity ? 86400000 : 0))
     .toISOString()
     .slice(0, 10);
+  if (activity) {
+    const counts = await repository.teacherActivity(deps.db, run.schoolId, date);
+    return {
+      date,
+      ...counts,
+      briefLine: counts?.worksheetsCreated
+        ? `ครูใช้ crudex เมื่อวาน ทำสื่อ ${counts.worksheetsCreated} ชุด`
+        : 'เมื่อวานยังไม่มีครูทำสื่อใน crudex',
+    };
+  }
+  const weekdays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์'];
   return {
     date,
-    ...(activity
-      ? await repository.teacherActivity(deps.db, run.schoolId, date)
-      : await repository.morningBrief(deps.db, run.schoolId, date)),
+    ...(await repository.morningBrief(deps.db, run.schoolId, date)),
+    briefTitle: `สรุปเช้าวัน${weekdays[new Date(date + 'T00:00:00Z').getUTCDay()]}`,
+    briefClassLine: sampleFlaggedClasses.map((c) => c.line).join('; '),
+    flaggedClasses: sampleFlaggedClasses,
+    flaggedSource: 'sample' as const,
   };
 }

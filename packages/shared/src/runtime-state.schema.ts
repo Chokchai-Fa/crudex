@@ -62,6 +62,12 @@ const inboxItemSchema = z.strictObject({
   createdAt: z.number(),
 });
 
+const activitySchema = z.strictObject({
+  ownerId: z.string(),
+  action: z.string(),
+  at: z.number(),
+});
+
 export const runtimeStateSchema = z.strictObject({
   version: z.literal(1),
   memory: z.record(z.string(), z.array(memoryItemSchema)),
@@ -70,6 +76,8 @@ export const runtimeStateSchema = z.strictObject({
   briefs: z.array(publishedBriefSchema),
   // Added after the first snapshots were taken; older snapshots restore with an empty mailbox.
   inbox: z.array(inboxItemSchema).default([]),
+  // Teacher work recorded when a creation tool succeeds; read by teacher_activity.
+  activity: z.array(activitySchema).default([]),
 });
 
 export type RuntimeState = z.infer<typeof runtimeStateSchema>;

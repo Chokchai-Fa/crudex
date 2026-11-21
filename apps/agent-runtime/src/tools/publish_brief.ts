@@ -1,5 +1,6 @@
 import { classHistories, studentIdentity } from '../data/class-history';
 import { checkBrief } from '../lib/brief-guard';
+import { schoolClasses } from '../data/school';
 import { briefs, persistState, type PublishedBrief } from '../state';
 import { ownerOf, ToolError } from './identity';
 import type { ToolDefinition } from './types';
@@ -14,7 +15,7 @@ const studentNames = Object.values(classHistories).flatMap(
 export const publishBrief: ToolDefinition = {
   name: 'publish_brief',
   description:
-    'ส่งสรุปเช้าฉบับสุดท้ายให้ ผอ. ระบบตรวจด้วยโค้ดว่าไม่เกิน 7 บรรทัดและไม่มีชื่อหรือรหัสนักเรียน ถ้าไม่ผ่านจะคืนข้อผิดพลาดให้แก้แล้วเรียกใหม่ ต้องผ่านการตรวจก่อนจึงจะถึง ผอ.',
+    'ส่งสรุปเช้าฉบับสุดท้ายให้ ผอ. รูปแบบตาม design: บรรทัดแรก briefTitle (เช่น สรุปเช้าวันเสาร์) แล้วข้อ 1. 2. 3. ... ประโยคสั้นข้อละเรื่อง ระบบตรวจด้วยโค้ดว่าไม่เกิน 7 บรรทัด ไม่มีชื่อหรือรหัสนักเรียน และไม่เรียกห้องที่ค่าเฉลี่ยไม่ต่ำกว่า 50% ว่าต่ำกว่าเกณฑ์ ถ้าไม่ผ่านจะคืนข้อผิดพลาดให้แก้แล้วเรียกใหม่ ต้องผ่านการตรวจก่อนจึงจะถึง ผอ.',
   input: {
     type: 'object',
     properties: { text: { type: 'string' } },
@@ -24,7 +25,10 @@ export const publishBrief: ToolDefinition = {
   gate: 'allow',
   execute: (input, context) => {
     const { text } = input as { text: string };
-    const check = checkBrief(text, { names: studentNames });
+    const roomsAtOrAbove = schoolClasses
+      .filter((c) => c.mean >= c.maxScore * 0.5)
+      .map((c) => c.label);
+    const check = checkBrief(text, { names: studentNames, roomsAtOrAbove, design: true });
     if (!check.ok) {
       throw new ToolError(
         'brief_rejected',

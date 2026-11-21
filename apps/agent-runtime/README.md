@@ -26,13 +26,15 @@ restore the saved state.
    `apps/agent-runtime/dist/sandbox/server.mjs` and `apps/agent-runtime/dist/app.tgz`.
 3. Set `OPENAI_API_KEY`, `UPSTREAM_TOKEN` and `DATA_DIR` in your shell and run
    `node apps/agent-runtime/dist/sandbox/server.mjs` with Node 24. Use a sample API
-   key for a health-only check. A live turn needs a key authorized for `gpt-5.4-mini`.
+   key for a health-only check. A live turn needs a key authorized for `gpt-6.2-sol` (the seven teacher and principal agents; `test-agent` still uses `gpt-5.4-mini`).
    `HOST` defaults to `0.0.0.0` and `PORT` defaults to `8790`.
 4. Send `GET /__health` with the `x-crudex-upstream-token` header. The authenticated
    `/__stats` route counts tool executions in the current process.
 
 Run `pnpm turbo run lint typecheck test --filter=agent-runtime --filter=agent-gateway`
 to check both packages together.
+
+The harness adds models from `openai-models.json` to the built-in OpenAI provider when it creates the sandbox workspace. An OpenCode `provider.no-route` error can occur before OpenAI receives a request. The gateway supplies the API key separately at runtime.
 
 ## Add an agent
 
@@ -61,8 +63,8 @@ to check both packages together.
 
 ## Gateway deployment
 
-`.github/workflows/deploy-agent.yml` builds the archive, deploys `crudex-agent`,
-and runs the Thai clock and restricted-tool smoke tests. Configure
+`.github/workflows/deploy-agent.yml` tests the agent packages, builds the archive and deploys
+`crudex-agent`. Configure
 `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE` and `AGENT_OPENAI_API_KEY`
 as GitHub Actions secrets. The workflow resolves the account, Worker subdomain,
 Hobby team and project. The Worker controls the daily Bangkok quota and idle

@@ -78,7 +78,7 @@ describe('teacher agents', () => {
     const jum = byId['jum']?.instructions ?? '';
     expect(jum.indexOf('memory_search')).toBeLessThan(jum.indexOf('check_assessment'));
     expect(jum.indexOf('check_assessment')).toBeLessThan(jum.indexOf('save_assessment'));
-    expect(jaew.instructions.indexOf('ให้ผมจำไว้ไหม')).toBeLessThan(
+    expect(jaew.instructions.indexOf('ให้หนูจำไว้ไหมคะ')).toBeLessThan(
       jaew.instructions.indexOf('ข) ถ้าเป็นคำขอให้ทำงาน'),
     );
     expect(byId['porn']?.instructions).toContain('ยืนยันทุกครั้ง');
@@ -94,7 +94,9 @@ describe('teacher agents', () => {
 
   it('directs agents to use checked counts, verified questions and genuine tool links', () => {
     expect(byId['jum']?.instructions).toContain('ใช้ count และ topics จาก check_assessment');
-    expect(byId['jum']?.instructions).toContain('ยังไม่มีไฟล์ให้ดาวน์โหลด');
+    expect(byId['jum']?.instructions).toContain(
+      'ห้ามบอกว่ามีไฟล์หรือลิงก์ถ้าเครื่องมือไม่ได้คืน url จริง',
+    );
     expect(byId['jeng']?.instructions).toContain('unverifiedCount เป็น 0');
     expect(byId['porn']?.instructions).toContain('ส่ง claimId เดิม');
     expect(byId['porn']?.instructions).toContain('ระบบไม่มีหน้าต่างให้กดยืนยัน');
@@ -115,9 +117,9 @@ describe('jum main loop', () => {
     expect(text).toContain('ใช้แบบมาตรฐานเพราะชุดที่เขียนเองไม่ผ่านการตรวจ');
   });
 
-  it('calls make_file only when the teacher asks for a file', () => {
+  it('calls make_file for a worksheet only after the check and the form step are described', () => {
     const text = byId['jum']?.instructions ?? '';
-    expect(text).toContain('ห้ามเรียก make_file ในวงจรปกติ');
+    expect(text).toContain('ส่ง content เป็น worksheet.text ตามด้วยบรรทัด เฉลย:');
     expect(text.indexOf('save_assessment')).toBeLessThan(text.indexOf('make_file'));
   });
 });
@@ -141,5 +143,31 @@ describe('gates for anything that leaves the system or cannot be undone', () => 
     const porn = byId['porn'] as never;
     expect(decide(permissionsFor(porn), 'submit_for_approval', ['*'])).toBe('ask');
     expect(byId['porn']?.instructions).toContain('กดยืนยันการส่งอีกชั้น');
+  });
+});
+
+describe('model pin', () => {
+  it('runs the seven teacher and principal agents on gpt-6.2-sol', async () => {
+    const { principalAgents } = await import('../src/agents');
+    const all = [...teacherAgents, ...principalAgents];
+    expect(all).toHaveLength(7);
+    for (const agent of all) expect(agent.model, agent.id).toBe('gpt-6.2-sol');
+  });
+});
+
+describe('files are real or not claimed', () => {
+  it('has jum call make_file for a worksheet after the check and never claim a file without a real url', () => {
+    const text = byId['jum']?.instructions ?? '';
+    expect(text).toContain('ให้เรียก make_file หลัง check_assessment ผ่านเสมอ');
+    expect(text).toContain('worksheet.text และ worksheet.answers');
+    expect(text).toContain('ห้ามบอกว่ามีไฟล์หรือลิงก์ถ้าเครื่องมือไม่ได้คืน url จริง');
+    expect(text).not.toContain('ห้ามเรียก make_file ในวงจรปกติ');
+  });
+
+  it('has jeng call make_slides for slides, create the Kahoot only from checked questions, and not claim a file without a real url', () => {
+    const text = byId['jeng']?.instructions ?? '';
+    expect(text).toContain('เมื่อครูขอสไลด์ ให้เรียก make_slides');
+    expect(text).toContain('ห้ามบอกว่ามีไฟล์หรือลิงก์ถ้าเครื่องมือไม่ได้คืน url จริง');
+    expect(text).toContain('หลังตรวจผ่าน');
   });
 });

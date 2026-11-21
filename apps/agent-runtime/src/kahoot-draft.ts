@@ -33,9 +33,9 @@ export class KahootDrafts {
     { payload: NonNullable<ReturnType<typeof prepareDraft>>; expiresAt: number }
   >();
 
-  check(session: string, input: unknown) {
+  check(session: string, input: unknown, passed: boolean) {
     this.sessions.delete(session);
-    const payload = prepareDraft(input);
+    const payload = passed ? prepareDraft(input) : undefined;
     if (payload) {
       if (this.sessions.size >= 128) this.sessions.delete(this.sessions.keys().next().value!);
       this.sessions.set(session, { payload, expiresAt: Date.now() + 15 * 60_000 });

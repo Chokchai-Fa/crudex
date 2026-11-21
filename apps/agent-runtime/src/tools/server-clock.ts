@@ -13,7 +13,10 @@ export function thaiDate(now = new Date()) {
     .format(now)
     .replace(/^(\d+ \S+) (?:พ\.ศ\. )?(\d{4})$/u, '$1 $2');
   const iso = new Intl.DateTimeFormat('en-CA', { timeZone }).format(now);
-  return { thai, iso };
+  // Short Thai weekday as in the design ("สรุปเช้าวันพฤหัส").
+  const weekdays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์'];
+  const weekday = weekdays[new Date(iso + 'T00:00:00Z').getUTCDay()] as string;
+  return { thai, iso, weekday };
 }
 
 export const serverClock: ToolDefinition = {

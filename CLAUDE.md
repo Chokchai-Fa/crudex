@@ -2,6 +2,8 @@
 
 Guidance for Claude Code working in this monorepo.
 
+School administrators manage enrollment at `/admin`. Invited users redeem codes at `/account`. See [accounts and invitations](docs/site/docs/getting-started/school-access.md) for first-time setup and role access.
+
 ## Before every task
 
 Run the [rebase-before-task skill](skills/rebase-before-task/SKILL.md) before planning, reviewing or editing so the task starts with the latest development branch and repository context.
@@ -90,8 +92,8 @@ lifecycle. The Worker serves the passcode-gated test page and proxies SSE to
 The runtime stores sessions in the sandbox's local SQLite database.
 
 The `deploy-agent.yml` workflow runs when a PR with agent changes merges into `main` or by
-manual dispatch. It reuses the Vercel project and runs two smoke turns after
-deploy. Its GitHub secrets are `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE`
+manual dispatch. It tests the agent packages, bundles the runtime and deploys the gateway using the existing
+Vercel project. Its GitHub secrets are `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE`
 and `AGENT_OPENAI_API_KEY`. See [the runtime README](apps/agent-runtime/README.md)
 for local checks and extension steps.
 

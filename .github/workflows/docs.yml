@@ -1,9 +1,8 @@
 name: Deploy documentation
 
 on:
-  pull_request:
+  push:
     branches: [main]
-    types: [closed]
     paths:
       - 'docs/site/**'
       - 'docs/design/pages/**'
@@ -15,13 +14,30 @@ permissions:
   contents: read
 
 jobs:
+  merged-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      merged: ${{ steps.check.outputs.merged }}
+    steps:
+      - name: Check that this revision came from a merged PR
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          merged=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq "any(.[]; .base.ref == \"main\" and .merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\")")
+          echo "merged=$merged" >> "$GITHUB_OUTPUT"
+
   build:
-    if: github.event.pull_request.merged == true
+    needs: merged-pr
+    if: needs.merged-pr.outputs.merged == 'true'
     uses: ./.github/workflows/docs-build.yml
 
   publish:
     needs: build
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       pages: write

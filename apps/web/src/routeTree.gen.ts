@@ -10,33 +10,193 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as GradebookRouteImport } from './routes/gradebook'
+import { Route as MemoryRouteImport } from './routes/memory'
+import { Route as NotesRouteImport } from './routes/notes'
+import { Route as PrincipalRouteImport } from './routes/principal'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SchoolRouteImport } from './routes/school'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as TeacherRouteImport } from './routes/teacher'
+import { Route as PlayTokenRouteImport } from './routes/play.$token'
+import { Route as StudentRoomIdRouteImport } from './routes/student.$roomId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GradebookRoute = GradebookRouteImport.update({
+  id: '/gradebook',
+  path: '/gradebook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MemoryRoute = MemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrincipalRoute = PrincipalRouteImport.update({
+  id: '/principal',
+  path: '/principal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SchoolRoute = SchoolRouteImport.update({
+  id: '/school',
+  path: '/school',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeacherRoute = TeacherRouteImport.update({
+  id: '/teacher',
+  path: '/teacher',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayTokenRoute = PlayTokenRouteImport.update({
+  id: '/play/$token',
+  path: '/play/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudentRoomIdRoute = StudentRoomIdRouteImport.update({
+  id: '/student/$roomId',
+  path: '/student/$roomId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRoute
+  '/gradebook': typeof GradebookRoute
+  '/memory': typeof MemoryRoute
+  '/notes': typeof NotesRoute
+  '/principal': typeof PrincipalRoute
+  '/reports': typeof ReportsRoute
+  '/school': typeof SchoolRoute
+  '/sign-in': typeof SignInRoute
+  '/teacher': typeof TeacherRoute
+  '/play/$token': typeof PlayTokenRoute
+  '/student/$roomId': typeof StudentRoomIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRoute
+  '/gradebook': typeof GradebookRoute
+  '/memory': typeof MemoryRoute
+  '/notes': typeof NotesRoute
+  '/principal': typeof PrincipalRoute
+  '/reports': typeof ReportsRoute
+  '/school': typeof SchoolRoute
+  '/sign-in': typeof SignInRoute
+  '/teacher': typeof TeacherRoute
+  '/play/$token': typeof PlayTokenRoute
+  '/student/$roomId': typeof StudentRoomIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRoute
+  '/gradebook': typeof GradebookRoute
+  '/memory': typeof MemoryRoute
+  '/notes': typeof NotesRoute
+  '/principal': typeof PrincipalRoute
+  '/reports': typeof ReportsRoute
+  '/school': typeof SchoolRoute
+  '/sign-in': typeof SignInRoute
+  '/teacher': typeof TeacherRoute
+  '/play/$token': typeof PlayTokenRoute
+  '/student/$roomId': typeof StudentRoomIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/gradebook'
+    | '/memory'
+    | '/notes'
+    | '/principal'
+    | '/reports'
+    | '/school'
+    | '/sign-in'
+    | '/teacher'
+    | '/play/$token'
+    | '/student/$roomId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/gradebook'
+    | '/memory'
+    | '/notes'
+    | '/principal'
+    | '/reports'
+    | '/school'
+    | '/sign-in'
+    | '/teacher'
+    | '/play/$token'
+    | '/student/$roomId'
+  id:
+    | '__root__'
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/gradebook'
+    | '/memory'
+    | '/notes'
+    | '/principal'
+    | '/reports'
+    | '/school'
+    | '/sign-in'
+    | '/teacher'
+    | '/play/$token'
+    | '/student/$roomId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
+  AdminRoute: typeof AdminRoute
+  GradebookRoute: typeof GradebookRoute
+  MemoryRoute: typeof MemoryRoute
+  NotesRoute: typeof NotesRoute
+  PrincipalRoute: typeof PrincipalRoute
+  ReportsRoute: typeof ReportsRoute
+  SchoolRoute: typeof SchoolRoute
+  SignInRoute: typeof SignInRoute
+  TeacherRoute: typeof TeacherRoute
+  PlayTokenRoute: typeof PlayTokenRoute
+  StudentRoomIdRoute: typeof StudentRoomIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +208,107 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gradebook': {
+      id: '/gradebook'
+      path: '/gradebook'
+      fullPath: '/gradebook'
+      preLoaderRoute: typeof GradebookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/memory': {
+      id: '/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof MemoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/principal': {
+      id: '/principal'
+      path: '/principal'
+      fullPath: '/principal'
+      preLoaderRoute: typeof PrincipalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/school': {
+      id: '/school'
+      path: '/school'
+      fullPath: '/school'
+      preLoaderRoute: typeof SchoolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teacher': {
+      id: '/teacher'
+      path: '/teacher'
+      fullPath: '/teacher'
+      preLoaderRoute: typeof TeacherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play/$token': {
+      id: '/play/$token'
+      path: '/play/$token'
+      fullPath: '/play/$token'
+      preLoaderRoute: typeof PlayTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/student/$roomId': {
+      id: '/student/$roomId'
+      path: '/student/$roomId'
+      fullPath: '/student/$roomId'
+      preLoaderRoute: typeof StudentRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
+  AdminRoute: AdminRoute,
+  GradebookRoute: GradebookRoute,
+  MemoryRoute: MemoryRoute,
+  NotesRoute: NotesRoute,
+  PrincipalRoute: PrincipalRoute,
+  ReportsRoute: ReportsRoute,
+  SchoolRoute: SchoolRoute,
+  SignInRoute: SignInRoute,
+  TeacherRoute: TeacherRoute,
+  PlayTokenRoute: PlayTokenRoute,
+  StudentRoomIdRoute: StudentRoomIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

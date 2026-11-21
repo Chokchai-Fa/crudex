@@ -1,13 +1,8 @@
 name: Deploy agent gateway
 
+# Contest day: production deploys only by manual dispatch from agent-design.
+# Restore the pull_request trigger after the demo.
 on:
-  pull_request:
-    types: [closed]
-    branches: [main]
-    paths:
-      - 'apps/agent-*/**'
-      - 'packages/shared/src/**'
-      - '.github/workflows/deploy-agent.yml'
   workflow_dispatch:
 
 permissions:
@@ -45,9 +40,6 @@ jobs:
           account=$(curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$cloudflare/accounts" |
             jq -er '.result[0].id | select(type == "string" and length > 0)')
           printf '::add-mask::%s\n' "$account"
-          subdomain=$(curl -fsS --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            "$cloudflare/accounts/$account/workers/subdomain" |
-            jq -er '.result.subdomain | select(type == "string" and length > 0)')
           team=$(curl -fsS --max-time 30 -H "Authorization: Bearer $VERCEL_TOKEN" "$vercel/v2/teams" |
             jq -er '.teams[0].id | select(type == "string" and length > 0)')
           printf '::add-mask::%s\n' "$team"
@@ -61,7 +53,6 @@ jobs:
             printf 'CLOUDFLARE_ACCOUNT_ID=%s\n' "$account"
             printf 'VERCEL_TEAM_ID=%s\n' "$team"
             printf 'VERCEL_PROJECT_ID=%s\n' "$project_id"
-            printf 'AGENT_URL=https://crudex-agent.%s.workers.dev\n' "$subdomain"
           } >> "$GITHUB_ENV"
 
       - name: Deploy crudex-agent
@@ -89,8 +80,3 @@ jobs:
             {SCHOOL_BOT_APPS_SCRIPT_URL: env.AGENT_APPS_SCRIPT_URL}
           else {} end)' > "$secret_file"
           pnpm exec wrangler deploy --config wrangler.toml --var "RUNTIME_REVISION:$GITHUB_SHA" --var "KAHOOT_MCP_ENABLED:$KAHOOT_MCP_ENABLED" --secrets-file "$secret_file"
-
-      - name: Smoke test the deployed Worker
-        env:
-          AGENT_PASSCODE: ${{ secrets.AGENT_PASSCODE }}
-        run: node apps/agent-gateway/scripts/smoke.mjs

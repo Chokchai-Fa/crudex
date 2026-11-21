@@ -1,4 +1,6 @@
+import { sampleClaim } from '../data/sample-claim';
 import { approvals, notifications, persistState, type ApprovalRecord } from '../state';
+import { thaiDate } from './server-clock';
 
 export { approvals, notifications };
 export type { ApprovalRecord, Notification } from '../state';
@@ -48,4 +50,15 @@ export function resetApprovals() {
   approvals.length = 0;
   notifications.length = 0;
   persistState();
+}
+
+/**
+ * Put the sample claim in an empty box. Runs at server start and after a gateway restore,
+ * so a restart never adds a second copy: once the box has any record it is left alone.
+ */
+export function seedSampleClaim(now = Date.now()) {
+  if (approvals.length > 0) return false;
+  approvals.push(sampleClaim(now, thaiDate(new Date(now)).thai));
+  persistState();
+  return true;
 }

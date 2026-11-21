@@ -1,5 +1,25 @@
 import { z } from 'zod';
+import { schoolRoleSchema } from './identity.schema';
 import { agentIdSchema } from './runs.schema';
+
+export const schoolKahootAccountSchema = z.strictObject({
+  schoolId: z.uuid(),
+  ownerId: z.uuid(),
+  role: schoolRoleSchema,
+});
+export type SchoolKahootAccount = z.infer<typeof schoolKahootAccountSchema>;
+
+export const schoolKahootCallbackPath = '/api/integrations/kahoot/callback';
+
+export type KahootStatus =
+  { connected: false } | { connected: true; connectedAt: number; expiresAt: number };
+
+export interface SchoolKahootRpc {
+  kahootConnect(account: SchoolKahootAccount, redirectUri: string): Promise<{ url: string }>;
+  kahootCallback(state: string, code: string | null): Promise<{ ok: boolean }>;
+  kahootStatus(account: SchoolKahootAccount): Promise<KahootStatus>;
+  kahootDisconnect(account: SchoolKahootAccount): Promise<KahootStatus>;
+}
 
 export const schoolScopeSchema = z.strictObject({
   schoolId: z.uuid(),
@@ -7,6 +27,7 @@ export const schoolScopeSchema = z.strictObject({
   classId: z.uuid().nullable(),
   role: z.enum(['teacher', 'principal']),
   freshSession: z.boolean(),
+  kahootConnected: z.boolean().optional(),
   agentId: agentIdSchema,
   runId: z.uuid(),
   attemptId: z.uuid(),
@@ -35,5 +56,6 @@ export function signedTurn(s: SchoolScope, text: string) {
     s.callbackOrigin,
     s.credential,
     text,
+    ...(s.kahootConnected === undefined ? [] : [s.kahootConnected]),
   ]);
 }

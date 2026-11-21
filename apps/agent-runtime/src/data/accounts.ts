@@ -19,3 +19,10 @@ export function isTeacherOwner(ownerId: string) {
 export function classesOf(ownerId: string) {
   return isTeacherOwner(ownerId) ? (teacherClasses[sampleOwner] ?? []) : [];
 }
+
+export function normalizeClassLabel(label: string) {
+  return label
+    .trim()
+    .replace(/\s+/gu, '')
+    .replace(/^([มป])\.?/u, '$1.');
+}

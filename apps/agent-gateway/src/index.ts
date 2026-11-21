@@ -7,6 +7,7 @@ import {
   validPasscode,
 } from './gate';
 import { isKahootMcpRequest } from './kahoot-mcp';
+import { kahootInstanceName, parseKahootState } from './kahoot-state';
 import { archivePath } from './sandbox';
 
 export { KahootConnection } from './kahoot-connection';
@@ -15,6 +16,7 @@ export { SandboxManager } from './sandbox-manager';
 
 const passcodeSchema = z.string().min(1);
 const apiRoutes = new Set(['GET /api/status', 'GET /api/agents', 'POST /api/chat']);
+const kahootCallbackPath = '/kahoot/callback';
 const securityHeaders = {
   'cache-control': 'no-store',
   'content-security-policy':
@@ -115,15 +117,16 @@ export default {
     const url = new URL(request.url);
     const route = request.method + ' ' + url.pathname;
     const sandbox = () => env.SANDBOX.getByName('main');
-    const kahoot = () => env.KAHOOT.getByName('kahoot');
+    const kahoot = () => env.KAHOOT.getByName(kahootInstanceName());
     if (route === 'GET ' + archivePath || isKahootMcpRequest(url, request.method))
       return sandbox().fetch(request);
 
-    if (route === 'GET /kahoot/callback') {
+    if (route === 'GET ' + kahootCallbackPath) {
       const state = url.searchParams.get('state');
       const code = url.searchParams.has('error') ? null : url.searchParams.get('code');
       try {
-        return kahootPage(state && (await kahoot().callback(code, state)) ? 200 : 400);
+        if (!state || parseKahootState(state)?.kind !== 'demo') return kahootPage(400);
+        return kahootPage((await kahoot().callback(code, state)) ? 200 : 400);
       } catch {
         return kahootPage(502);
       }
@@ -159,7 +162,10 @@ export default {
 
     if (route === 'GET /kahoot/connect') {
       try {
-        return redirect(await kahoot().beginAuthorization(url.origin), session.upgrade);
+        return redirect(
+          await kahoot().beginAuthorization(new URL(kahootCallbackPath, url).href),
+          session.upgrade,
+        );
       } catch {
         return kahootPage(502);
       }
