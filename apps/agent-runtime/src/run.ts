@@ -1,12 +1,28 @@
 import type { AgentDefinition } from './agents/types';
 import { isOwnedRoot } from './demo-session';
 import type { Host } from './harness';
+import { kahootTool } from './kahoot-draft';
+import {
+  kahootEditorTool,
+  kahootEditorUrl,
+  kahootFailure,
+  kahootReceipt,
+  kahootRequiresConnection,
+  requestsKahoot,
+  type KahootResult,
+} from './kahoot-handoff';
 
 export type RunEvent =
   | { type: 'session'; sessionId: string }
   | { type: 'delta'; messageId: string; text: string }
   | { type: 'progress'; messageId: string }
   | { type: 'principal_brief'; briefId: string; text: string }
+  | ({
+      type: 'delegated_kahoot';
+      agentId: 'jeng';
+      childSessionId: string;
+      text: string;
+    } & KahootResult)
   | {
       type: 'tool';
       name: string;
@@ -26,6 +42,18 @@ interface Turn {
   sessionId?: string;
   signal: AbortSignal;
   school?: boolean;
+  kahootConnected?: boolean;
+}
+
+interface ChildTurn {
+  text: string;
+  formUrl?: string;
+  completed?: boolean;
+  agentId?: string;
+  activityId?: string;
+  kahootRequested?: boolean;
+  kahootAuthFailed?: boolean;
+  kahoot?: Extract<KahootResult, { status: 'created' }>;
 }
 
 async function findSession(host: Host, sessionID: string, signal: AbortSignal) {
@@ -64,10 +92,12 @@ export function createTurnRunner(host: Host) {
     const opts = { signal };
     let sessionID: string | undefined;
     const delegated = new Set<string>();
-    const children = new Map<
-      string,
-      { text: string; formUrl?: string; completed?: boolean; agentId?: string; activityId?: string }
-    >();
+    const children = new Map<string, ChildTurn>();
+    const kahootDelegations = new Set<string>();
+    const editorRequests = new Map<string, string>();
+    const schoolSecretary = turn.school && turn.agent.id === 'jaew';
+    const explicitKahoot = schoolSecretary && requestsKahoot(turn.text);
+    let kahootHandoff = explicitKahoot;
     let delegationCount = 0;
     let promptSent = false;
     let finished = false;
@@ -104,6 +134,7 @@ export function createTurnRunner(host: Host) {
       yield { type: 'session', sessionId: sessionID };
 
       const calls = new Map<string, string>();
+      const publicToolIds = new Map<string, string>();
       const renderedWorksheets = new Set<string>();
       let lessonPrep = false;
       let lessonSkillCall: string | undefined;
@@ -127,6 +158,14 @@ export function createTurnRunner(host: Host) {
 
       for await (const event of host.event.subscribe(opts)) {
         if (event.type === 'server.connected') {
+          if (explicitKahoot) {
+            yield {
+              type: 'delta',
+              messageId: 'kahoot:handoff',
+              text: 'หนูจะส่งงานสร้าง Kahoot ให้พี่เจ๋งค่ะ',
+            };
+            yield { type: 'progress', messageId: 'kahoot:handoff' };
+          }
           promptSent = true;
           await host.session.prompt({ sessionID, text: turn.text }, opts);
           continue;
@@ -201,7 +240,24 @@ export function createTurnRunner(host: Host) {
           child.activityId = undefined;
         }
         switch (event.type) {
-          case 'session.tool.called':
+          case 'session.tool.called': {
+            const name = calls.get(source + '/' + event.data.id);
+            if (
+              root &&
+              schoolSecretary &&
+              name === 'subagent' &&
+              event.data.input?.agent === 'jeng' &&
+              (explicitKahoot ||
+                (typeof event.data.input.prompt === 'string' &&
+                  requestsKahoot(event.data.input.prompt)))
+            )
+              kahootDelegations.add(event.data.id);
+            if (
+              child?.agentId === 'jeng' &&
+              name === kahootEditorTool &&
+              typeof event.data.input?.uuid === 'string'
+            )
+              editorRequests.set(source + '/' + event.data.id, event.data.input.uuid);
             if (root && event.data.executed === false)
               toolContinuationMessage = event.data.assistantMessageID;
             if (
@@ -212,6 +268,7 @@ export function createTurnRunner(host: Host) {
             )
               lessonSkillCall = event.data.id;
             break;
+          }
           case 'session.inbox.enqueued': {
             if (!root || !lessonPrep || event.data.item.type !== 'synthetic') break;
             const report = event.data.item.payload.metadata;
@@ -244,6 +301,7 @@ export function createTurnRunner(host: Host) {
                 summaryStarted = true;
                 rootDone = false;
               }
+              if (kahootHandoff) break;
               const { assistantMessageID: messageId, delta } = event.data;
               let text = delta;
               if (text && rootMessageWithText !== messageId) {
@@ -293,16 +351,61 @@ export function createTurnRunner(host: Host) {
             }
             break;
           }
-          case 'session.tool.input.started':
-            calls.set(source + '/' + event.data.id, event.data.name);
-            yield { type: 'tool', name: event.data.name, id: event.data.id, status: 'started' };
+          case 'session.tool.input.started': {
+            const { id, name } = event.data;
+            const key = source + '/' + id;
+            calls.set(key, name);
+            if (schoolSecretary && (child?.agentId === 'jeng' || name === 'subagent'))
+              publicToolIds.set(key, crypto.randomUUID());
+            if (schoolSecretary && child?.agentId === 'jeng' && event.data.name === kahootTool) {
+              child.kahootRequested = true;
+              if (delegated.has(source)) kahootHandoff = true;
+            }
+            yield { type: 'tool', name, id: publicToolIds.get(key) ?? id, status: 'started' };
             break;
+          }
           case 'session.tool.success':
           case 'session.tool.failed': {
-            const name = calls.get(source + '/' + event.data.id);
+            const key = source + '/' + event.data.id;
+            const name = calls.get(key);
             if (name) {
-              calls.delete(source + '/' + event.data.id);
+              calls.delete(key);
+              const editorId = editorRequests.get(key);
+              editorRequests.delete(key);
+              const publicId = publicToolIds.get(key) ?? event.data.id;
+              publicToolIds.delete(key);
               let bridgeElapsedMs: number | undefined;
+              if (schoolSecretary && child?.agentId === 'jeng' && name === kahootTool) {
+                if (event.type === 'session.tool.failed') {
+                  child.kahootAuthFailed = kahootRequiresConnection(event.data.error);
+                } else {
+                  const toolText = event.data.content.flatMap((p) =>
+                    p.type === 'text' ? [p.text] : [],
+                  );
+                  const receipt =
+                    kahootReceipt(event.data.metadata?.crudexKahoot) ??
+                    toolText.map(kahootReceipt).find(Boolean);
+                  if (receipt)
+                    child.kahoot = {
+                      status: 'created',
+                      kahootId: receipt.uuid,
+                      title: receipt.title,
+                    };
+                  else if (toolText.some(kahootRequiresConnection)) child.kahootAuthFailed = true;
+                }
+              }
+              if (
+                child?.kahoot &&
+                name === kahootEditorTool &&
+                editorId === child.kahoot.kahootId &&
+                event.type === 'session.tool.success'
+              ) {
+                child.kahoot.editorUrl ??=
+                  kahootEditorUrl(event.data.metadata?.crudexKahoot) ??
+                  event.data.content
+                    .flatMap((p) => (p.type === 'text' ? [kahootEditorUrl(p.text)] : []))
+                    .find(Boolean);
+              }
               if (event.type === 'session.tool.success') {
                 if (root && name === 'skill' && event.data.id === lessonSkillCall)
                   lessonPrep = true;
@@ -311,6 +414,18 @@ export function createTurnRunner(host: Host) {
                   const childSession = await findSession(host, childId, signal);
                   if (childSession?.parentID === sessionID) {
                     delegated.add(childId);
+                    if (
+                      schoolSecretary &&
+                      childSession.agent === 'jeng' &&
+                      (explicitKahoot ||
+                        kahootDelegations.has(event.data.id) ||
+                        children.get(childId)?.kahootRequested)
+                    ) {
+                      const delegatedChild = children.get(childId) ?? { agentId: 'jeng', text: '' };
+                      delegatedChild.kahootRequested = true;
+                      children.set(childId, delegatedChild);
+                      kahootHandoff = true;
+                    }
                     if (lessonPrep && childSession.agent === 'nun') {
                       scoreReports.set(childId, false);
                       summaryStarted = false;
@@ -364,7 +479,7 @@ export function createTurnRunner(host: Host) {
                 }
               }
               const status = event.type === 'session.tool.success' ? 'success' : 'failed';
-              yield { type: 'tool', name, id: event.data.id, status, bridgeElapsedMs };
+              yield { type: 'tool', name, id: publicId, status, bridgeElapsedMs };
             }
             break;
           }
@@ -396,8 +511,44 @@ export function createTurnRunner(host: Host) {
           if (progress) yield progress;
           continue;
         }
+        let reportedKahoot = false;
         for (const id of delegated) {
           const result = children.get(id);
+          if (result?.kahootRequested) {
+            const outcome = result.kahoot ?? {
+              status:
+                turn.kahootConnected === false || result.kahootAuthFailed
+                  ? 'connect_required'
+                  : 'failed',
+            };
+            const rootReply =
+              outcome.status === 'created'
+                ? `เรียบร้อยค่ะ พี่เจ๋งทำ Kahoot เรื่อง${outcome.title}ให้แล้วค่ะ\nดูรายละเอียดในแชตพี่เจ๋ง`
+                : kahootFailure[outcome.status];
+            const childText =
+              outcome.status === 'created'
+                ? [
+                    result.text.trim() || `พี่สร้าง Kahoot เรื่อง${outcome.title}แล้วครับ`,
+                    outcome.editorUrl && !result.text.includes(outcome.editorUrl)
+                      ? outcome.editorUrl
+                      : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join('\n')
+                : outcome.status === 'connect_required'
+                  ? 'พี่ยังสร้าง Kahoot ไม่ได้ครับ กดปุ่ม Kahoot ในแอปโรงเรียนเพื่อเชื่อมบัญชีก่อนนะครับ'
+                  : 'พี่ยังสร้าง Kahoot ไม่สำเร็จครับ';
+            yield {
+              type: 'delegated_kahoot',
+              agentId: 'jeng',
+              childSessionId: id,
+              text: childText,
+              ...outcome,
+            };
+            yield { type: 'delta', messageId: crypto.randomUUID(), text: '\n\n' + rootReply };
+            reportedKahoot = true;
+            continue;
+          }
           if (!result?.completed) {
             yield { type: 'error', code: 'delegation_failed' };
             return;
@@ -414,6 +565,14 @@ export function createTurnRunner(host: Host) {
           ) {
             yield { type: 'delta', messageId, text: '\n' + result.formUrl };
           }
+        }
+        if (explicitKahoot && !reportedKahoot) {
+          const status = turn.kahootConnected === false ? 'connect_required' : 'failed';
+          yield {
+            type: 'delta',
+            messageId: 'kahoot:missing-result',
+            text: '\n\n' + kahootFailure[status],
+          };
         }
         finished = true;
         yield { type: 'done', elapsedMs: Math.round(performance.now() - started) };
