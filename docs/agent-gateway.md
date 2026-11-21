@@ -1,27 +1,30 @@
-# ต่อหน้าเว็บกับ crudex-agent
+# Connect a frontend to the Crudex agent gateway
 
-เดโมใช้ https://crudex-agent.crudex.workers.dev และข้อมูลโรงเรียนตัวอย่าง บัญชีเดโมใช้ passcode ร่วมกัน ตัวเลือกทีมครูหรือ ผอ. เป็นการเลือกหน้าของเดโม
+The demo uses sample school data and a shared passcode. Selecting the teacher or principal team switches the demo view. [Demo gateway](https://crudex-agent.crudex.workers.dev)
 
-| คำขอ | วิธีใช้ |
-|---|---|
-| POST /login | ส่ง form-urlencoded ฟิลด์ `passcode` เมื่อสำเร็จได้ 303 และ session cookie แบบ HttpOnly, Secure, SameSite=Strict |
-| POST /logout | ล้าง cookie แล้วกลับหน้าเข้าใช้ |
-| GET /api/agents | รายชื่อทีมครูเรียงน้องแจ๋วก่อน แต่ละรายการมี id, name และ description |
-| GET /api/agents?role=principal | รายชื่อผู้ช่วยของ ผอ. |
-| POST /api/chat | ส่ง JSON ที่มี agentId กับ text (1–4,000 ตัวอักษร) และ sessionId ถ้าคุยต่อกับคนเดิม สำหรับทีม ผอ. ใช้ /api/chat?role=principal |
-| GET /api/status | สถานะ sandbox, runtimeRevision เมื่อมี sandbox, runsToday และ limit |
-| GET /api/brief | อ่าน latest และ nextRunAt (Unix milliseconds) พร้อมตั้งรอบ 07:00 เวลาไทย |
-| POST /api/brief/run | สร้างสรุปทันที ค่า latest มี text, generatedAt และ trigger |
+| Request | Usage |
+| --- | --- |
+| `POST /login` | Send the `passcode` field as `application/x-www-form-urlencoded`. On success, the gateway returns a 303 redirect and sets a session cookie with `HttpOnly`, `Secure`, and `SameSite=Strict`. |
+| `POST /logout` | Clears the session cookie and redirects to the login page. |
+| `GET /api/agents` | Lists the teacher team, with Jaew first. Each entry contains `id`, `name`, and `description`. |
+| `GET /api/agents?role=principal` | Lists the principal’s assistants. |
+| `POST /api/chat` | Send JSON with `agentId` and `text` (1–4,000 characters). Include `sessionId` to continue a conversation with the same assistant. For the principal team, use `POST /api/chat?role=principal`. |
+| `GET /api/status` | Returns the sandbox status, `runsToday`, and `limit`. Includes `runtimeRevision` when a sandbox exists. |
+| `GET /api/brief` | Returns `latest` and `nextRunAt` (milliseconds since the Unix epoch) and sets up the daily 07:00 Bangkok schedule. |
+| `POST /api/brief/run` | Generates a brief immediately. The `latest` object contains `text`, `generatedAt`, and `trigger`. |
 
-ให้เว็บเรียกผ่าน origin เดียวกับ gateway หรือทำ reverse proxy ใน backend ของเว็บเพื่อน ส่ง cookie ของผู้ใช้แยกกัน และเก็บ passcode ฝั่ง server หากต้องใช้ อย่าใส่ passcode ใน JavaScript ที่เบราว์เซอร์ดาวน์โหลด
+Call the gateway from the same origin or route requests through a reverse proxy in your frontend’s backend. Forward each user’s own session cookie. If the backend needs the passcode, keep it on the server and out of browser JavaScript.
 
-## อ่านแชตแบบสตรีม
+## Read the chat stream
 
-ใช้ fetch แบบ POST แล้วอ่าน response.body เป็น UTF-8 เก็บเศษข้อมูลระหว่าง chunk แยกเฟรมด้วยบรรทัดว่าง แต่ละเฟรมขึ้นต้นด้วย `data: ` แล้วตามด้วย JSON
+Use `fetch` to send the POST request and decode `response.body` as a UTF-8 stream. A frame can span multiple chunks. Buffer partial frames until you reach a blank line, then parse the JSON after the frame’s `data: ` prefix.
 
-- `session` มี sessionId ให้เก็บตามผู้ช่วยที่เลือก
-- `delta` มี text ให้ต่อท้ายข้อความ รวมผลที่น้องจ๋ำส่งกลับให้น้องแจ๋ว
-- `tool` มี id, name และ status (started, success, failed)
-- `done` มี elapsedMs ส่วน `error` มี code และจบรอบ
+| Event | What the client should do |
+| --- | --- |
+| `session` | Store `sessionId` for the selected assistant. |
+| `delta` | Append `text` to the current message. This includes results Jum sends back to Jaew. |
+| `tool` | Track the tool call by `id` and `name`. Its `status` is `started`, `success`, or `failed`. |
+| `done` | Finish the turn. `elapsedMs` gives its duration in milliseconds. |
+| `error` | Finish the turn and read the error `code`. |
 
-ถ้าได้ HTTP 401 ให้กลับหน้าเข้าใช้ 429 หมายถึงเต็มโควตารายวัน และ 503 หมายถึง sandbox ยังให้บริการไม่ได้ เปิดดูตัวอย่างการอ่าน stream ได้ใน apps/agent-gateway/public/index.html
+On HTTP 401, return to the login page. HTTP 429 means the daily quota has been reached. HTTP 503 means the sandbox is unavailable. [Example stream reader](../apps/agent-gateway/public/index.html)
