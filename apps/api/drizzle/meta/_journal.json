@@ -43,6 +43,13 @@
       "when": 1795245924970,
       "tag": "0005_platform_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795250949697,
+      "tag": "0006_raise_run_quota",
+      "breakpoints": true
     }
   ]
 }
