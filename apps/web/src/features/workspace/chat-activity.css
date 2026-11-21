@@ -1094,3 +1094,8 @@
 .follow-ups button:active {
   transform: scale(0.97);
 }
+/* Dots keep going under text that is still streaming in */
+.chat-response .streaming-dots {
+  display: inline-flex;
+  margin-top: 2px;
+}
