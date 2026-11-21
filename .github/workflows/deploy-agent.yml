@@ -1,13 +1,8 @@
 name: Deploy agent gateway
 
+# Contest day: production deploys only by manual dispatch from agent-design.
+# Restore the pull_request trigger after the demo.
 on:
-  pull_request:
-    types: [closed]
-    branches: [main]
-    paths:
-      - 'apps/agent-*/**'
-      - 'packages/shared/src/**'
-      - '.github/workflows/deploy-agent.yml'
   workflow_dispatch:
 
 permissions:
