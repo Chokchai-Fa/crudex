@@ -22,6 +22,7 @@ type PublishedForm = {
   url: string;
   /** The order and key actually published. */
   questions: ReturnType<typeof formQuestions>;
+  googleFormId?: string;
 };
 
 export function formQuestions(questions: Assessment['questions']) {
@@ -105,7 +106,7 @@ function gradeClassId(ownerId: string, grade: string) {
 export const saveAssessment = validatedTool(saveInputSchema, {
   name: 'save_assessment',
   description:
-    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ถ้าครูระบุห้อง ให้ใส่ classLabel เช่น ม.2/1 เพื่อให้ get_scores อ่านคำตอบของห้องนั้น ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร เมื่อบันทึกฟอร์มให้ห้องสำเร็จ get_scores ใช้ mode form เมื่อมีคำตอบทดสอบ หรือ mode sample เมื่อใช้ข้อมูลตัวอย่าง',
+    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ในระบบโรงเรียนจะคืน formUrl (Google Form) และ playUrl (ลิงก์ให้นักเรียนทำในแอป) ให้แจ้งครูทั้งสองลิงก์ ถ้า googleForm เป็น failed ให้บอกว่าสร้าง Google Form ไม่สำเร็จและส่งเฉพาะ playUrl ถ้าครูระบุห้อง ให้ใส่ classLabel เช่น ม.2/1 เพื่อให้ get_scores อ่านคำตอบของห้องนั้น ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร เมื่อบันทึกฟอร์มให้ห้องสำเร็จ get_scores ใช้ mode form เมื่อมีคำตอบทดสอบ หรือ mode sample เมื่อใช้ข้อมูลตัวอย่าง',
   gate: 'allow',
   execute: async ({ classLabel, ...input }, context) => {
     const published = await saveVerifiedAssessment(input, context.signal, context.scope);
@@ -143,9 +144,29 @@ export async function saveVerifiedAssessment(
     throw new ToolError('invalid_assessment', reasons.join('; '));
   }
   const bridgeStarted = performance.now();
-  const { mode, formId, url, questions } = scope
-    ? await saveSchoolAssessment(scope, assessment, signal)
-    : await publisher.publish(assessment, signal);
+  let school: { playUrl: string; googleForm: 'created' | 'failed'; note?: string } | undefined;
+  let saved: PublishedForm;
+  if (scope) {
+    const [record, google] = await Promise.allSettled([
+      saveSchoolAssessment(scope, assessment, signal),
+      publisher.publish(assessment, signal),
+    ]);
+    if (record.status === 'rejected') throw record.reason;
+    const created = google.status === 'fulfilled' ? google.value : undefined;
+    school = created
+      ? { playUrl: record.value.url, googleForm: 'created' }
+      : {
+          playUrl: record.value.url,
+          googleForm: 'failed',
+          note: 'บันทึกในระบบโรงเรียนแล้ว แต่สร้าง Google Form ไม่สำเร็จ ห้ามแจ้งลิงก์ Google Form',
+        };
+    saved = created
+      ? { ...record.value, url: created.url, googleFormId: created.formId }
+      : record.value;
+  } else {
+    saved = await publisher.publish(assessment, signal);
+  }
+  const { mode, formId, url, questions } = saved;
   const bridgeElapsedMs = Math.round(performance.now() - bridgeStarted);
   const published = questions.map((question, index) => ({
     id: assessment.questions[index]?.id,
@@ -158,6 +179,12 @@ export async function saveVerifiedAssessment(
     formUrl: url,
     mode,
     formId,
+    ...(school && {
+      playUrl: school.playUrl,
+      googleForm: school.googleForm,
+      ...(saved.googleFormId && { googleFormId: saved.googleFormId }),
+      ...(school.note && { note: school.note }),
+    }),
     questions: published,
     bridgeElapsedMs,
     maxScore: questions.length,
