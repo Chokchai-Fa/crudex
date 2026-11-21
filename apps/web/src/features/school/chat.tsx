@@ -1,11 +1,10 @@
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, Navigate, useNavigate } from '@tanstack/react-router';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 import type { CreateRun, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { SchoolLogin } from './login';
 import { RunDetails, Worksheet, statusLabels, SchoolGradebook } from './classroom';
 import {
   readSchoolWorksheet,
@@ -21,7 +20,7 @@ export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
   const session = useSchoolSession();
   if (session.error) return <p role="alert">{session.error.message}</p>;
   if (session.isPending) return <p role="status">กำลังตรวจสอบบัญชี…</p>;
-  if (!session.data) return <SchoolLogin />;
+  if (!session.data) return <Navigate to="/school" replace />;
   const { actor } = session.data;
   if (actor.role !== 'teacher')
     return (

@@ -1,5 +1,5 @@
-import { SchoolLogin } from '@/features/school/login';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { GuestRolePicker } from '@/features/school/login';
+import { createFileRoute } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { SchoolClassroom } from '@/features/school/classroom';
@@ -37,9 +37,6 @@ function School() {
   const me = session.data;
   return (
     <div className="school-flow mx-auto max-w-2xl space-y-5">
-      <Link to="/" className="text-sm text-primary underline">
-        กลับหน้าแรก
-      </Link>
       <PageHeader
         title="พื้นที่โรงเรียน"
         description={me?.memberships.find((m) => m.id === me.actor.membershipId)?.schoolName}
@@ -54,7 +51,7 @@ function School() {
       ) : session.isPending ? (
         <p role="status">กำลังตรวจสอบบัญชี…</p>
       ) : !me ? (
-        <SchoolLogin />
+        <GuestRolePicker />
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">

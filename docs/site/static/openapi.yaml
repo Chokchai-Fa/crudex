@@ -138,6 +138,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/errorResponse'
       security: []
+  /auth/guest:
+    post:
+      summary: Start a guest session with a private sample school and class
+      operationId: postAuthGuest
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/me'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/guestSignIn'
   /auth/local:
     post:
       summary: Start a loopback development session
@@ -1324,6 +1350,14 @@ components:
       required:
         - credential
       additionalProperties: false
+    guestSignIn:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [teacher, principal]
     localSignIn:
       type: object
       properties:
