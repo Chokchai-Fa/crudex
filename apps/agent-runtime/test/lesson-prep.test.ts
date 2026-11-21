@@ -62,5 +62,6 @@ describe('jaew lesson preparation flow', () => {
     expect(nun.instructions).toContain('ห้ามคำนวณเอง');
     expect(jaew.instructions).toContain('แนวโน้มจากครั้งก่อน');
     expect(jaew.instructions).toContain('ต่ำกว่าเกณฑ์ซ้ำ');
+    expect(jaew.instructions).toContain('จำนวนเด็กที่ต้องทบทวน (ไม่ใส่ชื่อเด็ก)');
   });
 });
