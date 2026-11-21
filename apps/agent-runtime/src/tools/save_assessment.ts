@@ -47,12 +47,16 @@ export function formQuestions(questions: Assessment['questions']) {
   });
 }
 
+/** Form creation through Apps Script is slow; the old 60 s limit cut it off in the school app. */
+export const BRIDGE_TIMEOUT_MS = 90_000;
+
 export const publisher = {
   async publish(assessment: Assessment, signal: AbortSignal): Promise<PublishedForm> {
     const endpoint = process.env.SCHOOL_BOT_APPS_SCRIPT_URL;
     if (!endpoint) throw new ToolError('unavailable', 'ยังไม่ได้เชื่อมต่อ Google Form');
 
     const questions = formQuestions(assessment.questions);
+    let reason = 'network';
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -63,9 +67,11 @@ export const publisher = {
           description: [assessment.grade, assessment.topic, '(ข้อมูลตัวอย่าง)'].join(' '),
           questions,
         }),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(BRIDGE_TIMEOUT_MS)]),
       });
+      reason = `http_${response.status}`;
       if (response.ok) {
+        reason = 'invalid_response';
         const result = formResponse.safeParse(await response.json());
         if (result.success)
           return {
@@ -75,10 +81,12 @@ export const publisher = {
             questions,
           };
       }
-    } catch {
-      // Fetch errors and bridge responses may contain the private deployment URL.
+    } catch (error) {
+      // Never keep the error text: it can contain the private deployment URL. Only a coarse reason survives.
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError'))
+        reason = 'timeout';
     }
-    throw new ToolError('unavailable', 'ยังยืนยันการสร้าง Google Form ไม่ได้');
+    throw new ToolError('unavailable', `ยังยืนยันการสร้าง Google Form ไม่ได้ (สาเหตุ: ${reason})`);
   },
 };
 
@@ -144,7 +152,14 @@ export async function saveVerifiedAssessment(
     throw new ToolError('invalid_assessment', reasons.join('; '));
   }
   const bridgeStarted = performance.now();
-  let school: { playUrl: string; googleForm: 'created' | 'failed'; note?: string } | undefined;
+  let school:
+    | {
+        playUrl: string;
+        googleForm: 'created' | 'failed';
+        googleFormReason?: string;
+        note?: string;
+      }
+    | undefined;
   let saved: PublishedForm;
   if (scope) {
     const [record, google] = await Promise.allSettled([
@@ -153,11 +168,16 @@ export async function saveVerifiedAssessment(
     ]);
     if (record.status === 'rejected') throw record.reason;
     const created = google.status === 'fulfilled' ? google.value : undefined;
+    const googleReason =
+      google.status === 'rejected' && google.reason instanceof Error
+        ? /สาเหตุ: ([a-z_0-9]+)/.exec(google.reason.message)?.[1]
+        : undefined;
     school = created
       ? { playUrl: record.value.url, googleForm: 'created' }
       : {
           playUrl: record.value.url,
           googleForm: 'failed',
+          ...(googleReason && { googleFormReason: googleReason }),
           note: 'บันทึกในระบบโรงเรียนแล้ว แต่สร้าง Google Form ไม่สำเร็จ ห้ามแจ้งลิงก์ Google Form',
         };
     saved = created
@@ -183,6 +203,7 @@ export async function saveVerifiedAssessment(
       playUrl: school.playUrl,
       googleForm: school.googleForm,
       ...(saved.googleFormId && { googleFormId: saved.googleFormId }),
+      ...(school.googleFormReason && { googleFormReason: school.googleFormReason }),
       ...(school.note && { note: school.note }),
     }),
     questions: published,
