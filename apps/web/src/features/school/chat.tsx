@@ -357,7 +357,7 @@ function ChatRoom({
             )
           )}
           <ol ref={content} className="space-y-4 py-3">
-            {runs.map((run) => (
+            {runs.map((run, index) => (
               <li key={run.id} className="space-y-2">
                 <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
                   {teacherMessage(run.prompt)}
@@ -371,6 +371,14 @@ function ChatRoom({
                       status={run.status}
                       agentId={run.agentId}
                       onFormUrl={formHandler(run.id)}
+                      onFollowUp={
+                        index === runs.length - 1 &&
+                        !pending &&
+                        !sending &&
+                        !localGatewayUnconfirmed
+                          ? (text) => void send(text)
+                          : undefined
+                      }
                       ack={acks.current.get(run.id)}
                       onRetry={() => void resend(run.prompt)}
                       retryDisabled={sending || localGatewayUnconfirmed}
