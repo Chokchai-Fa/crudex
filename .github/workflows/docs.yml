@@ -1,42 +1,27 @@
-name: Documentation
+name: Deploy documentation
 
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, closed]
+    types: [closed]
     paths:
       - 'docs/site/**'
       - 'docs/design/pages/**'
       - '.github/workflows/docs.yml'
+      - '.github/workflows/docs-build.yml'
       - '.nvmrc'
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   build:
-    if: github.event.action != 'closed' || github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: docs/site/package.json
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: docs/site/pnpm-lock.yaml
-      - run: pnpm --dir docs/site install --frozen-lockfile
-      - run: pnpm --dir docs/site build
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/site/build
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/docs-build.yml
 
   publish:
     needs: build
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true)
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       pages: write
