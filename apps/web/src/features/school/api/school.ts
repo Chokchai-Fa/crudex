@@ -1,4 +1,4 @@
-import { meSchema, type CreateRun } from '@repo/shared';
+import { meSchema, type AgentId, type CreateRun } from '@repo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { toApiError } from '@/lib/api-error';
@@ -83,12 +83,12 @@ export function useSchoolBrief(membershipId: string) {
   });
 }
 
-export function useSchoolRuns(membershipId: string) {
+export function useSchoolRuns(membershipId: string, agentId: AgentId = 'jaew') {
   return useQuery({
-    queryKey: ['school-data', membershipId, 'runs'],
+    queryKey: ['school-data', membershipId, 'runs', agentId],
     staleTime: 0,
     queryFn: async () => {
-      const res = await jaew.history.$get({ param: { id: 'jaew' } });
+      const res = await jaew.history.$get({ param: { id: agentId } });
       if (!res.ok) throw await toApiError(res, 'อ่านประวัติงานไม่สำเร็จ');
       return res.json();
     },
@@ -97,15 +97,16 @@ export function useSchoolRuns(membershipId: string) {
   });
 }
 
-export function useCreateSchoolRun(membershipId: string) {
+export function useCreateSchoolRun(membershipId: string, agentId: AgentId = 'jaew') {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateRun) => {
-      const res = await jaew.runs.$post({ param: { id: 'jaew' }, json: input });
+      const res = await jaew.runs.$post({ param: { id: agentId }, json: input });
       if (!res.ok) throw await toApiError(res, 'ส่งคำขอไม่สำเร็จ');
       return res.json();
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: ['school-data', membershipId, 'runs'] }),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ['school-data', membershipId, 'runs', agentId] }),
   });
 }
 
@@ -139,6 +140,39 @@ export function useSubmitSchoolQuiz(id: string) {
       const res = await api.play[':id'].$post({ param: { id }, json: { answers } });
       if (!res.ok) throw await toApiError(res, 'ส่งคำตอบไม่สำเร็จ');
       return res.json();
+    },
+  });
+}
+
+export function useSchoolAgents(membershipId: string) {
+  return useQuery({
+    queryKey: ['school-data', membershipId, 'agents'],
+    queryFn: async () => {
+      const response = await api.agents.$get();
+      if (!response.ok) throw await toApiError(response, 'อ่านรายชื่อผู้ช่วยไม่สำเร็จ');
+      return response.json();
+    },
+  });
+}
+
+export function useSchoolRoutines(membershipId: string) {
+  return useQuery({
+    queryKey: ['school-data', membershipId, 'routines'],
+    queryFn: async () => {
+      const response = await api.routines.$get();
+      if (!response.ok) throw await toApiError(response, 'อ่านนัดหมายไม่สำเร็จ');
+      return response.json();
+    },
+  });
+}
+
+export function useSchoolMemories(membershipId: string) {
+  return useQuery({
+    queryKey: ['school-data', membershipId, 'memories'],
+    queryFn: async () => {
+      const response = await api.memories.$get();
+      if (!response.ok) throw await toApiError(response, 'อ่านความจำไม่สำเร็จ');
+      return response.json();
     },
   });
 }

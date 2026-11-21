@@ -1,8 +1,10 @@
 import { Link } from '@tanstack/react-router';
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import type { SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
+import { SchoolAnswer } from './answer';
 import { useRunEvents } from './api/run-events';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
@@ -16,9 +18,34 @@ export const statusLabels = {
   cancelled: 'ยกเลิกแล้ว',
 };
 const toolStatuses = { started: 'เริ่ม', success: 'เสร็จแล้ว', failed: 'ไม่สำเร็จ' };
-export function RunDetails({ id }: { id: string }) {
-  const { events, error } = useRunEvents(id);
-  const text = events.flatMap((event) => (event.type === 'delta' ? [event.text] : [])).join('');
+export function RunDetails({
+  id,
+  membershipId,
+  status,
+}: {
+  id: string;
+  membershipId: string;
+  status: keyof typeof statusLabels;
+}) {
+  const active = status === 'queued' || status === 'running';
+  const { events, error, loading } = useRunEvents(membershipId, id, active);
+  const raw = events.flatMap((event) => (event.type === 'delta' ? [event.text] : [])).join('');
+  const metadata: string[] = [];
+  const text = raw
+    .split(/\r?\n/)
+    .filter((line) => {
+      if (
+        /^(?:ลิงก์:\s*\/play\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|mode:\s*school)$/i.test(
+          line.trim(),
+        )
+      ) {
+        metadata.push(line.trim());
+        return false;
+      }
+      return true;
+    })
+    .join('\n')
+    .trim();
   const steps = events.flatMap((event) => {
     switch (event.type) {
       case 'delta':
@@ -41,15 +68,35 @@ export function RunDetails({ id }: { id: string }) {
   });
   return (
     <div className="space-y-2">
-      {text && <p className="whitespace-pre-wrap break-words">{text}</p>}
-      {steps.length > 0 && (
-        <ol className="list-decimal ps-5 text-sm">
-          {steps.map((step, index) => (
-            <li key={index}>{step}</li>
-          ))}
-        </ol>
+      {text ? (
+        <SchoolAnswer text={text} />
+      ) : (
+        <p role="status">
+          {loading
+            ? 'กำลังอ่านคำตอบ…'
+            : active
+              ? statusLabels[status]
+              : status === 'succeeded'
+                ? 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับที่บันทึกไว้'
+                : statusLabels[status]}
+        </p>
       )}
-      {!events.length && !error && <p role="status">รอเหตุการณ์จากโรงเรียน…</p>}
+      {(steps.length > 0 || metadata.length > 0) && (
+        <details>
+          <summary className="cursor-pointer py-2 text-sm">รายละเอียดงาน</summary>
+          <ol className="list-decimal ps-5 text-sm">
+            {steps.map((step, index) => (
+              <li key={index}>{step}</li>
+            ))}
+          </ol>
+          {metadata.map((line, i) => (
+            <p className="break-all text-sm" key={i}>
+              {line}
+            </p>
+          ))}
+        </details>
+      )}
+
       {error && <p role="alert">{error}</p>}
     </div>
   );
@@ -58,8 +105,8 @@ export function Worksheet({ membershipId, id }: { membershipId: string; id: stri
   const sheet = useSchoolWorksheet(membershipId, id);
   if (sheet.error) return <p role="alert">{sheet.error.message}</p>;
   if (!sheet.data) return <p role="status">กำลังเปิดใบงาน…</p>;
-  return (
-    <article className="space-y-2 rounded-xl border p-4">
+  const questions = (
+    <>
       <h3 className="font-bold">{sheet.data.title}</h3>
       <ol className="list-decimal space-y-2 ps-6">
         {sheet.data.questions.map((q) => (
@@ -73,6 +120,13 @@ export function Worksheet({ membershipId, id }: { membershipId: string; id: stri
           </li>
         ))}
       </ol>
+    </>
+  );
+  return (
+    <article className="space-y-2 rounded-xl border p-4">
+      {questions}
+      <Button onClick={() => window.print()}>พิมพ์ใบงาน</Button>
+      {createPortal(<article className="school-print-sheet">{questions}</article>, document.body)}
       <Button asChild variant="outline">
         <Link to="/play/$token" params={{ token: sheet.data.formUrl.split('/').pop()! }}>
           เปิดฟอร์มนักเรียน

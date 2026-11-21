@@ -1,18 +1,19 @@
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUp } from 'lucide-react';
-import type { CreateRun, SchoolActor } from '@repo/shared';
+import { ArrowUp, Menu, ListChecks } from 'lucide-react';
+import type { AgentId, CreateRun, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
-import { NativeSelect } from '@/components/ui/native-select';
+import { SchoolTeam, SchoolActivity, AssistantIcon } from './chat-panels';
+import { ChatArtifacts } from './chat-artifacts';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { SchoolLogin } from './login';
-import { RunDetails, Worksheet, statusLabels, SchoolGradebook } from './classroom';
+import { RunDetails, statusLabels, SchoolGradebook } from './classroom';
 import {
   readSchoolWorksheet,
   useCreateSchoolRun,
   useSchoolRuns,
   useSchoolSession,
-  useSchoolLogout,
+  useSchoolAgents,
 } from './api/school';
 import { teacherMessage, referencesWorksheet, withWorksheet } from './worksheet-context';
 import '../workspace/chat-activity.css';
@@ -35,6 +36,7 @@ export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
 function ClassSelector({ actor, initialRoom }: { actor: SchoolActor; initialRoom?: string }) {
   const navigate = useNavigate();
   const room = actor.classes.find((c) => c.id === initialRoom) ?? actor.classes[0];
+  const [agent, setAgent] = useState<AgentId>('jaew');
   if (!room)
     return (
       <p>
@@ -43,7 +45,9 @@ function ClassSelector({ actor, initialRoom }: { actor: SchoolActor; initialRoom
     );
   return (
     <ChatRoom
-      key={room.id}
+      key={room.id + agent}
+      agent={agent}
+      onAgent={setAgent}
       actor={actor}
       room={room}
       onRoom={(roomId) => void navigate({ to: '/teacher', search: { roomId } })}
@@ -55,16 +59,43 @@ function ChatRoom({
   actor,
   room,
   onRoom,
+  agent,
+  onAgent,
 }: {
   actor: SchoolActor;
+  agent: AgentId;
+  onAgent: (id: AgentId) => void;
   room: SchoolActor['classes'][number];
   onRoom: (id: string) => void;
 }) {
-  const history = useSchoolRuns(actor.membershipId);
-  const create = useCreateSchoolRun(actor.membershipId);
-  const logout = useSchoolLogout();
-  const [draft, setDraft] = useState('');
-  const [expanded, setExpanded] = useState('');
+  const history = useSchoolRuns(actor.membershipId, agent);
+  const create = useCreateSchoolRun(actor.membershipId, agent);
+  const directory = useSchoolAgents(actor.membershipId);
+  const agentName =
+    directory.data?.agents.find((a) => a.id === agent)?.name ??
+    (agent === 'jaew' ? 'เลขาครู' : agent);
+  const [panel, setPanel] = useState<'chat' | 'team' | 'activity'>('chat');
+  const draftKey = ['crudex.school.draft', actor.membershipId, room.id, agent].join('.');
+  const [draft, setDraft] = useState(() => sessionStorage.getItem(draftKey) ?? '');
+  function editDraft(value: string) {
+    setDraft(value);
+    if (value) sessionStorage.setItem(draftKey, value);
+    else sessionStorage.removeItem(draftKey);
+  }
+  const teamButton = useRef<HTMLButtonElement>(null);
+  const activityButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (panel === 'chat') return;
+    function dismiss(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setPanel('chat');
+      (panel === 'team' ? teamButton : activityButton).current?.focus({ preventScroll: true });
+    }
+    document.addEventListener('keydown', dismiss);
+    return () => document.removeEventListener('keydown', dismiss);
+  }, [panel]);
+
   const [sheet, setSheet] = useState('');
   const [grades, setGrades] = useState(false);
   const retry = useRef<CreateRun | null>(null);
@@ -76,6 +107,14 @@ function ChatRoom({
   const content = useRef<HTMLOListElement>(null);
   const following = useRef(true);
   const runs = (history.data?.runs ?? []).filter((r) => r.classId === room.id).reverse();
+  const currentTask =
+    runs.findLast((r) => r.status === 'running' || r.status === 'queued') ?? runs.at(-1);
+  function insertPrompt(text: string) {
+    const next = draft ? draft + '\n' + text : text;
+    if (next.length <= 4000) editDraft(next);
+    else setSendError('ร่างข้อความยาวเกิน 4,000 ตัวอักษร');
+    input.current?.focus({ preventScroll: true });
+  }
   function notePosition() {
     const p = viewport.current;
     if (p) following.current = p.scrollHeight - p.clientHeight - p.scrollTop <= 24;
@@ -116,9 +155,8 @@ function ChatRoom({
         }
         retry.current = { prompt: message, classId: room.id, clientRequestId: crypto.randomUUID() };
       }
-      const run = await create.mutateAsync(retry.current);
-      setExpanded(run.id);
-      setDraft('');
+      await create.mutateAsync(retry.current);
+      editDraft('');
       retry.current = null;
     } catch (error) {
       setSendError(error instanceof Error ? error.message : 'ส่งคำขอไม่สำเร็จ กรุณาลองอีกครั้ง');
@@ -128,122 +166,168 @@ function ChatRoom({
     }
   }
   return (
-    <main className="teacher-chat mx-auto grid h-dvh max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-card">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-2">
-        <img src="/team/secretary.svg" alt="" width="40" height="40" />
-        <h1 className="font-bold">เลขาครู</h1>
-        <label>
-          ห้อง{' '}
-          <NativeSelect disabled={sending} value={room.id} onChange={(e) => onRoom(e.target.value)}>
-            {actor.classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <div className="ms-auto">
-          <ThemeToggle />
-        </div>
-        <Link className="text-primary underline" to="/school">
-          พื้นที่โรงเรียน
-        </Link>
-        <Button variant="link" disabled={logout.isPending} onClick={() => logout.mutate()}>
-          ออกจากระบบ
-        </Button>
-        {logout.error && <p role="alert">{logout.error.message}</p>}
-      </header>
-      <div
-        ref={viewport}
-        role="region"
-        aria-label={'ประวัติสนทนาห้อง ' + room.name}
-        tabIndex={0}
-        onScroll={notePosition}
-        className="min-h-0 overflow-y-auto overscroll-contain p-3"
-      >
-        {history.error && <p role="alert">{history.error.message}</p>}
-        <Button variant="outline" aria-expanded={grades} onClick={() => setGrades(!grades)}>
-          สมุดคะแนน · {room.name}
-        </Button>
-        {grades && <SchoolGradebook classId={room.id} membershipId={actor.membershipId} />}
-        {history.isPending ? (
-          <p role="status">กำลังอ่านประวัติ…</p>
-        ) : (
-          !runs.length && !history.error && <p>เริ่มคำขอแรกสำหรับห้อง {room.name}</p>
-        )}
-        <ol ref={content} className="space-y-4 py-3">
-          {runs.map((run) => (
-            <li key={run.id} className="space-y-2">
-              <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
-                {teacherMessage(run.prompt)}
-              </p>
-              <div className="flex items-start gap-2">
-                <img src="/team/secretary.svg" alt="เลขาครู" width="32" height="32" />
-                <div className="min-w-0 rounded-2xl bg-muted p-3">
-                  <p role="status">{statusLabels[run.status]}</p>
-                  <button
-                    className="min-h-11 text-primary"
-                    aria-expanded={expanded === run.id}
-                    onClick={() => setExpanded(expanded === run.id ? '' : run.id)}
-                  >
-                    {expanded === run.id ? 'ย่อรายละเอียดงาน' : 'ดูรายละเอียดงาน'}
-                  </button>
-                  {expanded === run.id && <RunDetails key={run.id} id={run.id} />}
-                </div>
-              </div>
-              {run.worksheetIds.map((id, i) => (
-                <div key={id}>
-                  <Button
-                    variant="outline"
-                    aria-expanded={sheet === id}
-                    onClick={() => setSheet(sheet === id ? '' : id)}
-                  >
-                    {sheet === id ? 'ปิดใบงาน' : 'เปิดใบงาน ' + (i + 1)}
-                  </Button>
-                  {sheet === id && <Worksheet membershipId={actor.membershipId} id={id} />}
-                </div>
-              ))}
-            </li>
-          ))}
-        </ol>
-      </div>
-      <form
-        className="chat-compose"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
+    <main className="teacher-chat school-workspace" data-panel={panel}>
+      <SchoolTeam
+        actor={actor}
+        agent={agent}
+        onAgent={(id) => {
+          setPanel('chat');
+          onAgent(id);
         }}
-      >
-        {localGatewayUnconfirmed && <p role="status">ยังไม่ได้เปิดใช้ runtime จริงในเครื่อง</p>}
-        {sendError && <p role="alert">{sendError}</p>}
-        {sending && <p role="status">กำลังส่งคำขอ…</p>}
-        <div className="compose-capsule">
-          <textarea
-            ref={input}
-            rows={1}
-            aria-label={'คุยกับเลขาครู · ' + room.name}
-            placeholder="พิมพ์คุยกับเลขาครู…"
-            maxLength={4000}
-            readOnly={sending}
-
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-          />
-          <button
-            className="submit-arrow"
-            aria-label="ส่งข้อความ"
-            disabled={localGatewayUnconfirmed || !draft.trim() || sending}
+        roomId={room.id}
+        onRoom={(id) => {
+          setPanel('chat');
+          onRoom(id);
+        }}
+        disabled={sending}
+      />
+      <section className="school-conversation">
+        <header className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            className="lg:hidden"
+            ref={teamButton}
+            aria-label="ห้องและผู้ช่วย"
+            aria-expanded={panel === 'team'}
+            aria-controls="school-team"
+            onClick={() => setPanel(panel === 'team' ? 'chat' : 'team')}
           >
-            <ArrowUp />
-          </button>
+            <Menu />
+          </Button>
+          <AssistantIcon id={agent} />
+          <div>
+            <h1 className="text-xl font-bold">{agentName}</h1>
+            <p className="text-sm text-muted-foreground">{room.name}</p>
+          </div>
+          <div className="ms-auto">
+            <ThemeToggle />
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="lg:hidden"
+            ref={activityButton}
+            aria-label="กิจกรรมห้อง"
+            aria-controls="school-activity"
+            aria-expanded={panel === 'activity'}
+            onClick={() => setPanel(panel === 'activity' ? 'chat' : 'activity')}
+          >
+            <ListChecks />
+          </Button>
+        </header>
+        <div
+          ref={viewport}
+          role="region"
+          aria-label={'ประวัติสนทนาห้อง ' + room.name}
+          tabIndex={0}
+          onScroll={notePosition}
+          className="min-h-0 overflow-y-auto overscroll-contain p-3"
+        >
+          {history.error && <p role="alert">{history.error.message}</p>}
+          <Button variant="outline" aria-expanded={grades} onClick={() => setGrades(!grades)}>
+            สมุดคะแนน · {room.name}
+          </Button>
+          {grades && <SchoolGradebook classId={room.id} membershipId={actor.membershipId} />}
+          {history.isPending ? (
+            <p role="status">กำลังอ่านประวัติ…</p>
+          ) : (
+            !runs.length && !history.error && <p>เริ่มคำขอแรกสำหรับห้อง {room.name}</p>
+          )}
+          <ol ref={content} className="space-y-4 py-3">
+            {runs.map((run) => (
+              <li key={run.id} className="space-y-2">
+                <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
+                  {teacherMessage(run.prompt)}
+                </p>
+                <div className="flex items-start gap-2">
+                  <AssistantIcon id={run.agentId} />
+                  <div className="chat-response min-w-0 rounded-2xl bg-accent px-4 py-3">
+                    <RunDetails id={run.id} membershipId={actor.membershipId} status={run.status} />
+                  </div>
+                </div>
+                {run.worksheetIds.map((id) => (
+                  <ChatArtifacts
+                    key={id}
+                    id={id}
+                    roomId={room.id}
+                    membershipId={actor.membershipId}
+                    open={sheet === id}
+                    toggle={() => setSheet(sheet === id ? '' : id)}
+                  />
+                ))}
+              </li>
+            ))}
+          </ol>
         </div>
-      </form>
+        <form
+          className="chat-compose"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
+          {localGatewayUnconfirmed && <p role="status">ยังไม่ได้เปิดใช้ runtime จริงในเครื่อง</p>}
+          {sendError && <p role="alert">{sendError}</p>}
+          {sending && <p role="status">กำลังส่งคำขอ…</p>}
+          <div className="school-quick-prompts" aria-label="คำสั่งลัด">
+            {(agent === 'jaew' || agent === 'jum') && (
+              <button
+                type="button"
+                disabled={sending}
+                onClick={() => insertPrompt('ช่วยสร้างใบงานสำหรับห้อง ' + room.name)}
+              >
+                สร้างใบงาน
+              </button>
+            )}
+            {runs.some((run) => run.worksheetIds.length > 0) && (
+              <button
+                type="button"
+                disabled={sending}
+                onClick={() => insertPrompt('ช่วยเฉลยข้อ 1 ของใบงานล่าสุดพร้อมวิธีคิด')}
+              >
+                ขอเฉลย
+              </button>
+            )}
+          </div>
+          <div className="compose-capsule">
+            <textarea
+              ref={input}
+              rows={1}
+              aria-label={'คุยกับ' + agentName + ' · ' + room.name}
+              placeholder={'พิมพ์คุยกับ' + agentName + '…'}
+              maxLength={4000}
+              readOnly={sending}
+              value={draft}
+              onChange={(e) => editDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+            />
+            <button
+              className="submit-arrow"
+              aria-label="ส่งข้อความ"
+              disabled={localGatewayUnconfirmed || !draft.trim() || sending}
+            >
+              <ArrowUp />
+            </button>
+          </div>
+        </form>
+      </section>
+      <SchoolActivity
+        agentName={agentName}
+        actor={actor}
+        roomId={room.id}
+        task={
+          currentTask && {
+            prompt: teacherMessage(currentTask.prompt),
+            status: statusLabels[currentTask.status],
+          }
+        }
+      />
     </main>
   );
 }
