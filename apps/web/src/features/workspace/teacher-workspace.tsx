@@ -7,7 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { Worksheet } from './worksheet';
 
-const rooms = ['ป.5/1', 'ป.5/2', 'ป.6/1'];
+import { rooms } from './fraction-set';
+import { FormCard } from './form-card';
+
 const roomKey = 'crudex.demo.teacher.room';
 const draftKey = (room: string) => 'crudex.demo.teacher.draft.' + room;
 
@@ -85,7 +87,7 @@ export function TeacherWorkspace() {
         {draft && (
           <>
             <p className="text-muted-foreground text-sm">
-              เดโมใช้ใบงานเศษส่วน ป.5 ชุดเดียว จำนวน 10 ข้อ
+              เดโมใช้ชุดเศษส่วน ป.5 จำนวน 10 ข้อเสมอ แม้เปลี่ยนห้องหรือแก้คำสั่ง
             </p>
             <Button disabled={!draft.trim() || pending[room]} onClick={prepareWorksheet}>
               สร้างใบงานตัวอย่าง
@@ -95,7 +97,7 @@ export function TeacherWorkspace() {
         {!draft && (
           <Button
             onClick={() =>
-              edit('ทำใบงานเศษส่วน ' + room.split('/')[0] + ' จำนวน 10 ข้อ พร้อม Google Form')
+              edit('เตรียมชุดเศษส่วน ป.5 จำนวน 10 ข้อ และฟอร์มจำลองสำหรับห้อง ' + room)
             }
           >
             ใช้คำสั่งตัวอย่าง
@@ -106,13 +108,20 @@ export function TeacherWorkspace() {
       {request && !pending[room] && (
         <div className="space-y-3">
           <p className="break-words">คำสั่งล่าสุด · {request}</p>
-          <Button
-            variant="outline"
-            aria-expanded={previewRoom === room}
-            onClick={() => setPreviewRoom(previewRoom === room ? '' : room)}
-          >
-            {previewRoom === room ? 'ปิดตัวอย่าง' : 'ตรวจใบงาน'} · {room}
-          </Button>
+          <div className="grid gap-4 md:grid-cols-2">
+            <article className="space-y-3 rounded-lg border p-4">
+              <h2 className="font-semibold">ใบงาน A4 · {room}</h2>
+              <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
+              <Button
+                variant="outline"
+                aria-expanded={previewRoom === room}
+                onClick={() => setPreviewRoom(previewRoom === room ? '' : room)}
+              >
+                {previewRoom === room ? 'ปิดตัวอย่าง' : 'ตรวจใบงาน'} · {room}
+              </Button>
+            </article>
+            <FormCard key={room} room={room} />
+          </div>
           {previewRoom === room && <Worksheet room={room} />}
         </div>
       )}
