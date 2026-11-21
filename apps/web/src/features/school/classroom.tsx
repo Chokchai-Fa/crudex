@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import type { CreateRun, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
+import { useRunEvents } from './api/run-events';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useCreateSchoolRun,
@@ -19,6 +20,45 @@ const statusLabels = {
   interrupted: 'งานถูกขัดจังหวะ',
   cancelled: 'ยกเลิกแล้ว',
 };
+const toolStatuses = { started: 'เริ่ม', success: 'เสร็จแล้ว', failed: 'ไม่สำเร็จ' };
+function RunDetails({ id }: { id: string }) {
+  const { events, error } = useRunEvents(id);
+  const text = events.flatMap((event) => (event.type === 'delta' ? [event.text] : [])).join('');
+  const steps = events.flatMap((event) => {
+    switch (event.type) {
+      case 'delta':
+        return [];
+      case 'status':
+        return [statusLabels[event.status]];
+      case 'tool':
+        return [
+          (event.name === 'save_assessment' ? 'บันทึกใบงาน' : event.name) +
+            ' · ' +
+            toolStatuses[event.status],
+        ];
+      case 'done':
+        return ['งานเสร็จแล้ว'];
+      case 'error':
+        return ['งานสิ้นสุด · ' + event.code];
+      case 'approval':
+        return ['มีความจำที่รอครูยืนยัน'];
+    }
+  });
+  return (
+    <div className="space-y-2">
+      {text && <p className="whitespace-pre-wrap break-words">{text}</p>}
+      {steps.length > 0 && (
+        <ol className="list-decimal ps-5 text-sm">
+          {steps.map((step, index) => (
+            <li key={index}>{step}</li>
+          ))}
+        </ol>
+      )}
+      {!events.length && !error && <p role="status">รอเหตุการณ์จากโรงเรียน…</p>}
+      {error && <p role="alert">{error}</p>}
+    </div>
+  );
+}
 function Worksheet({ membershipId, id }: { membershipId: string; id: string }) {
   const sheet = useSchoolWorksheet(membershipId, id);
   if (sheet.error) return <p role="alert">{sheet.error.message}</p>;
@@ -53,6 +93,7 @@ function ClassWork({ membershipId, classId }: { membershipId: string; classId: s
   const create = useCreateSchoolRun(membershipId);
   const [text, setText] = useState('');
   const [sheet, setSheet] = useState('');
+  const [expanded, setExpanded] = useState('');
   const retry = useRef<CreateRun | null>(null);
   async function submit() {
     const prompt = text.trim();
@@ -60,7 +101,8 @@ function ClassWork({ membershipId, classId }: { membershipId: string; classId: s
     if (retry.current?.prompt !== prompt)
       retry.current = { classId, prompt, clientRequestId: crypto.randomUUID() };
     try {
-      await create.mutateAsync(retry.current);
+      const run = await create.mutateAsync(retry.current);
+      setExpanded(run.id);
       retry.current = null;
       setText('');
     } catch {
@@ -104,6 +146,16 @@ function ClassWork({ membershipId, classId }: { membershipId: string; classId: s
                 <li className="border-t pt-3" key={r.id}>
                   <p className="whitespace-pre-wrap break-words">{r.prompt}</p>
                   <small>{statusLabels[r.status]}</small>
+                  <div>
+                    <button
+                      className="min-h-11 text-sm font-medium text-primary"
+                      aria-expanded={expanded === r.id}
+                      onClick={() => setExpanded(expanded === r.id ? '' : r.id)}
+                    >
+                      {expanded === r.id ? 'ย่อรายละเอียดงาน' : 'ดูรายละเอียดงาน'}
+                    </button>
+                    {expanded === r.id && <RunDetails key={r.id} id={r.id} />}
+                  </div>
                   {r.worksheetIds.map((id, i) => (
                     <Button key={id} variant="link" onClick={() => setSheet(id)}>
                       เปิดใบงาน {i + 1}
