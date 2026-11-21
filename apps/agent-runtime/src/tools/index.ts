@@ -14,6 +14,7 @@ import { makeSlides } from './make_slides';
 import { memorySave } from './memory_save';
 import { memorySearch } from './memory_search';
 import { oldExamSearch } from './old_exam_search';
+import { publishBrief } from './publish_brief';
 import { readBudget } from './read_budget';
 import { restrictedProbe } from './restricted-probe';
 import { saveAssessment } from './save_assessment';
@@ -50,4 +51,5 @@ export const tools = [
   listPendingApprovals,
   getApproval,
   decideApproval,
+  publishBrief,
 ];
