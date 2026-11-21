@@ -182,7 +182,7 @@ export function draftReports(deps: Deps, id: string, occurrence: string) {
 }
 export async function toolGradebook(deps: Deps, runId: string, token: string) {
   const scope = await toolScope(deps, runId, token, ['jaew', 'nun']);
-  return repository.classGradebook(deps.db, scope.schoolId, scope.classId);
+  return repository.classScoreHistory(deps.db, scope.schoolId, scope.classId);
 }
 export async function principalTool(deps: Deps, runId: string, token: string, activity: boolean) {
   const run = await authorizeRunTool(deps, runId, token);

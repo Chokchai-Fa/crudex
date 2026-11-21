@@ -1,3 +1,5 @@
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import type { ReactNode } from 'react';
 
 const googleResourceLabels = new Map([
@@ -35,28 +37,65 @@ function resourceLink(href: string, key: number, label?: string) {
   );
 }
 
-function links(text: string) {
-  const tokens = /\[([^\][\n]+)\]\((https:\/\/[^\s<>()]+)\)|(https:\/\/[^\s<>()[\]`"']+)/g;
+function formula(source: string, fallback: string, key: number, displayMode = false) {
+  try {
+    const html = katex.renderToString(source.trim(), { displayMode, trust: false });
+    return (
+      <span
+        key={key}
+        className={displayMode ? 'block max-w-full overflow-x-auto' : undefined}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  } catch (error) {
+    if (!(error instanceof katex.ParseError)) throw error;
+    return fallback;
+  }
+}
+
+function barePowers(text: string, start: number) {
+  // Only numeric powers are implicit, keeping identifiers and paths literal.
+  const powers = /(?<![\w.^/])\d+(?:\.\d+)?\^(-?\d+)(?![\w^/]|\.\d)/g;
   const result: ReactNode[] = [];
   let offset = 0;
-  for (const match of text.matchAll(tokens)) {
-    const href = match[2] ?? match[3]!.replace(/[.,!?;:]+$/, '');
-    const link = resourceLink(href, match.index, match[1]);
-    if (!link) continue;
-    result.push(text.slice(offset, match.index), link);
-    offset = match.index + (match[2] ? match[0].length : href.length);
+  for (const match of text.matchAll(powers)) {
+    const exponent = match[1]!;
+    const base = match[0].slice(0, -exponent.length - 1);
+    result.push(
+      text.slice(offset, match.index),
+      formula(base + '^{' + exponent + '}', match[0], start + match.index),
+    );
+    offset = match.index + match[0].length;
   }
   result.push(text.slice(offset));
   return result;
 }
 
 function inline(text: string) {
-  return text.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g).map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**'))
-      return <strong key={i}>{links(part.slice(2, -2))}</strong>;
-    if (part.startsWith('`') && part.endsWith('`')) return <code key={i}>{part.slice(1, -1)}</code>;
-    return links(part);
-  });
+  const tokens =
+    /(?<!`)(`+)(.+?)\1(?!`)|\[([^\][\n]+)\]\((https:\/\/[^\s<>()]+)\)|(https?:\/\/[^\s<>()[\]`"'\\]+)|\\\((.+?)\\\)|(?<![\w$\\])\$([^\s$](?:[^$]*?[^\s$])?)\$(?![\w$])|\*\*([^*\n]+)\*\*/g;
+  const result: ReactNode[] = [];
+  let offset = 0;
+  for (const match of text.matchAll(tokens)) {
+    const [raw, , code, label, labeledHref, bareHref, parenMath, dollarMath, bold] = match;
+    const at = match.index;
+    result.push(...barePowers(text.slice(offset, at), offset));
+    if (code !== undefined) {
+      result.push(<code key={at}>{code}</code>);
+    } else if (labeledHref || bareHref) {
+      const href = labeledHref ?? bareHref!.replace(/[.,!?;:]+$/, '');
+      const link = resourceLink(href, at, label);
+      result.push(link ?? raw);
+      if (link && bareHref) result.push(bareHref.slice(href.length));
+    } else if (bold !== undefined) {
+      result.push(<strong key={at}>{inline(bold)}</strong>);
+    } else {
+      result.push(formula(parenMath ?? dollarMath!, raw, at));
+    }
+    offset = at + raw.length;
+  }
+  result.push(...barePowers(text.slice(offset), offset));
+  return result;
 }
 
 export function SchoolAnswer({ text }: { text: string }) {
@@ -65,6 +104,35 @@ export function SchoolAnswer({ text }: { text: string }) {
   for (let i = 0; i < lines.length;) {
     const line = lines[i++]!.trim();
     if (!line) continue;
+    const fence = /^(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      const marker = fence[1]!;
+      const end = new RegExp('^' + marker[0] + '{' + marker.length + ',}\\s*$');
+      const start = i;
+      while (i < lines.length && !end.test(lines[i]!.trim())) i++;
+      blocks.push(
+        <pre key={start}>
+          <code>{lines.slice(start, i).join('\n')}</code>
+        </pre>,
+      );
+      if (i < lines.length) i++;
+      continue;
+    }
+    const displayEnd = line.startsWith('\\[') ? '\\]' : line.startsWith('$$') ? '$$' : null;
+    if (displayEnd) {
+      const first = line.slice(2);
+      let end = i - 1;
+      if (!first.endsWith(displayEnd)) {
+        end = lines.findIndex((next, index) => index >= i && next.trimEnd().endsWith(displayEnd));
+      }
+      if (end !== -1) {
+        const display = [first, ...lines.slice(i, end + 1)].join('\n').trimEnd();
+        const fallback = lines.slice(i - 1, end + 1).join('\n');
+        blocks.push(<div key={i}>{formula(display.slice(0, -2), fallback, 0, true)}</div>);
+        i = end + 1;
+        continue;
+      }
+    }
     const heading = /^#{1,6}\s+(.+)/.exec(line);
     if (heading) {
       blocks.push(

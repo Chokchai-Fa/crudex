@@ -37,7 +37,7 @@ For background delivery, send `POST /api/agents/jaew/runs` with JSON like the fo
 }
 ```
 
-HTTP 202 returns a run record. Reuse the client request ID when retrying a submission after a network failure. The server returns the original run for a matching payload and HTTP 409 if the same ID was used for different work. Include the classroom for tools that need scores or that save worksheets. The sandbox starts a fresh session after replacement. Business records remain in Postgres.
+HTTP 202 and agent history both include the original `clientRequestId` on each run. The classroom uses it to replace the pending message with the accepted run, even if history arrives before the submission response. Reuse the client request ID when retrying a submission after a network failure. The server returns the original run for a matching payload and HTTP 409 if the same ID was used for different work. Include the classroom for tools that need scores or that save worksheets. The sandbox starts a fresh session after replacement. Business records remain in Postgres.
 
 ### Read progress as JSON
 
@@ -72,7 +72,7 @@ data: {"type":"delta","text":"กำลังเตรียมใบงาน"}
 
 ```
 
-A tool event includes the call ID, name and status. A completed run ends with `done` and elapsed milliseconds. A failed, interrupted or cancelled run ends with `error` and its code. Read `GET /api/agents/{agentId}/history` for current run status and saved `worksheetIds`. `POST /api/runs/{runId}/cancel` fences subsequent results from that run; a provider request already in progress may consume usage.
+A tool event includes the call ID, name and status. A named handoff uses `name: "subagent"` with an optional `agentId` for a verified child assistant. Match its start and completion by tool ID within the parent run. Other tool events may omit the assistant identity. Use the run’s classroom and membership when displaying activity, and clear outstanding activity when the run ends. A completed run ends with `done` and elapsed milliseconds. A failed, interrupted or cancelled run ends with `error` and its code. Read `GET /api/agents/{agentId}/history` for current run status and saved `worksheetIds`. `POST /api/runs/{runId}/cancel` fences subsequent results from that run; a provider request already in progress may consume usage.
 
 Open the teacher copy at `GET /api/assessments/{id}`. Its `formUrl` is an application navigation path. Extract the play token to call `GET /api/play/{token}`. The quiz response contains student-safe questions and choices. A student assigned to that class posts `{"answers":{"q1":"<choice-id>"}}` to the same endpoint using the IDs it returned. Submit once for each student and worksheet. An identical retry returns the original grade; different answers after submission produce 409. The teacher’s `GET /api/classes/{id}/gradebook` returns the class roster, total earned and possible points across submissions, and worksheet links. Missing scores are null.
 

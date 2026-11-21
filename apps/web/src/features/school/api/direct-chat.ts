@@ -1,7 +1,11 @@
+import type { InferResponseType } from 'hono/client';
 import type { QueryClient } from '@tanstack/react-query';
 import { runEventSchema, type AgentId, type CreateRun, type RunEvent } from '@repo/shared';
 import { api } from '@/lib/api-client';
 import { toApiError } from '@/lib/api-error';
+
+const schoolAgent = api.agents[':id'];
+type RunReceipt = InferResponseType<typeof schoolAgent.runs.$post, 202>;
 
 export interface LiveChat {
   events: RunEvent[];
@@ -15,14 +19,13 @@ export async function startDirectChat(
   membershipId: string,
   agent: AgentId,
   input: CreateRun,
-) {
-  const response = await api.agents[':id'].chat.$post({ param: { id: agent }, json: input });
+): Promise<RunReceipt | Pick<RunReceipt, 'id'>> {
+  const response = await schoolAgent.chat.$post({ param: { id: agent }, json: input });
   if (!response.ok) throw await toApiError(response, 'ส่งข้อความไม่สำเร็จ');
   const id = response.headers.get('X-Run-Id');
   if (!id) {
     // An idempotent retry returns the original run as JSON.
-    const existing = (await response.json()) as { id: string };
-    return { id: existing.id };
+    return (await response.json()) as RunReceipt;
   }
   const key = liveChatKey(membershipId, id);
   const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();

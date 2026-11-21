@@ -623,13 +623,26 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .school-run-activity svg {
-    animation: school-run-turn 1.4s linear infinite;
+  .school-run-activity[data-kind='tool'] svg {
+    animation: school-run-turn 1.6s linear infinite;
+  }
+  .school-run-activity:is([data-kind='thinking'], [data-kind='handoff'], [data-kind='writing'])
+    svg {
+    animation: school-work-pulse 1.6s ease-in-out infinite alternate;
   }
 }
 
 @keyframes school-run-turn {
   to {
     transform: rotate(1turn);
+  }
+}
+
+@keyframes school-work-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
   }
 }

@@ -1,8 +1,16 @@
-import type { RunEvent, RunStatus } from '@repo/shared';
+import type { AgentId, RunEvent, RunStatus } from '@repo/shared';
 import { publicRunText } from './public-run-text';
 
 // Only classroom-facing tasks get a specific label. Internal and unknown tools stay quiet.
 const toolLabels = new Map([
+  ['subagent', 'กำลังประสานผู้ช่วย'],
+  ['search_proj14', 'กำลังค้นหาสื่อการสอน'],
+  ['teacher_activity', 'กำลังอ่านกิจกรรมของครู'],
+  ['crudex_kahoot_create_or_update_kahoot', 'กำลังจัดทำควิซ Kahoot'],
+  ['calc', 'กำลังคำนวณ'],
+  ['submit_for_approval', 'กำลังเตรียมคำขออนุมัติ'],
+  ['decide_approval', 'กำลังบันทึกผลการพิจารณา'],
+  ['publish_brief', 'กำลังตรวจสรุปเช้า'],
   ['curriculum_lookup', 'กำลังดูหลักสูตร'],
   ['old_exam_search', 'กำลังค้นหาข้อสอบ'],
   ['check_assessment', 'กำลังตรวจคำตอบของใบงาน'],
@@ -31,12 +39,21 @@ const failureMessages = new Map([
   ['cancelled', 'ยกเลิกงานแล้ว'],
 ]);
 
-export function presentRun(status: RunStatus, events: RunEvent[], complete: boolean) {
+type ActivityKind = 'queued' | 'thinking' | 'tool' | 'handoff' | 'writing';
+
+export type AgentNames = ReadonlyArray<{ id: AgentId; name: string }>;
+
+export function presentRun(
+  status: RunStatus,
+  events: RunEvent[],
+  complete: boolean,
+  agents?: AgentNames,
+) {
   let phase = status;
   let errorCode = '';
   let lastProposalId = '';
   let final = complete;
-  const working = new Map<string, string>();
+  const working = new Map<string, Extract<RunEvent, { type: 'tool' }>>();
   const historyActive = status === 'queued' || status === 'running';
 
   for (const event of events) {
@@ -48,8 +65,7 @@ export function presentRun(status: RunStatus, events: RunEvent[], complete: bool
         break;
       case 'tool':
         if (event.status === 'started') {
-          const label = toolLabels.get(event.name);
-          if (label) working.set(event.id, label);
+          if (toolLabels.has(event.name)) working.set(event.id, event);
         } else working.delete(event.id);
         if (phase === 'queued') phase = 'running';
         break;
@@ -82,14 +98,27 @@ export function presentRun(status: RunStatus, events: RunEvent[], complete: bool
     .trim();
   const activeTool = [...working.values()].at(-1);
   let activity = '';
-  if (phase === 'queued') activity = 'รอคิว';
-  if (phase === 'running' && !final) {
-    if (activeTool) activity = activeTool;
-    else if (!answer) activity = 'กำลังคิด';
+  let activityKind: ActivityKind | undefined;
+  if (!final && phase === 'queued') {
+    activityKind = 'queued';
+    activity = 'รอคิว';
+  } else if (!final && phase === 'running') {
+    if (activeTool) {
+      activityKind = activeTool.name === 'subagent' ? 'handoff' : 'tool';
+      const delegate =
+        activityKind === 'handoff' && agents?.find((a) => a.id === activeTool.agentId);
+      activity = delegate ? 'กำลังประสานงานกับ' + delegate.name : toolLabels.get(activeTool.name)!;
+    } else if (answer) {
+      activityKind = 'writing';
+      activity = 'กำลังเรียบเรียงคำตอบ';
+    } else {
+      activityKind = 'thinking';
+      activity = 'กำลังคิด';
+    }
   }
   let notice = '';
   if (phase === 'cancelled') notice = 'ยกเลิกงานแล้ว';
   if (phase === 'interrupted') notice = 'การตอบหยุดลงก่อนเสร็จ';
   if (phase === 'failed') notice = failureMessages.get(errorCode) ?? 'ผู้ช่วยทำงานนี้ไม่สำเร็จ';
-  return { answer, activity, notice, lastProposalId, final, phase };
+  return { answer, activity, activityKind, notice, lastProposalId, final, phase };
 }

@@ -17,7 +17,7 @@ it.each([true, false])(
     const host = {
       session: {
         create: vi.fn(async () => ({ id: 'root' })),
-        get: vi.fn(async () => ({ parentID: 'root' })),
+        get: vi.fn(async () => ({ parentID: 'root', agent: 'jum' })),
         prompt: vi.fn(),
       },
       event: {
@@ -71,6 +71,10 @@ it.each([true, false])(
     const events = [];
     for await (const item of stream) events.push(item);
     expect(events.at(-1)?.type).toBe('done');
+    expect(events.filter((e) => e.type === 'tool' && e.agentId)).toEqual([
+      { type: 'tool', name: 'subagent', id: 'delegation:1', agentId: 'jum', status: 'started' },
+      { type: 'tool', name: 'subagent', id: 'delegation:1', agentId: 'jum', status: 'success' },
+    ]);
     expect(events.filter(({ type }) => type === 'delta' || type === 'progress')).toEqual([
       { type: 'delta', messageId: 'wait', text: 'รอผลก่อนนะครับ' },
       { type: 'progress', messageId: 'wait' },
