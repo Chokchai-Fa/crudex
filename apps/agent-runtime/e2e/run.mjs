@@ -1,7 +1,7 @@
 // Real-opencode e2e for the five teacher agents with a scripted model (no key, no network).
 // Usage: node e2e/run.mjs   (OPENCODE_BIN=... to choose the binary; E2E_DEBUG=1 for raw output)
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,8 +43,34 @@ writeFileSync(
   }),
 );
 
+// Same shape the bundle embeds: directory id, frontmatter name/description, markdown body.
+const skills = readdirSync(join(pkg, 'skills'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => {
+    const raw = readFileSync(join(pkg, 'skills', entry.name, 'SKILL.md'), 'utf8');
+    const [, front, body] = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(raw);
+    const field = (key) => new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(front)[1].trim();
+    return { id: entry.name, name: field('name'), description: field('description'), content: body.trim() };
+  });
+writeFileSync(join(root, 'skills.json'), JSON.stringify(skills));
+
+const bridgeLog = join(root, 'bridge.log');
+writeFileSync(bridgeLog, '');
+const bridgeCalls = {
+  get length() {
+    return this.all.length;
+  },
+  get all() {
+    return readFileSync(bridgeLog, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  },
+  0: undefined,
+};
+Object.defineProperty(bridgeCalls, 0, { get: () => bridgeCalls.all[0] });
+
 const env = {
   ...process.env,
+  E2E_SKILLS_FILE: join(root, 'skills.json'),
+  SCHOOL_BOT_APPS_SCRIPT_URL: 'http://127.0.0.1:4793/exec',
   PWD: root,
   MOCK_KEY: 'x',
   MOCK_PORT: String(PORT.mock),
@@ -56,8 +82,8 @@ const env = {
   XDG_CACHE_HOME: join(root, 'xdg/cache'),
 };
 const spawned = [];
-const start = (cmd, args) => {
-  const child = spawn(cmd, args, { env, cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+const start = (cmd, args, extra = {}) => {
+  const child = spawn(cmd, args, { env: { ...env, ...extra }, cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
   for (const s of [child.stdout, child.stderr])
     s.on('data', (d) => debug && process.stderr.write(d));
   spawned.push(child);
@@ -105,6 +131,7 @@ const api = (path) =>
   fetch(`http://127.0.0.1:${PORT.serve}${path}`, { headers: auth }).then((r) => r.json());
 
 start('node', [join(here, 'mock-model.mjs')]);
+start('node', [join(here, 'bridge.mjs')], { BRIDGE_LOG: bridgeLog });
 start(OC, ['serve', '--hostname', '127.0.0.1', '--port', String(PORT.serve)]);
 for (let i = 0; i < 60; i++) {
   if (
@@ -238,15 +265,31 @@ ev = run(['--agent', 'jum', `CALL save_assessment ${JSON.stringify(broken)}`]);
 check(
   'jum save_assessment refuses a wrong key',
   tool(ev)?.state?.status === 'error' &&
-    /invalid_assessment|wrong_key/.test(tool(ev)?.state?.error ?? ''),
+    !(tool(ev)?.state?.output ?? '').includes('docs.google.com') && bridgeCalls.length === 0,
   JSON.stringify(tool(ev)?.state).slice(0, 200),
 );
 ev = run(['--agent', 'jum', `CALL save_assessment ${JSON.stringify(sample)}`]);
+const saved = tool(ev)?.state?.output ?? '';
 check(
-  'jum save_assessment returns a form link for a verified set',
-  (tool(ev)?.state?.output ?? '').includes('formUrl'),
-  JSON.stringify(tool(ev)?.state).slice(0, 200),
+  'jum save_assessment posts the verified set to the bridge and returns its Google Form link with the published order',
+  saved.includes('docs.google.com/forms/d/form_e2e_1') &&
+    saved.includes('apps-script') &&
+    bridgeCalls.length === 1 &&
+    bridgeCalls[0].questions.length === 10 &&
+    saved.includes('"answer":"') &&
+    bridgeCalls[0].questions[0].choices[bridgeCalls[0].questions[0].answerIndex] === '3/4',
+  String(tool(ev)?.state?.error ?? '') + ' | bridge calls ' + bridgeCalls.length,
 );
+
+console.log('# skills');
+const skillAsk = (agent, id) => run(['--agent', agent, `CALL skill ${JSON.stringify({ id })}`]);
+ev = skillAsk('jum', 'worksheet');
+const loaded = tool(ev)?.state?.output ?? '';
+check('jum can load its bound skill and receives the skill text', tool(ev)?.state?.status === 'completed' && loaded.includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 40)), JSON.stringify(tool(ev)?.state).slice(0, 300));
+ev = skillAsk('nun', 'worksheet');
+check('nun cannot load a skill it is not bound to', tool(ev)?.state?.status === 'error' || !(tool(ev)?.state?.output ?? '').includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 40)), JSON.stringify(tool(ev)?.state).slice(0, 300));
+ev = skillAsk('jaew', 'worksheet');
+check('jaew has no skills', tool(ev)?.state?.status === 'error' || !(tool(ev)?.state?.output ?? '').includes('worksheet'), JSON.stringify(tool(ev)?.state).slice(0, 300));
 
 console.log('# secretary delegates');
 const sessionsOf = async (agent) =>
@@ -298,6 +341,8 @@ check(
     JSON.stringify(d.msgs).includes('\\"ok\\":true'),
   JSON.stringify(d.msgs).slice(0, 200),
 );
+const childSkill = await delegate('jum', `CALL skill ${JSON.stringify({ id: 'worksheet' })}`);
+check('the jum child session loads the worksheet skill (bound skills reach delegated sessions)', JSON.stringify(childSkill.msgs).includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 20)), JSON.stringify(childSkill.msgs).slice(0, 300));
 for (const worker of ['jeng', 'porn', 'nun']) {
   d = await delegate(worker, 'hello');
   check(`jaew can start ${worker}`, !!d.child, JSON.stringify(tool(d.ev)?.state));

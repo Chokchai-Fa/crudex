@@ -18,7 +18,7 @@ it('sends a checked quiz and returns the respondent link from Apps Script', asyn
   vi.stubEnv('SCHOOL_BOT_APPS_SCRIPT_URL', 'https://bridge.invalid');
   const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json(form));
   vi.stubGlobal('fetch', request);
-  await expect(saveAssessment.execute(input, context)).resolves.toEqual({
+  await expect(saveAssessment.execute(input, context)).resolves.toMatchObject({
     formUrl: form.url,
     formId: form.formId,
     mode: 'apps-script',

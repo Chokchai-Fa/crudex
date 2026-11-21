@@ -13,7 +13,13 @@ const formResponse = z.object({
     .regex(/^https:\/\/docs\.google\.com\/forms\/d\/(?:e\/)?[A-Za-z0-9_-]+\/viewform(?:[?#].*)?$/),
 });
 
-type PublishedForm = { mode: 'apps-script' | 'mock'; formId: string; url: string };
+type PublishedForm = {
+  mode: 'apps-script' | 'mock';
+  formId: string;
+  url: string;
+  /** The order and key actually published; the teacher must be shown this, not the order the model sent. */
+  questions?: ReturnType<typeof formQuestions>;
+};
 
 export function formQuestions(questions: Assessment['questions']) {
   const availableBySize = new Map<number, number[]>();
@@ -55,7 +61,7 @@ export const publisher = {
       if (response.ok) {
         const result = formResponse.safeParse(await response.json());
         if (result.success)
-          return { mode: 'apps-script', formId: result.data.formId, url: result.data.url };
+          return { mode: 'apps-script', formId: result.data.formId, url: result.data.url, questions };
       }
     } catch {
       // Fetch errors and bridge responses may contain the private deployment URL.
@@ -67,7 +73,7 @@ export const publisher = {
 export const saveAssessment: ToolDefinition = {
   name: 'save_assessment',
   description:
-    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ถ้าชุดไม่ผ่านจะไม่สร้างอะไร',
+    'ตรวจเฉลยด้วยโค้ดอีกรอบ แล้วสร้างแบบทดสอบ Google Form คืน formUrl และ mode ใช้หลัง check_assessment ผ่านเท่านั้น ห้ามแต่งลิงก์เอง ระบบสลับตัวเลือกให้เฉลยกระจายก่อนสร้างฟอร์ม และคืน questions (ลำดับตัวเลือกและเฉลย ก-ง ที่ใช้จริง) ให้ใช้ตอนแสดงร่างให้ครู ถ้าชุดไม่ผ่านจะไม่สร้างอะไร',
   input: assessmentSchema,
   gate: 'allow',
   execute: async (input, context) => {
@@ -76,7 +82,12 @@ export const saveAssessment: ToolDefinition = {
       const reasons = result.errors.map((error) => error.message).concat(result.unverified);
       throw new ToolError('invalid_assessment', reasons.join('; '));
     }
-    const { mode, formId, url } = await publisher.publish(assessment, context.signal);
-    return { formUrl: url, mode, formId };
+    const { mode, formId, url, questions } = await publisher.publish(assessment, context.signal);
+    const published = questions?.map((question, index) => ({
+      id: assessment.questions[index]?.id,
+      choices: question.choices,
+      answer: 'กขคง'[question.answerIndex],
+    }));
+    return { formUrl: url, mode, formId, questions: published };
   },
 };

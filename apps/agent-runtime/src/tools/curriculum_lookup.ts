@@ -8,26 +8,27 @@ export const curriculumLookup: ToolDefinition = {
     ' คืน topics (ชื่อหัวข้อย่อยมาตรฐาน) ให้ใช้เป็นค่า topic ของข้อสอบตรงตัว',
   input: {
     type: 'object',
-    properties: { grade: { type: 'string' }, query: { type: 'string' }, id: { type: 'string' } },
+    properties: { grade: { type: 'string' }, query: { type: 'string', description: 'คำค้นสั้น ๆ คั่นด้วยเว้นวรรค ตรงกับคำใดคำหนึ่งก็ได้ เช่น เศษส่วน' }, id: { type: 'string' } },
     additionalProperties: false,
   },
   gate: 'allow',
   execute: (input) => {
     const { grade, query, id } = input as { grade?: string; query?: string; id?: string };
-    const items = indicators
-      .filter(
-        (i) =>
-          (grade ? i.grade === grade : true) &&
-          (id ? i.id === id : true) &&
-          (query ? i.text.includes(query) : true),
-      )
-      .slice(0, 20);
+    const inGrade = indicators.filter((i) => (grade ? i.grade === grade : true) && (id ? i.id === id : true));
+    const words = (query ?? '').split(/\s+/).filter(Boolean);
+    const byQuery = words.length ? inGrade.filter((i) => words.some((word) => i.text.includes(word))) : inGrade;
+    const fellBack = words.length > 0 && byQuery.length === 0 && inGrade.length > 0 && grade !== undefined;
+    const items = (fellBack ? inGrade : byQuery).slice(0, 20);
     const matched = new Set(items.map((i) => i.id));
     return {
       count: items.length,
       items,
       topics: topics.filter((t) => matched.has(t.indicator)),
-      note: items.length === 0 ? 'ไม่พบตัวชี้วัดในชุดที่มี ห้ามแต่งรหัสเอง' : undefined,
+      note: fellBack
+        ? 'ไม่พบตัวชี้วัดที่ตรงคำค้น จึงคืนทั้งชั้น เลือกเฉพาะข้อที่ตรงกับหัวข้อ'
+        : items.length === 0
+          ? 'ไม่พบตัวชี้วัดในชุดที่มี ห้ามแต่งรหัสเอง'
+          : undefined,
     };
   },
 };

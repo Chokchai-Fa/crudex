@@ -83,7 +83,7 @@ describe('assessment chain', () => {
       return { mode: 'mock', formId: 'f1', url: 'https://example.invalid/f1' };
     };
     try {
-      expect(await call('save_assessment', sample)).toEqual({
+      expect(await call('save_assessment', sample)).toMatchObject({
         formUrl: 'https://example.invalid/f1',
         mode: 'mock',
         formId: 'f1',
@@ -178,5 +178,34 @@ describe('budget chain', () => {
     const m = await call('send_email', { to: 'someone@real.example', subject: 's', body: 'b' });
     expect(m.deliveredTo).toBe('test-mailbox');
     expect(testMailbox.at(-1)?.to).toBe('test-mailbox');
+  });
+});
+
+describe('published order', () => {
+  it('save_assessment returns the final order and key the form was built with', async () => {
+    const real = publisher.publish;
+    publisher.publish = async () => ({
+      mode: 'mock',
+      formId: 'f',
+      url: 'https://example.invalid/f',
+      questions: [{ text: 't', choices: ['a', 'b', 'c', 'd'], answerIndex: 2, points: 1 }],
+    });
+    try {
+      const r = await call('save_assessment', sample);
+      expect(r.questions[0]).toMatchObject({ id: 'q1', choices: ['a', 'b', 'c', 'd'], answer: 'ค' });
+    } finally {
+      publisher.publish = real;
+    }
+  });
+});
+
+describe('curriculum_lookup queries', () => {
+  it('matches any word and falls back to the grade instead of returning nothing', async () => {
+    const some = await call('curriculum_lookup', { grade: 'ป.5', query: 'เศษส่วน การบวก การลบเศษส่วนและจำนวนคละ' });
+    expect(some.count).toBeGreaterThan(0);
+    const none = await call('curriculum_lookup', { grade: 'ป.5', query: 'ไม่มีคำนี้แน่นอน' });
+    expect(none.count).toBeGreaterThan(0);
+    expect(none.note).toContain('ทั้งชั้น');
+    expect((await call('curriculum_lookup', { query: 'ไม่มีคำนี้แน่นอน' })).count).toBe(0);
   });
 });
