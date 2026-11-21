@@ -39,7 +39,7 @@ writeFileSync(
         package: '@opencode/ai/providers/openai-compatible',
         settings: { baseURL: `http://127.0.0.1:${PORT.mock}/v1` },
         models: {
-          'gpt-6.2-sol': { name: 'gpt-6.2-sol' },
+          ...JSON.parse(readFileSync(join(pkg, 'openai-models.json'), 'utf8')),
           'gpt-5.4-mini': { name: 'gpt-5.4-mini' },
         },
       },
