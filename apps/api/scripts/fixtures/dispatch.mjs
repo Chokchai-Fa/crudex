@@ -26,7 +26,23 @@ const assessment = {
 export class SchoolDispatch extends WorkerEntrypoint {
   async fetch(request) {
     const { scope, text } = await request.json();
-    if (text === 'Can you explain equivalent fractions?') {
+    if (text.endsWith('Test delegated Kahoot history')) {
+      const receipt = {
+        type: 'delegated_kahoot',
+        agentId: 'jeng',
+        childSessionId: 'ses_private_fixture',
+        status: 'created',
+        title: 'Fractions',
+        kahootId: 'fixture',
+        text: 'Fixture Kahoot ready',
+      };
+      return new Response(
+        [receipt, receipt, { type: 'done', elapsedMs: 1 }]
+          .map((e) => 'data: ' + JSON.stringify(e) + '\n\n')
+          .join(''),
+      );
+    }
+    if (text.endsWith('Can you explain equivalent fractions?')) {
       const events = [
         { type: 'delta', text: 'One half equals two quarters.' },
         { type: 'done', elapsedMs: 1 },
