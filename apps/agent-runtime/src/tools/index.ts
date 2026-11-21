@@ -1,3 +1,8 @@
+import { decideApproval } from './decide_approval';
+import { getApproval } from './get_approval';
+import { getSchoolSummary } from './get_school_summary';
+import { listPendingApprovals } from './list_pending_approvals';
+import { teacherActivity } from './teacher_activity';
 import { calc } from './calc';
 import { checkAssessmentTool } from './check_assessment';
 import { curriculumLookup } from './curriculum_lookup';
@@ -40,4 +45,9 @@ export const tools = [
   submitForApproval,
   sendEmail,
   getScores,
+  getSchoolSummary,
+  teacherActivity,
+  listPendingApprovals,
+  getApproval,
+  decideApproval,
 ];

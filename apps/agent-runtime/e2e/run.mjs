@@ -206,6 +206,22 @@ const expected = {
     'send_email',
   ],
   nun: ['get_scores', 'memory_search', 'calc'],
+  rungchao: [
+    'get_school_summary',
+    'read_budget',
+    'list_pending_approvals',
+    'teacher_activity',
+    'memory_search',
+  ],
+  lekha_por: [
+    'list_pending_approvals',
+    'get_approval',
+    'decide_approval',
+    'get_school_summary',
+    'read_budget',
+    'memory_search',
+    'memory_save',
+  ],
 };
 console.log('# every agent answers and is offered exactly its own tools');
 for (const [agent, want] of Object.entries(expected)) {
@@ -318,6 +334,61 @@ check(
   'jaew has no skills',
   tool(ev)?.state?.status === 'error' || !(tool(ev)?.state?.output ?? '').includes('worksheet'),
   JSON.stringify(tool(ev)?.state).slice(0, 300),
+);
+
+console.log('# principal agents');
+ev = run(['--agent', 'rungchao', 'CALL get_school_summary {}']);
+const summaryOut = tool(ev)?.state?.output ?? '';
+check(
+  'rungchao reads the school summary with no student-level data',
+  summaryOut.includes('ป.6/1') && !/นักเรียนตัวอย่าง|studentId|displayName/.test(summaryOut),
+  summaryOut.slice(0, 200),
+);
+ev = run(['--agent', 'rungchao', 'CALL get_scores {}']);
+check(
+  'rungchao is not offered per-student scores',
+  /NOT_OFFERED get_scores/.test(text(ev)),
+  text(ev),
+);
+ev = run(['--agent', 'rungchao', 'FORCE decide_approval {"approvalId":"x","decision":"approve"}']);
+check(
+  'rungchao cannot decide approvals',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run(['--agent', 'lekha_por', 'CALL decide_approval {"approvalId":"x","decision":"approve"}']);
+check(
+  'decide_approval asks the principal and is rejected when nobody can answer',
+  tool(ev)?.state?.status === 'error' && /cannot ask/.test(tool(ev)?.state?.error ?? ''),
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run([
+  '--auto',
+  '--agent',
+  'lekha_por',
+  'CALL decide_approval {"approvalId":"x","decision":"return"}',
+]);
+check(
+  'a return without a reason is refused by the tool',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run([
+  '--auto',
+  '--agent',
+  'lekha_por',
+  'FORCE subagent {"agent":"jum","description":"x","prompt":"x"}',
+]);
+check(
+  'lekha_por cannot start a teacher agent',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+ev = run(['--agent', 'lekha_por', 'FORCE send_email {"to":"a","subject":"s","body":"b"}']);
+check(
+  'lekha_por cannot send email',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
 );
 
 console.log('# secretary delegates');
