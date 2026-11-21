@@ -7,6 +7,12 @@ description: Authenticate a school account, start a run, replay events, publish 
 
 The application Worker serves the school API under `/api` on the application origin. The [OpenAPI 3.1 specification](../reference/openapi.mdx) contains the paths, request schemas, response fields and authentication schemes. The separate agent demo has its own passcode, routes and cookie. [Demo gateway guide](demo-gateway.md)
 
+## Try the school workspace
+
+Open the application and choose **ครู** to enter the classroom or **ผอ.** to view the school’s morning brief. Each new trial gets a private sample school, class ป.4/1 and two fictional students. Refreshing resumes the same session. Sign out to try the other role in a fresh school.
+
+The browser sends `POST /api/auth/guest` with `{"role":"teacher"}` or `{"role":"principal"}`. The API creates the guest account, memberships, class assignments and session together. The response has the same shape as `GET /api/me`. The session and demo memberships expire after eight hours. An active account must sign out before starting a new trial. The API permits twelve trial starts per source IP per UTC clock hour.
+
 ## Sign in and select a classroom
 
 1. Exchange a single-use invitation with `POST /api/auth/session` and JSON `{"credential":"<invitation>"}`. The server issues an HttpOnly, SameSite=Strict cookie with an eight-hour lifetime. Production cookies also require HTTPS. Use same-origin requests and let the browser manage the cookie.

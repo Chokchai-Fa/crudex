@@ -1,0 +1,298 @@
+/* Presentation for the connected school flow. Shared colour tokens come from the app theme. */
+.teacher-chat > header {
+  background: var(--card);
+  padding: 12px clamp(12px, 2.5vw, 32px);
+}
+.teacher-chat > header img {
+  flex: none;
+}
+.teacher-chat > header label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+.teacher-chat > [role='region'] {
+  background: var(--background);
+}
+.teacher-chat > [role='region'] > ol {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+.teacher-chat > [role='region'] li > div.flex > div {
+  background: var(--team-soft);
+  overflow-wrap: anywhere;
+}
+.teacher-chat [role='alert'],
+.school-flow [role='alert'] {
+  border: 1px solid var(--destructive);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--destructive);
+  overflow-wrap: anywhere;
+}
+.teacher-chat [role='status'],
+.school-flow [role='status'] {
+  overflow-wrap: anywhere;
+}
+.teacher-chat .chat-compose {
+  background: var(--card);
+  padding-top: 10px;
+}
+.school-flow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.school-flow fieldset {
+  min-width: 0;
+  background: var(--card);
+}
+.school-flow fieldset label {
+  padding: 4px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.school-flow fieldset label:has(input:checked) {
+  background: var(--accent);
+}
+.school-flow input[type='radio'] {
+  accent-color: var(--primary);
+  flex: none;
+}
+.school-flow :focus-visible,
+.teacher-chat :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .teacher-chat > header {
+    gap: 6px 10px;
+  }
+  .teacher-chat > header h1 {
+    font-size: 1rem;
+  }
+  .teacher-chat > header img {
+    width: 32px;
+    height: 32px;
+  }
+  .teacher-chat > [role='region'] li > div.flex > div {
+    max-width: calc(100% - 40px);
+  }
+  .school-flow {
+    border-radius: 16px;
+    padding: 16px;
+  }
+}
+
+/* Connected teacher workspace: reuse the demo's team, card and colour vocabulary. */
+.school-workspace {
+  display: grid;
+  grid-template-columns: minmax(200px, 22fr) minmax(0, 55fr) minmax(220px, 23fr);
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+.school-workspace > .school-team,
+.school-workspace > .school-activity {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.school-workspace > .school-team {
+  background: var(--team-nav);
+  border-inline-end: 1px solid var(--border);
+}
+.school-workspace > .school-activity {
+  background: var(--card);
+  border-inline-start: 1px solid var(--border);
+}
+.school-conversation {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--card);
+}
+.school-conversation > header {
+  min-width: 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px clamp(12px, 2.5vw, 32px);
+}
+.school-conversation > header img {
+  flex: none;
+}
+.school-conversation > header label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+.school-conversation > [role='region'] {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--card);
+}
+.school-conversation > [role='region'] > ol {
+  width: 100%;
+  max-width: 48rem;
+  margin-inline: auto;
+}
+.school-conversation .chat-compose {
+  min-width: 0;
+  background: var(--card);
+}
+.school-workspace .chat-artifacts {
+  min-width: 0;
+}
+.school-workspace .output-card {
+  overflow-wrap: anywhere;
+}
+.school-answer {
+  min-width: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.school-answer > * + * {
+  margin-top: 0.55em;
+}
+.school-answer :is(ul, ol) {
+  padding-inline-start: 1.5em;
+}
+.school-answer ul {
+  list-style: disc;
+}
+.school-answer ol {
+  list-style: decimal;
+}
+.school-answer a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.school-answer pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+}
+.school-answer code {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1023px) {
+  .school-workspace {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .school-workspace > .school-conversation {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    grid-template-rows: subgrid;
+  }
+  .school-workspace > :is(.school-team, .school-activity) {
+    display: none;
+  }
+  .school-workspace[data-panel='team'] > .school-team,
+  .school-workspace[data-panel='activity'] > .school-activity {
+    display: block;
+    grid-column: 1;
+    grid-row: 2;
+    z-index: 10;
+    border: 0;
+    box-shadow: 0 8px 24px #1522381a;
+  }
+}
+@media (max-width: 600px) {
+  .school-conversation > header {
+    gap: 6px 10px;
+    padding: 8px 10px;
+  }
+  .school-conversation > header h1 {
+    font-size: 1rem;
+  }
+  .school-conversation > header img {
+    width: 32px;
+    height: 32px;
+  }
+  .school-conversation .teacher-bubble {
+    max-width: 90%;
+    padding: 9px 12px;
+  }
+  .school-conversation > [role='region'] {
+    padding: 12px 10px;
+  }
+}
+
+.school-print-sheet {
+  display: none;
+}
+@media print {
+  body:has(> .school-print-sheet) > :not(.school-print-sheet) {
+    display: none !important;
+  }
+  body > .school-print-sheet {
+    display: block;
+    background: white;
+    color: black;
+    padding: 1cm;
+  }
+  .school-print-sheet li {
+    break-inside: avoid;
+  }
+}
+
+/* The connected worksheet card uses its own class, with the same green as Paper. */
+.school-workspace .worksheet-output {
+  background: var(--team-green);
+}
+.school-workspace .account-panel > strong {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-bottom: 4px;
+}
+.school-workspace .account-panel :is(a, button) {
+  margin-inline-end: 14px;
+}
+.school-quick-prompts {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.school-quick-prompts button {
+  flex: none;
+  min-height: 40px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.school-quick-prompts button:hover {
+  border-color: var(--primary);
+}
+.school-quick-prompts button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+@media (max-width: 600px) {
+  .school-quick-prompts {
+    gap: 5px;
+    padding-bottom: 3px;
+  }
+  .school-quick-prompts button {
+    min-height: 40px;
+    padding-inline: 10px;
+    font-size: 0.8125rem;
+  }
+}

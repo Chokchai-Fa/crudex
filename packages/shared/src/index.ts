@@ -13,3 +13,4 @@ export {
   type SchoolKahootAccount,
   type SchoolKahootRpc,
 } from './school-dispatch.schema';
+export * from './admin.schema';

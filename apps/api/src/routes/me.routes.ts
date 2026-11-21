@@ -1,4 +1,9 @@
-import { credentialSchema, localSignInSchema, selectMembershipSchema } from '@repo/shared';
+import {
+  credentialSchema,
+  guestSignInSchema,
+  localSignInSchema,
+  selectMembershipSchema,
+} from '@repo/shared';
 import { type Context, Hono } from 'hono';
 import { deleteCookie, setCookie } from 'hono/cookie';
 import { validate } from '../lib/validate';
@@ -11,6 +16,7 @@ import {
 import {
   authenticate,
   getMe,
+  guestSignIn,
   localSignIn,
   sessionSeconds,
   signIn,
@@ -42,6 +48,17 @@ export const meRoutes = new Hono<AppEnv>()
   .get('/me', actorMiddleware, async (c) => c.json(await getMe(c.var.deps, c.var.actor)))
   .post('/auth/session', validate('json', credentialSchema), async (c) =>
     signedIn(c, await signIn(c.var.deps, c.req.valid('json').credential)),
+  )
+  .post('/auth/guest', validate('json', guestSignInSchema), async (c) =>
+    signedIn(
+      c,
+      await guestSignIn(
+        c.var.deps,
+        c.req.valid('json'),
+        readSessionCookie(c),
+        c.req.header('CF-Connecting-IP') ?? 'local',
+      ),
+    ),
   )
   .post('/auth/local', validate('json', localSignInSchema), async (c) =>
     signedIn(c, await localSignIn(c.var.deps, c.req.url, c.req.valid('json'))),

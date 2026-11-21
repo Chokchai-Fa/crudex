@@ -2,6 +2,12 @@ import { exports } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as repo from '../src/repositories/identity.repository';
 
+import { createGuestSchool } from '../src/repositories/guest-school.repository';
+const { limiter } = vi.hoisted(() => ({ limiter: vi.fn() }));
+vi.mock('../src/lib/cache', () => ({
+  createCache: () => ({ multi: () => ({ incr: () => ({ expire: () => ({ exec: limiter }) }) }) }),
+}));
+vi.mock('../src/repositories/guest-school.repository');
 vi.mock('../src/repositories/identity.repository');
 const base = 'https://example.com/api';
 const credential = 'a'.repeat(64);
@@ -67,5 +73,51 @@ describe('school session boundary', () => {
     expect((await post('/auth/session', { credential, role: 'principal' })).status).toBe(400);
     expect((await post('/auth/local', { school: 'lotus', role: 'principal' })).status).toBe(404);
     expect(repo.exchangeInvitation).not.toHaveBeenCalled();
+  });
+});
+
+describe('public school trial', () => {
+  it.each(['teacher', 'principal'] as const)(
+    'starts a %s session with server-generated scope',
+    async (role) => {
+      limiter.mockResolvedValue([1, 1]);
+      vi.mocked(repo.findMembership).mockResolvedValue({ ...scope, role, displayName: 'Guest' });
+      vi.mocked(repo.listSchoolClasses).mockResolvedValue([]);
+      const res = await post('/auth/guest', { role });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ actor: { role } });
+      expect(res.headers.get('Set-Cookie')).toContain('HttpOnly');
+      expect(createGuestSchool).toHaveBeenCalledWith(
+        expect.anything(),
+        role,
+        expect.stringMatching(/^[a-f0-9]{64}$/),
+        expect.any(Date),
+      );
+    },
+  );
+  it('rejects scope injection, unsupported roles, cross-origin requests and active sessions', async () => {
+    expect(
+      (await post('/auth/guest', { role: 'principal', schoolId: scope.schoolId })).status,
+    ).toBe(400);
+    expect((await post('/auth/guest', { role: 'student' })).status).toBe(400);
+    expect(
+      (await post('/auth/guest', { role: 'teacher' }, { origin: 'https://foreign.example' }))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await post(
+          '/auth/guest',
+          { role: 'teacher' },
+          { cookie: '__Host-school_session=' + credential },
+        )
+      ).status,
+    ).toBe(409);
+    expect(createGuestSchool).not.toHaveBeenCalled();
+  });
+  it('limits public provisioning before inserting records', async () => {
+    limiter.mockResolvedValue([13, 1]);
+    expect((await post('/auth/guest', { role: 'principal' })).status).toBe(429);
+    expect(createGuestSchool).not.toHaveBeenCalled();
   });
 });

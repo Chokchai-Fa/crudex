@@ -9,6 +9,58 @@ security:
   - schoolSession: []
   - localSession: []
 paths:
+  /admin/directory:
+    get:
+      operationId: getAdminDirectory
+      summary: List school setup options
+      description: Requires a platform administrator session.
+      tags:
+        - administration
+      parameters:
+        - name: schoolId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/adminDirectorySchema'
+        default:
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /admin/setup:
+    post:
+      operationId: postAdminSetup
+      summary: Provision school access
+      description: Requires a platform administrator session.
+      tags:
+        - administration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/adminCommandSchema'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/adminResultSchema'
+        default:
+          description: Request failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
   /health:
     get:
       summary: Check application Worker health
@@ -138,6 +190,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/errorResponse'
       security: []
+  /auth/guest:
+    post:
+      summary: Start a guest session with a private sample school and class
+      operationId: postAuthGuest
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/me'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/guestSignIn'
   /auth/local:
     post:
       summary: Start a loopback development session
@@ -1303,6 +1381,259 @@ components:
       scheme: bearer
       description: Secret for an active leased run attempt. Server-to-server only.
   schemas:
+    adminCommandSchema:
+      oneOf:
+        - type: object
+          properties:
+            action:
+              type: string
+              const: createSchool
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            name:
+              type: string
+              minLength: 1
+              maxLength: 160
+          required:
+            - action
+            - id
+            - name
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: createClass
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            name:
+              type: string
+              minLength: 1
+              maxLength: 160
+            schoolId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          required:
+            - action
+            - id
+            - name
+            - schoolId
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: createAccount
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            name:
+              type: string
+              minLength: 1
+              maxLength: 160
+          required:
+            - action
+            - id
+            - name
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: enroll
+            schoolId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            accountId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            placement:
+              oneOf:
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: teacher
+                    classId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - role
+                    - classId
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: student
+                    classId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - role
+                    - classId
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: guardian
+                    studentMembershipId:
+                      type: string
+                      format: uuid
+                      pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                  required:
+                    - role
+                    - studentMembershipId
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    role:
+                      type: string
+                      const: principal
+                  required:
+                    - role
+                  additionalProperties: false
+          required:
+            - action
+            - schoolId
+            - accountId
+            - placement
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              const: invite
+            schoolId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            membershipId:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          required:
+            - action
+            - schoolId
+            - membershipId
+          additionalProperties: false
+    adminDirectorySchema:
+      type: object
+      properties:
+        schools:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+            required:
+              - id
+              - name
+            additionalProperties: false
+        classes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+            required:
+              - id
+              - name
+            additionalProperties: false
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+            required:
+              - id
+              - name
+            additionalProperties: false
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              name:
+                type: string
+              role:
+                type: string
+                enum:
+                  - teacher
+                  - principal
+                  - student
+                  - guardian
+              accountId:
+                type: string
+                format: uuid
+                pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+            required:
+              - id
+              - name
+              - role
+              - accountId
+            additionalProperties: false
+      required:
+        - schools
+        - classes
+        - accounts
+        - members
+      additionalProperties: false
+    adminResultSchema:
+      anyOf:
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+              pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+          required:
+            - id
+          additionalProperties: false
+        - type: object
+          properties:
+            credential:
+              type: string
+              pattern: ^[0-9a-f]{64}$
+            expiresAt:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z))$
+          required:
+            - credential
+            - expiresAt
+          additionalProperties: false
     kahootStatus:
       type: object
       required: [connected]
@@ -1324,6 +1655,14 @@ components:
       required:
         - credential
       additionalProperties: false
+    guestSignIn:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [teacher, principal]
     localSignIn:
       type: object
       properties:
