@@ -1,3 +1,4 @@
+import { loginIdHeader } from './gate';
 import { DurableObject } from 'cloudflare:workers';
 
 const dayMs = 86_400_000;
@@ -48,7 +49,7 @@ export class MorningBrief extends DurableObject<Env> {
     const upstream = await this.env.SANDBOX.getByName('main').fetch(
       new Request(origin + '/api/chat?role=principal', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', [loginIdHeader]: 'scheduled' },
         body: JSON.stringify({ agentId: 'rungchao', text: prompt }),
       }),
     );

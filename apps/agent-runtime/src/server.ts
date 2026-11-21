@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { z } from 'zod';
 import { agents, teacherAgents } from './agents';
+import { validLoginId } from './demo-session';
 import { createHarness } from './harness';
 import { createTurnRunner } from './run';
 import { tools } from './tools';
@@ -103,6 +104,9 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
   const agent = visibleAgents.find(({ id }) => id === agentId);
   if (!agent) return json(response, 400, { error: 'unknown_agent' });
 
+  const loginId = request.headers['x-crudex-login-id'];
+  if (!validLoginId(loginId, agent.id)) return json(response, 401, { error: 'invalid_session' });
+
   const abort = new AbortController();
   response.once('close', () => {
     if (!response.writableFinished) abort.abort();
@@ -113,7 +117,7 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     'x-accel-buffering': 'no',
   });
   response.flushHeaders();
-  const events = runTurn({ agent, directory, text, sessionId, signal: abort.signal });
+  const events = runTurn({ agent, directory, text, sessionId, loginId, signal: abort.signal });
   async function* encode() {
     for await (const event of events) yield `data: ${JSON.stringify(event)}\n\n`;
   }

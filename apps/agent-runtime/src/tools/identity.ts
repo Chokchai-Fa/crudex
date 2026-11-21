@@ -1,7 +1,7 @@
 import { sampleClassId, sampleOwner } from '../data/sample';
 import type { ToolContext } from './types';
 
-/** Owner comes from the gateway; until it passes one, every session shares the sample teacher so state carries across agents. */
+/** Production calls resolve their OpenCode root first. Standalone demo fixtures default to the sample teacher. */
 export function ownerOf({ ownerId }: ToolContext) {
   const id = ownerId ?? sampleOwner;
   return { id, key: `owner:${id}` };

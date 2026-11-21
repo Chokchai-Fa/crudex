@@ -71,11 +71,11 @@ describe('teacher agents', () => {
     expect(byId['porn']?.instructions).toContain('ยืนยันทุกครั้ง');
   });
 
-  it('preserves the approval gates for memory, claims and email', () => {
+  it('keeps memory allow and asks a person for claims and email', () => {
     const secretary = permissionsFor(jaew);
     expect(decide(secretary, 'memory_save', ['*'])).toBe('allow');
     const budget = permissionsFor(byId['porn']!);
-    expect(decide(budget, 'submit_for_approval', ['*'])).toBe('allow');
+    expect(decide(budget, 'submit_for_approval', ['*'])).toBe('ask');
     expect(decide(budget, 'send_email', ['*'])).toBe('ask');
   });
 
@@ -90,9 +90,42 @@ describe('teacher agents', () => {
 });
 
 describe('jum main loop', () => {
+  it('writes questions first and uses the template only after two consecutive failed checks', () => {
+    const text = byId['jum']?.instructions ?? '';
+    expect(text.indexOf('เขียนโจทย์เองโดยใช้ข้อมูลจากความจำและหลักสูตร')).toBeLessThan(
+      text.indexOf('เรียก check_assessment'),
+    );
+    expect(text).toContain(
+      'ใช้ fraction_addition_form เป็นทางสำรองเมื่อ check_assessment คืน ok เป็น false สองครั้งติดกันในเซสชันเดียวกันเท่านั้น',
+    );
+    expect(text).toContain('ห้ามเรียก fraction_addition_form ก่อนตรวจไม่ผ่านสองครั้งติดกัน');
+    expect(text).toContain('ใช้แบบมาตรฐานเพราะชุดที่เขียนเองไม่ผ่านการตรวจ');
+  });
+
   it('calls make_file only when the teacher asks for a file', () => {
     const text = byId['jum']?.instructions ?? '';
     expect(text).toContain('ห้ามเรียก make_file ในวงจรปกติ');
     expect(text.indexOf('save_assessment')).toBeLessThan(text.indexOf('make_file'));
+  });
+});
+
+describe('gates for anything that leaves the system or cannot be undone', () => {
+  it('asks a person for send_email, submit_for_approval and decide_approval only', () => {
+    const asked = tools
+      .filter((t) => t.gate === 'ask')
+      .map((t) => t.name)
+      .sort();
+    expect(asked).toEqual([
+      'decide_approval',
+      'restricted_probe',
+      'send_email',
+      'submit_for_approval',
+    ]);
+  });
+
+  it('keeps porn from submitting without the teacher pressing confirm', () => {
+    const porn = byId['porn'] as never;
+    expect(decide(permissionsFor(porn), 'submit_for_approval', ['*'])).toBe('ask');
+    expect(byId['porn']?.instructions).toContain('กดยืนยันการส่งอีกชั้น');
   });
 });

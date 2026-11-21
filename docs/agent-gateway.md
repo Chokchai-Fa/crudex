@@ -29,3 +29,9 @@ Use `fetch` to send the POST request and decode `response.body` as a UTF-8 strea
 | `error` | Finish the turn and read the error `code`. |
 
 On HTTP 401, return to the login page. HTTP 429 means the daily quota has been reached. HTTP 503 means the sandbox is unavailable. [Example stream reader](../apps/agent-gateway/public/index.html)
+
+## บัญชีและขอบเขตแชตของเดโม
+
+เมื่อล็อกอิน gateway ออก cookie ที่มีรหัสสุ่มลงนามเฉพาะการล็อกอินครั้งนั้น Runtime ตรวจเจ้าของจาก session หลักของ OpenCode งานที่น้องแจ๋วส่งต่อใช้บัญชีและห้องเดียวกับน้องแจ๋ว การส่ง sessionId เพื่อคุยต่อต้องใช้ cookie เดิมและเลือกผู้ช่วยคนเดิม แชตจากรุ่นก่อนที่ยังไม่มีเจ้าของจะเริ่ม session ใหม่
+
+ผู้ใช้ passcode เดียวกันยังเลือกบทบาทเดโมได้ทั้งสองบทบาท ครูใช้บัญชีตัวอย่างเดียวกันทุกการล็อกอิน จึงใช้ความจำและใบเบิกของบัญชีครูร่วมกัน ห้องเรียนที่กำหนดคือ ป.5/2 ผอ. ใช้บัญชีเดโมอีกบัญชีหนึ่งที่เห็นสรุประดับโรงเรียนและงบกิจกรรม สำหรับการใช้งานรายคนต้องผูกผู้ใช้จริงและสิทธิ์ครูต่อห้องจากระบบบัญชีของโรงเรียน

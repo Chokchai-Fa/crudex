@@ -68,6 +68,7 @@ jobs:
           AGENT_PASSCODE: ${{ secrets.AGENT_PASSCODE }}
           AGENT_OPENAI_API_KEY: ${{ secrets.AGENT_OPENAI_API_KEY }}
           AGENT_APPS_SCRIPT_URL: ${{ secrets.AGENT_APPS_SCRIPT_URL }}
+          KAHOOT_MCP_ENABLED: ${{ vars.KAHOOT_MCP_ENABLED || 'false' }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           test -n "$AGENT_PASSCODE"
@@ -84,7 +85,7 @@ jobs:
           } + (if (env.AGENT_APPS_SCRIPT_URL // "") != "" then
             {SCHOOL_BOT_APPS_SCRIPT_URL: env.AGENT_APPS_SCRIPT_URL}
           else {} end)' > "$secret_file"
-          pnpm exec wrangler deploy --config wrangler.toml --var "RUNTIME_REVISION:$GITHUB_SHA" --secrets-file "$secret_file"
+          pnpm exec wrangler deploy --config wrangler.toml --var "RUNTIME_REVISION:$GITHUB_SHA" --var "KAHOOT_MCP_ENABLED:$KAHOOT_MCP_ENABLED" --secrets-file "$secret_file"
 
       - name: Smoke test the deployed Worker
         env:

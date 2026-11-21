@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { evalExpr, show } from '../lib/fractions';
+import { checkFailureCount, resetCheckFailures } from './check-failures';
 import { saveVerifiedAssessment } from './save_assessment';
 import { ToolError } from './identity';
 import type { ToolDefinition } from './types';
@@ -61,7 +62,7 @@ export function additionWorksheet(count: number) {
 export const fractionAdditionForm: ToolDefinition = {
   name: 'fraction_addition_form',
   description:
-    'จ๋ำสร้างใบงานปรนัย 4 ตัวเลือก เรื่องการบวกเศษส่วน ป.5 ตรวจทุกข้อด้วยโค้ด และสร้าง Google Form จริงในครั้งเดียว ใส่จำนวนข้อเท่านั้น ระบบแสดงใบงาน เฉลยและลิงก์ในแชตโดยตรง',
+    'ใช้เป็นทางสำรองเมื่อ check_assessment คืน ok เป็น false สองครั้งติดกันในเซสชันเดียวกัน จ๋ำสร้างใบงานปรนัย 4 ตัวเลือก เรื่องการบวกเศษส่วน ป.5 ตรวจทุกข้อด้วยโค้ด และสร้าง Google Form จริงในครั้งเดียว ใส่จำนวนข้อเท่านั้น ระบบแสดงใบงาน เฉลยและลิงก์ในแชตโดยตรง',
   input: {
     type: 'object',
     properties: { count: { type: 'integer', minimum: 1, maximum: 30 } },
@@ -70,6 +71,12 @@ export const fractionAdditionForm: ToolDefinition = {
   },
   gate: 'allow',
   execute: async (input, context) => {
+    if (checkFailureCount(context.sessionID) < 2) {
+      throw new ToolError(
+        'fallback_not_allowed',
+        'ให้เขียนโจทย์เองและเรียก check_assessment ตรวจก่อน ใช้แบบมาตรฐานได้เมื่อผลตรวจไม่ผ่านสองครั้งติดกัน',
+      );
+    }
     const { count } = inputSchema.parse(input);
     const assessment = additionWorksheet(count);
     const published = await saveVerifiedAssessment(assessment, context.signal);
@@ -90,6 +97,7 @@ export const fractionAdditionForm: ToolDefinition = {
       `สร้างโจทย์จากแบบฝึกบวกเศษส่วนและตรวจเฉลยด้วยโค้ดครบ ${count} ข้อ · ครูตรวจก่อนใช้`,
       published.formUrl,
     ].join('\n\n');
+    resetCheckFailures(context.sessionID);
     return {
       worksheet,
       formUrl: published.formUrl,

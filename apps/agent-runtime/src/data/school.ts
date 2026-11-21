@@ -1,3 +1,5 @@
+export const principalOwner = 'principal-demo';
+
 // Invented sample data (ตัวอย่าง). Class-level aggregates only: nothing here identifies a student.
 export const schoolClasses = [
   { classId: 'class-p5-1', label: 'ป.5/1', subject: 'คณิตศาสตร์', n: 22, mean: 7.4, maxScore: 10 },

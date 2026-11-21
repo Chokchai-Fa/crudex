@@ -186,6 +186,7 @@ const expected = {
     'old_exam_search',
     'check_assessment',
     'save_assessment',
+    'fraction_addition_form',
     'make_file',
   ],
   jeng: [
@@ -440,6 +441,91 @@ check(
     ]);
     return tool(evb)?.state?.status === 'completed';
   })(),
+);
+
+console.log('# access matrix: ask gates, delegation and the principal team');
+const asked = [
+  ['porn', 'submit_for_approval', '{"claimId":"claim-x"}'],
+  ['porn', 'send_email', '{"to":"a@b.c","subject":"s","body":"b"}'],
+  ['lekha_por', 'decide_approval', '{"approvalId":"x","decision":"approve"}'],
+];
+for (const [agent, name, args] of asked) {
+  const evAsk = run(['--agent', agent, `CALL ${name} ${args}`]);
+  check(
+    `${agent} ${name} is a human-confirm gate and is rejected when nobody can press confirm`,
+    tool(evAsk)?.state?.status === 'error' && /cannot ask/.test(tool(evAsk)?.state?.error ?? ''),
+    JSON.stringify(tool(evAsk)?.state),
+  );
+}
+for (const agent of ['jum', 'jeng', 'porn', 'nun', 'rungchao', 'lekha_por']) {
+  const evSub = run([
+    '--auto',
+    '--agent',
+    agent,
+    'FORCE subagent {"agent":"jum","description":"x","prompt":"x"}',
+  ]);
+  check(
+    `${agent} cannot delegate (only jaew can)`,
+    tool(evSub)?.state?.status === 'error',
+    JSON.stringify(tool(evSub)?.state),
+  );
+}
+for (const agent of ['rungchao', 'lekha_por']) {
+  for (const name of ['get_scores', 'get_class_scores', 'save_assessment', 'send_email']) {
+    const evNo = run(['--auto', '--agent', agent, `FORCE ${name} {}`]);
+    check(
+      `${agent} cannot call ${name}`,
+      tool(evNo)?.state?.status === 'error',
+      JSON.stringify(tool(evNo)?.state),
+    );
+  }
+}
+const principalOut = [
+  run(['--agent', 'lekha_por', 'CALL list_pending_approvals {}']),
+  run(['--agent', 'lekha_por', 'CALL get_school_summary {}']),
+  run(['--agent', 'rungchao', 'CALL teacher_activity {}']),
+  run(['--agent', 'rungchao', 'CALL read_budget {}']),
+]
+  .map((evs) => tool(evs)?.state?.output ?? '')
+  .join('\n');
+check(
+  'the principal team sees no student-level data through any tool',
+  principalOut.length > 100 &&
+    !/นักเรียนตัวอย่าง|studentId|displayName|"s-\d\d"/.test(principalOut),
+  principalOut.slice(0, 200),
+);
+
+console.log('# fraction_addition_form is a fallback only');
+const sessionOf = (evs) => evs.find((e) => e.sessionID)?.sessionID;
+const inSession = (sid, text2) => run(['--agent', 'jum', '--session', sid, text2]);
+let evF = run(['--agent', 'jum', 'CALL fraction_addition_form {"count":3}']);
+const fallbackSession = sessionOf(evF);
+check(
+  'fraction_addition_form is refused before any failed check',
+  tool(evF)?.state?.status === 'error' &&
+    /fallback_not_allowed|ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
+  JSON.stringify(tool(evF)?.state),
+);
+inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
+evF = inSession(fallbackSession, 'CALL fraction_addition_form {"count":3}');
+check(
+  'it is still refused after one failed check',
+  tool(evF)?.state?.status === 'error' && /ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
+  JSON.stringify(tool(evF)?.state),
+);
+inSession(fallbackSession, `CALL check_assessment ${JSON.stringify(broken)}`);
+evF = inSession(fallbackSession, 'CALL fraction_addition_form {"count":3}');
+check(
+  'it runs after two failed checks in the same session and returns a real Google Form link',
+  tool(evF)?.state?.status === 'completed' &&
+    (tool(evF)?.state?.output ?? '').includes('docs.google.com/forms/d/form_e2e_1'),
+  JSON.stringify(tool(evF)?.state).slice(0, 300),
+);
+evF = run(['--agent', 'jum', 'CALL fraction_addition_form {"count":3}']);
+check(
+  'a different session cannot borrow those failures',
+  tool(evF)?.state?.status === 'error' && /ให้เขียนโจทย์เอง/.test(JSON.stringify(tool(evF)?.state)),
+  JSON.stringify(tool(evF)?.state),
 );
 
 console.log('# secretary delegates');

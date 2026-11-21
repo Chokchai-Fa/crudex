@@ -298,7 +298,10 @@ function checkQuestion(question: Question, report: Report): boolean {
     return true;
   }
 
-  const extreme = /มากที่สุด|น้อยที่สุด/.exec(text)?.[0];
+  const extreme =
+    /(?:ข้อ|จำนวน|เศษส่วน|ทศนิยม|ตัวเลือก)(?:ใด|ไหน)(?:ต่อไปนี้)?\s*(?:มีค่า)?\s*(มากที่สุด|น้อยที่สุด)\s*[?？]?\s*$/.exec(
+      text,
+    )?.[1];
   let expected = stemValue(text, report) ?? verifiedValue;
   if (extreme && values.size === choices.length) {
     expected = undefined;

@@ -46,6 +46,7 @@ it.each([true, false])(
     const stream = createTurnRunner(host as unknown as Host)({
       agent: jaew,
       directory: '.',
+      loginId: '5a75086c-0ab7-4b8d-841a-475f3fa239aa',
       text: 'ขอใบงาน',
       signal: new AbortController().signal,
     });
@@ -91,6 +92,7 @@ it.each([rungchao, jaew])(
     for await (const item of createTurnRunner(host as unknown as Host)({
       agent,
       directory: '.',
+      loginId: '5a75086c-0ab7-4b8d-841a-475f3fa239aa',
       text: 'สรุปเช้า',
       signal: new AbortController().signal,
     })) {
