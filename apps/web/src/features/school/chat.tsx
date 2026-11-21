@@ -353,7 +353,7 @@ function ChatRoom({
             )
           )}
           <ol ref={content} className="space-y-4 py-3">
-            {messages.map(({ key, prompt, run }) => (
+            {messages.map(({ key, prompt, run }, index) => (
               <li key={key} className="space-y-2">
                 <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
                   {teacherMessage(prompt)}
@@ -370,6 +370,11 @@ function ChatRoom({
                           agentId={run.agentId}
                           onFormUrl={formHandler(run.id)}
                           agents={directory.data?.agents}
+                          onFollowUp={
+                            index === messages.length - 1 && !sending && !localGatewayUnconfirmed
+                              ? (text) => void send(text)
+                              : undefined
+                          }
                           hasArtifacts={run.worksheetIds.length > 0}
                           onRetry={() => void send(run.prompt, `retry:${run.id}`)}
                           retryDisabled={sending || localGatewayUnconfirmed}
