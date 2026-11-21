@@ -1,15 +1,16 @@
 import { createRootRoute, Link, redirect, Outlet, useRouterState } from '@tanstack/react-router';
-import { demoRole } from '@/features/workspace/demo-session';
+import { sessionRole } from '@/features/workspace/demo-session';
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 
 export const Route = createRootRoute({
-  beforeLoad: ({ location }) => {
+  beforeLoad: async ({ location }) => {
     const path = location.pathname.toLowerCase().replace(/\/+$/, '');
     const teacherPages = ['/teacher', '/gradebook', '/reports', '/memory', '/notes'];
     const required =
       path === '/principal' ? 'principal' : teacherPages.includes(path) ? 'teacher' : null;
-    if (required && demoRole() !== required) throw redirect({ to: '/sign-in', replace: true });
+    if (required && (await sessionRole()) !== required)
+      throw redirect({ to: '/sign-in', replace: true });
   },
   component: RootLayout,
   notFoundComponent: () => (

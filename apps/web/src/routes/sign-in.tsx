@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { signInDemo } from '@/features/workspace/demo-session';
 import { useState } from 'react';
 
@@ -24,6 +24,20 @@ const roles = [
 ] as const;
 
 function RoleChooser() {
+  const navigate = useNavigate();
+  const [signingIn, setSigningIn] = useState(false);
+  async function enter(path: '/teacher' | '/principal') {
+    setSigningIn(true);
+    setNotice('');
+    try {
+      await signInDemo(path === '/teacher' ? 'teacher' : 'principal');
+      await navigate({ to: path });
+    } catch {
+      setNotice('เข้าใช้บัญชีตัวอย่างไม่สำเร็จ กรุณาลองอีกครั้ง');
+    } finally {
+      setSigningIn(false);
+    }
+  }
   const [notice, setNotice] = useState('');
   function resetDemo() {
     if (
@@ -77,10 +91,10 @@ function RoleChooser() {
                 {role.description}
               </p>
               <p className="my-2 sm:mb-3 sm:mt-4 text-sm text-muted-foreground">{role.scope}</p>
-              <Link
-                preload={false}
-                onClick={() => signInDemo(role.path === '/teacher' ? 'teacher' : 'principal')}
-                to={role.path}
+              <button
+                type="button"
+                disabled={signingIn}
+                onClick={() => void enter(role.path)}
                 className={
                   'grid min-h-11 place-items-center rounded-full border-2 px-3 font-bold focus-visible:outline-2 focus-visible:outline-offset-4 ' +
                   (role.path === '/teacher'
@@ -89,7 +103,7 @@ function RoleChooser() {
                 }
               >
                 {role.action}
-              </Link>
+              </button>
             </article>
           ))}
         </div>
