@@ -1,7 +1,7 @@
 import { loginIdHeader, validLoginId } from './gate';
 import { dispatchSchema, signedTurn } from '../../../packages/shared/src/school-dispatch.schema';
 import { DurableObject } from 'cloudflare:workers';
-import { consumeRun, countToday, type DailyUsage } from './daily-cap';
+import { consumeRun, countToday, dailyRunLimit, type DailyUsage } from './daily-cap';
 import { envSchema, type AgentConfig } from './env';
 import { isKahootMcpRequest, kahootTokenHeader } from './kahoot-mcp';
 import { restoreRuntimeState, saveRuntimeState } from './runtime-state';
@@ -55,6 +55,7 @@ export class SandboxManager extends DurableObject<Env> {
     const config = envSchema.parse(this.env);
     if (request.method === 'GET' && url.pathname === '/api/status') {
       const usage = await this.ctx.storage.get<DailyUsage>('usage');
+      const now = Date.now();
       return Response.json({
         sandbox:
           this.sandbox && 'url' in this.sandbox
@@ -65,8 +66,8 @@ export class SandboxManager extends DurableObject<Env> {
         runtimeRevision: this.sandbox?.revision,
         startedAt: this.sandbox?.startedAt,
         lastUsedAt: this.sandbox?.lastUsedAt,
-        runsToday: countToday(usage, Date.now()),
-        limit: config.DAILY_RUN_LIMIT,
+        runsToday: countToday(usage, now),
+        limit: dailyRunLimit(now, config.DAILY_RUN_LIMIT),
       });
     }
 
