@@ -488,33 +488,47 @@
   }
   .output-grid {
     margin-inline-start: 0;
-    gap: 5px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
   .output-card {
-    padding: 6px;
-    border-radius: 13px;
+    display: grid;
+    grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+    column-gap: 12px;
+    align-content: center;
+    align-items: center;
+    padding: 10px;
+    border-radius: 16px;
   }
-  .mini-page {
-    padding: 6px;
-    height: 67px;
-    font-size: 9px;
+  .output-card > * {
+    grid-column: 2;
+  }
+  .output-card .mini-page {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    justify-content: center;
+    height: 80px;
+    padding: 8px;
+    font-size: 12px;
+  }
+  .mini-page small,
+  .sheet-output .mini-page span:nth-of-type(n + 3) {
+    display: none;
   }
   .mini-page b {
-    font-size: 10px;
-  }
-  .mini-page small {
-    font-size: 9px;
+    font-size: 12px;
   }
   .output-card h2 {
-    font-size: 14px;
+    margin: 0;
   }
   .card-actions {
-    gap: 0;
+    gap: 6px;
   }
-  .card-actions button,
-  .card-actions a {
-    padding: 0 3px;
-    font-size: 12px;
+  .form-output > :is(input, p, button) {
+    grid-column: 1 / -1;
+  }
+  .form-output > input {
+    min-width: 0;
   }
   .score-line {
     gap: 5px;
@@ -590,10 +604,7 @@
 }
 @media (max-width: 600px) {
   .card-actions :is(button, a) {
-    padding-inline: 4px;
-  }
-  .sheet-output .mini-page span:nth-of-type(3) {
-    display: none;
+    padding-inline: 12px;
   }
   .form-options[open] > button {
     white-space: normal;
