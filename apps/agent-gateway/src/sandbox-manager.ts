@@ -111,12 +111,14 @@ export class SandboxManager extends DurableObject<Env> {
       const url = new URL(path, sandbox.url);
       const role = new URL(request.url).searchParams.get('role');
       if (role !== null) url.searchParams.set('role', role);
+      // Allow the five-minute runtime turn to finish and flush its final SSE event.
+      const proxyTimeout = path === '/chat' ? 310_000 : 130_000;
       const upstream = await fetch(url, {
         method: request.method,
         headers,
         body: request.body,
         redirect: 'manual',
-        signal: AbortSignal.any([request.signal, AbortSignal.timeout(130_000)]),
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(proxyTimeout)]),
       });
       if (upstream.status >= 300 && upstream.status < 400) {
         await upstream.body?.cancel();

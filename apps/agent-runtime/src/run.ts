@@ -46,7 +46,7 @@ export function createTurnRunner(host: Host) {
 
   return async function* runTurn(turn: Turn): AsyncGenerator<RunEvent> {
     const started = performance.now();
-    const timeout = AbortSignal.timeout(120_000);
+    const timeout = AbortSignal.timeout(5 * 60_000);
     const closeEvents = new AbortController();
     const signal = AbortSignal.any([turn.signal, timeout, closeEvents.signal]);
     const opts = { signal };
