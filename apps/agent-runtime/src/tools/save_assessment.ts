@@ -162,16 +162,19 @@ export async function saveVerifiedAssessment(
     | undefined;
   let saved: PublishedForm;
   if (scope) {
-    const [record, google] = await Promise.allSettled([
-      saveSchoolAssessment(scope, assessment, signal),
-      publisher.publish(assessment, signal),
-    ]);
-    if (record.status === 'rejected') throw record.reason;
+    // The school record stores the Google Form link, so the web card can open it.
+    const [google] = await Promise.allSettled([publisher.publish(assessment, signal)]);
     const created = google.status === 'fulfilled' ? google.value : undefined;
     const googleReason =
       google.status === 'rejected' && google.reason instanceof Error
         ? /สาเหตุ: ([a-z_0-9]+)/.exec(google.reason.message)?.[1]
         : undefined;
+    const record = {
+      value: await saveSchoolAssessment(scope, assessment, signal, {
+        ...(created ? { googleFormUrl: created.url } : {}),
+        ...(!created ? { googleFormReason: googleReason ?? 'bridge_failed' } : {}),
+      }),
+    };
     school = created
       ? { playUrl: record.value.url, googleForm: 'created' }
       : {
@@ -216,10 +219,12 @@ async function saveSchoolAssessment(
   scope: SchoolScope,
   assessment: Assessment,
   signal: AbortSignal,
+  google: { googleFormUrl?: string; googleFormReason?: string } = {},
 ): Promise<PublishedForm> {
   const questions = formQuestions(assessment.questions);
   const ordered = {
     ...assessment,
+    ...google,
     questions: assessment.questions.map((q, index) => ({
       ...q,
       choices: questions[index]!.choices.map((text, position) => ({ id: `c${position}`, text })),
