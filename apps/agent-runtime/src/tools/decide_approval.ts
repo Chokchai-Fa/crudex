@@ -1,4 +1,4 @@
-import { approvals, notifications } from './approval-store';
+import { approvals, notifications, persistState } from '../state';
 import { ToolError } from './identity';
 import type { ToolDefinition } from './types';
 
@@ -44,6 +44,7 @@ export const decideApproval: ToolDefinition = {
         createdAt: Date.now(),
       });
     }
+    persistState();
     return { mode: 'mock', approvalId, status: record.status, notified: ['porn', record.ownerId] };
   },
 };

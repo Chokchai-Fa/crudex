@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sampleOwner } from '../src/data/sample';
 import sample from './fixtures/assessment-sample.json';
 import { tools } from '../src/tools';
+import { resetPassedSets } from '../src/lib/assessment-semantics';
 import { approvals, resetApprovals } from '../src/tools/approval-store';
 import { testMailbox } from '../src/tools/inbox';
 import { resetMemory } from '../src/tools/memory-store';
@@ -496,5 +497,191 @@ describe('indicator field', () => {
     const r = await call('check_assessment', ok);
     expect(r.ok).toBe(false);
     expect(r.errors.map((e: { code: string }) => e.code)).toContain('unknown_indicator');
+  });
+});
+
+describe('default question floor', () => {
+  it('refuses a one-question set unless the count was asked for, and accepts it when asked', async () => {
+    const one = structuredClone(sample);
+    one.questions = one.questions.slice(0, 1);
+    const refused = await call('check_assessment', one);
+    expect(refused.ok).toBe(false);
+    expect(refused.errors.map((e: { code: string }) => e.code)).toContain('too_few');
+    expect((await call('check_assessment', { ...one, expectedCount: 1 })).ok).toBe(true);
+    await expect(call('save_assessment', one)).rejects.toBeInstanceOf(Error);
+  });
+});
+
+describe('semantic checks and reused numbers', () => {
+  const ladder = (overrides: Record<string, unknown> = {}) => ({
+    id: 'q1',
+    text: 'บันไดยาว 25 เมตร พิงกำแพงสูง 24 เมตร ปลายล่างห่างจากกำแพงกี่เมตร',
+    topic: 'ทฤษฎีบทพีทาโกรัส',
+    choices: [
+      { id: 'c1', text: '7 เมตร' },
+      { id: 'c2', text: '1 เมตร' },
+      { id: 'c3', text: '49 เมตร' },
+      { id: 'c4', text: '31 เมตร' },
+    ],
+    correctChoiceId: 'c1',
+    verify: { expr: 'sqrt(25^2-24^2)', expected: '7' },
+    pythagorean: { legA: 24, legB: 7, hypotenuse: 25, ask: 'legB' },
+    ...overrides,
+  });
+  const set = (questions: unknown[]) => ({
+    title: 't',
+    grade: 'ม.2',
+    topic: 'พีทาโกรัส',
+    expectedCount: questions.length,
+    questions,
+  });
+
+  it('accepts a right-triangle question whose roles, key and stem agree', async () => {
+    const r = await call('check_assessment', set([ladder()]));
+    expect(r.errors).toEqual([]);
+    expect(r.unverified).toEqual([]);
+  });
+
+  it('flags a hypotenuse that is not the longest side, a wrong key, and a missing given side', async () => {
+    const swapped = await call(
+      'check_assessment',
+      set([ladder({ pythagorean: { legA: 25, legB: 7, hypotenuse: 24, ask: 'legB' } })]),
+    );
+    expect(swapped.errors.map((e: { code: string }) => e.code)).toContain('hypotenuse_not_longest');
+    const wrongKey = await call('check_assessment', set([ladder({ correctChoiceId: 'c3' })]));
+    expect(wrongKey.errors.map((e: { code: string }) => e.code)).toContain('answer_not_asked_side');
+    const missingGiven = await call(
+      'check_assessment',
+      set([ladder({ text: 'บันไดยาว 25 เมตร ปลายล่างห่างจากกำแพงกี่เมตร' })]),
+    );
+    expect(missingGiven.errors.map((e: { code: string }) => e.code)).toContain(
+      'given_side_missing',
+    );
+  });
+
+  it('marks a Pythagoras question without declared roles as not verified by code', async () => {
+    const bare = ladder();
+    delete (bare as Record<string, unknown>).pythagorean;
+    const r = await call('check_assessment', set([bare]));
+    expect(r.unverified).toEqual(['q1']);
+    expect(r.verified).not.toContain('q1');
+    await expect(call('save_assessment', set([bare]))).rejects.toBeInstanceOf(Error);
+  });
+
+  it('refuses a second, different set that reuses the numbers in the same session', async () => {
+    resetPassedSets();
+    const sessionCtx = ctx({ sessionID: 'same-request' });
+    const first = await call('check_assessment', sample, sessionCtx);
+    expect(first.ok).toBe(true);
+    expect((await call('check_assessment', sample, sessionCtx)).ok).toBe(true);
+    const fresh = (id: string, a: number, b: number) => ({
+      id,
+      text: `${a}/${b} + ${a}/${b} เท่ากับเท่าใด`,
+      topic: 'การบวกเศษส่วน',
+      choices: [
+        { id: 'c1', text: `${2 * a}/${b}` },
+        { id: 'c2', text: `${a}/${2 * b}` },
+        { id: 'c3', text: `${a + 1}/${b}` },
+        { id: 'c4', text: `${a}/${b + 1}` },
+      ],
+      correctChoiceId: 'c1',
+      verify: { expr: `${a}/${b}+${a}/${b}`, expected: `${2 * a}/${b}` },
+    });
+    const clone = structuredClone(sample);
+    clone.title = 'ชุดที่สอง';
+    clone.questions = [
+      ...clone.questions.slice(0, 6),
+      fresh('n1', 2, 7),
+      fresh('n2', 3, 8),
+      fresh('n3', 2, 9),
+      fresh('n4', 3, 10),
+    ] as typeof clone.questions;
+    const second = await call('check_assessment', clone, sessionCtx);
+    expect(second.ok).toBe(false);
+    expect(second.errors.map((e: { code: string }) => e.code)).toContain('reused_numbers');
+    expect((await call('check_assessment', clone, ctx({ sessionID: 'another-request' }))).ok).toBe(
+      true,
+    );
+  });
+});
+
+describe('worksheet text for the chat draft', () => {
+  const parse = (text: string) =>
+    text.split('\n\n').map((block) => {
+      const [stem, ...lines] = block.split('\n');
+      return {
+        stem: stem!,
+        choices: Object.fromEntries(lines.map((line) => [line[0]!, line.slice(3)])) as Record<
+          string,
+          string
+        >,
+      };
+    });
+
+  it('prints every item with its key letter pointing at the correct choice, spread over ก-ง', async () => {
+    const allFirst = structuredClone(sample);
+    for (const q of allFirst.questions) {
+      const key = q.choices.find((c) => c.id === q.correctChoiceId)!;
+      q.choices = [key, ...q.choices.filter((c) => c !== key)];
+    }
+    const first = await call('check_assessment', allFirst);
+    expect(first.ok).toBe(true);
+    const items = parse(first.worksheet.text);
+    const letters = (first.worksheet.answers as string)
+      .split(/\s{3}/)
+      .map((part) => part.split('. ')[1]!);
+    expect(items).toHaveLength(allFirst.questions.length);
+    const counts: Record<string, number> = {};
+    items.forEach((item, index) => {
+      const source = allFirst.questions[index]!;
+      const correctText = source.choices.find((c) => c.id === source.correctChoiceId)!.text;
+      expect(item.stem).toBe(`${index + 1}. ${source.text}`);
+      expect(item.choices[letters[index]!]).toBe(correctText);
+      expect(Object.values(item.choices).sort()).toEqual(source.choices.map((c) => c.text).sort());
+      counts[letters[index]!] = (counts[letters[index]!] ?? 0) + 1;
+    });
+    expect(Math.max(...Object.values(counts))).toBeLessThanOrEqual(3);
+    expect(
+      (await call('check_assessment', allFirst, ctx({ sessionID: 'again' }))).worksheet,
+    ).toEqual(first.worksheet);
+  });
+
+  it('gives no worksheet for a set that failed the check', async () => {
+    const bad = structuredClone(sample);
+    bad.questions[0]!.correctChoiceId = 'c1';
+    expect((await call('check_assessment', bad)).worksheet).toBeUndefined();
+  });
+});
+
+describe('distractors from real mistakes', () => {
+  const leg = (choices: string[], overrides: Record<string, unknown> = {}) => ({
+    id: 'q1',
+    text: 'สามเหลี่ยมมุมฉากมีด้านประกอบมุมฉากยาว 6 และ 8 ด้านตรงข้ามมุมฉากยาวเท่าใด',
+    topic: 'ทฤษฎีบทพีทาโกรัส',
+    choices: choices.map((text, i) => ({ id: 'c' + (i + 1), text })),
+    correctChoiceId: 'c' + (choices.indexOf('10') + 1),
+    verify: { expr: 'sqrt(6^2+8^2)', expected: '10' },
+    pythagorean: { legA: 6, legB: 8, hypotenuse: 10, ask: 'hypotenuse' },
+    ...overrides,
+  });
+  const run = (q: unknown) =>
+    call('check_assessment', {
+      title: 't',
+      grade: 'ม.2',
+      topic: 'พีทาโกรัส',
+      expectedCount: 1,
+      questions: [q],
+    });
+
+  it('rejects choices spaced evenly around the answer (9 10 11 12) and one with no mistake-based distractor', async () => {
+    const even = await run(leg(['9', '10', '11', '12']));
+    expect(even.errors.map((e: { code: string }) => e.code)).toContain('evenly_spaced_choices');
+    expect(even.errors.map((e: { code: string }) => e.code)).toContain(
+      'no_misconception_distractor',
+    );
+  });
+
+  it('accepts distractors that are the sum of the legs, a leg, or the squares added without the root', async () => {
+    expect((await run(leg(['14', '10', '100', '6']))).errors).toEqual([]);
   });
 });

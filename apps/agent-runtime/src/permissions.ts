@@ -1,20 +1,22 @@
 import type { Agent } from '@opencode/plugin';
 import type { AgentDefinition } from './agents/types';
-import { kahootTool } from './kahoot-draft';
+import type { KahootMcpConfig } from './kahoot-config';
 import { tools } from './tools';
 
 type Rule = Agent.Info['permissions'][number];
 type Effect = Rule['effect'];
 
-export function permissionsFor(definition: AgentDefinition, kahootEnabled = false): Rule[] {
+export function permissionsFor(definition: AgentDefinition, kahoot?: KahootMcpConfig): Rule[] {
   const rules: Rule[] = [{ action: '*', resource: '*', effect: 'deny' }];
   for (const tool of tools) {
     if (definition.tools.includes(tool.name)) {
       rules.push({ action: tool.name, resource: '*', effect: tool.gate });
     }
   }
-  if (kahootEnabled && definition.id === 'jeng' && definition.mcpTools?.includes(kahootTool)) {
-    rules.push({ action: kahootTool, resource: '*', effect: 'allow' });
+  if (kahoot && definition.id === 'jeng') {
+    for (const action of definition.mcpTools ?? []) {
+      rules.push({ action, resource: '*', effect: 'allow' });
+    }
   }
   for (const id of definition.skills) {
     rules.push({ action: 'skill', resource: id, effect: 'allow' });

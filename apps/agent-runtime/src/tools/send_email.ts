@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { persistState } from '../state';
 import { testMailbox } from './inbox';
 import { nonBlank, validatedTool } from './validated';
 
@@ -12,6 +13,7 @@ export const sendEmail = validatedTool(
     execute: ({ subject, body }) => {
       const id = 'mail-' + crypto.randomUUID().slice(0, 8);
       testMailbox.push({ id, to: 'test-mailbox', subject, body, createdAt: Date.now() });
+      persistState();
       return { mode: 'mock', mailId: id, deliveredTo: 'test-mailbox' };
     },
   },

@@ -1,6 +1,6 @@
 import { createMiddleware } from 'hono/factory';
 import { createDb, type Db } from '../db/client';
-import { parseConfig, type Config } from '../env';
+import { parseConfig, type AppBindings, type Config } from '../env';
 import { createCache, type Cache } from '../lib/cache';
 import { createJobQueue } from '../lib/queue';
 import type { AppEnv } from '../types/app';
@@ -10,7 +10,7 @@ import type { Deps } from '../types/deps';
  * Builds `deps` once per request. Everything is lazy: config is validated and clients are
  * created only when first used, so routes like /api/health stay cheap.
  */
-export function createDeps(env: Env): Deps {
+export function createDeps(env: AppBindings): Deps {
   let config: Config | undefined;
   let db: Db | undefined;
   let cache: Cache | undefined;

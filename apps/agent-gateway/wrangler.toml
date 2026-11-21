@@ -6,6 +6,7 @@ workers_dev = true
 
 [vars]
 DAILY_RUN_LIMIT = "60"
+DAILY_RUN_LIMIT_OVERRIDES = { "2026-11-21" = 150 }
 IDLE_STOP_MINUTES = "10"
 
 [assets]
@@ -31,3 +32,11 @@ class_name = "MorningBrief"
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["MorningBrief"]
+
+[[durable_objects.bindings]]
+name = "KAHOOT"
+class_name = "KahootConnection"
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["KahootConnection"]

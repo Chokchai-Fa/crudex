@@ -16,4 +16,4 @@ createServer((req, res) => {
       }),
     );
   });
-}).listen(4793, '127.0.0.1');
+}).listen(Number(process.env.BRIDGE_PORT), '127.0.0.1');

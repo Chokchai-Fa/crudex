@@ -4,6 +4,7 @@ import type { SchoolScope } from './school';
 import { OpenCode } from '@opencode/sdk';
 import { resolveToolOwner } from './demo-session';
 import skills from 'virtual:crudex-skills';
+import { kahootMcpServer, readKahootConfig } from './kahoot-config';
 import { createRuntimePlugin } from './plugin';
 import { tools } from './tools';
 
@@ -14,6 +15,7 @@ export async function createHarness(dataDir: string) {
   await mkdir(directory, { recursive: true });
   const toolCalls = new Map(tools.map(({ name }) => [name, 0]));
   const scopes = new Map<string, SchoolScope>();
+  const kahoot = readKahootConfig(process.env);
   async function resolveScope(sessionId: string): Promise<SchoolScope> {
     let current: string | undefined = sessionId;
     while (current) {
@@ -30,7 +32,7 @@ export async function createHarness(dataDir: string) {
       return count;
     },
     skills,
-    !process.env.SCHOOL_OWNER && process.env.KAHOOT_MCP_ENABLED === 'true',
+    kahoot,
     (sessionId, agent, signal) =>
       resolveToolOwner((id) => host.session.get({ sessionID: id }, { signal }), sessionId, agent),
     process.env.SCHOOL_OWNER ? resolveScope : undefined,
@@ -40,5 +42,27 @@ export async function createHarness(dataDir: string) {
     database: { path: join(dataDir, 'opencode.sqlite') },
     plugins: [plugin],
   });
-  return { host, directory, toolCalls, scopes };
+
+  let preparingKahoot: Promise<void> | undefined;
+  async function reconnectKahoot() {
+    const location = { directory };
+    const options = { signal: AbortSignal.timeout(8_000) };
+    const { data } = await host.mcp.list({ location }, options);
+    const status = data.find(({ name }) => name === kahootMcpServer)?.status.status;
+    if (status === 'failed' || status === 'needs_auth') {
+      await host.experimental.mcp.connect({ server: kahootMcpServer, location }, options);
+    }
+  }
+
+  function prepareSchoolKahoot() {
+    if (!kahoot) return;
+    preparingKahoot ??= reconnectKahoot()
+      .catch(() => undefined)
+      .finally(() => {
+        preparingKahoot = undefined;
+      });
+    return preparingKahoot;
+  }
+
+  return { host, directory, toolCalls, scopes, prepareSchoolKahoot };
 }

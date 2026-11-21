@@ -27,7 +27,7 @@ it('resumes only the same root, agent and login', () => {
 });
 
 it('inherits only the server-assigned account of a legitimate direct parent', async () => {
-  const teacher = { ownerId: 'teacher-demo', classId: 'class-p5-2' };
+  const teacher = { ownerId: 'teacher-' + loginId, classId: 'class-p5-2' };
   await expect(resolveToolOwner(getSession, 'child', 'jum')).resolves.toEqual(teacher);
   await expect(resolveToolOwner(getSession, 'teacher', 'jaew')).resolves.toEqual(teacher);
   await expect(resolveToolOwner(getSession, 'principal', 'rungchao')).resolves.toEqual({
@@ -43,6 +43,22 @@ it('exposes only the budget assigned to each demo account', async () => {
   const context = { count: 1, signal: new AbortController().signal };
   const read = (ownerId: string) => readBudget.execute({ code: 'M-01' }, { ...context, ownerId });
   expect(await read('teacher-demo')).toMatchObject({ lines: [{ code: 'M-01' }] });
+  expect(await read('teacher-' + loginId)).toMatchObject({ lines: [{ code: 'M-01' }] });
   expect(await read('principal-demo')).toMatchObject({ lines: [] });
+  await expect(async () => read('teacher-not-a-login')).rejects.toThrow();
   await expect(async () => read('other-teacher')).rejects.toThrow();
+});
+
+it('gives each teacher login its own account, so owner-keyed state does not mix', async () => {
+  const otherLogin = '0b3c8f1e-9d2a-4c5b-8e7f-1a2b3c4d5e6f';
+  const two = {
+    a: { agent: 'jaew', metadata: { crudexLoginId: loginId } },
+    b: { agent: 'jaew', metadata: { crudexLoginId: otherLogin } },
+    scheduledTeacher: { agent: 'jaew', metadata: { crudexLoginId: 'scheduled' } },
+  };
+  const get = async (id: string) => two[id as keyof typeof two];
+  const a = await resolveToolOwner(get, 'a', 'jaew');
+  const b = await resolveToolOwner(get, 'b', 'jaew');
+  expect(a.ownerId).not.toBe(b.ownerId);
+  await expect(resolveToolOwner(get, 'scheduledTeacher', 'jaew')).rejects.toThrow();
 });

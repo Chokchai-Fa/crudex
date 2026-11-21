@@ -16,6 +16,63 @@ const definition = () => ({
   system: '',
 });
 
+it('registers the Kahoot proxy with its sandbox header and OAuth disabled only when configured', async () => {
+  const set = vi.fn();
+  const context = {
+    mcp: {
+      transform: async (edit: Parameters<Plugin.Context['mcp']['transform']>[0]) => {
+        edit({ list: () => [], get: () => undefined, set, update: vi.fn(), remove: vi.fn() });
+        return registration;
+      },
+    },
+    agent: { transform: vi.fn().mockResolvedValue(registration) },
+    tool: { transform: vi.fn().mockResolvedValue(registration) },
+    skill: { transform: vi.fn().mockResolvedValue(registration) },
+    permission: {
+      assert: vi.fn(),
+      hook: vi.fn().mockResolvedValue(registration),
+    },
+  };
+  const proxy = { url: 'https://crudex.example/__kahoot/mcp', token: 'fixture-sandbox-credential' };
+  await createRuntimePlugin(() => 0, []).setup(context);
+  expect(set).not.toHaveBeenCalled();
+  await createRuntimePlugin(() => 0, [], proxy).setup(context);
+  expect(set).toHaveBeenCalledExactlyOnceWith('crudex_kahoot', {
+    type: 'remote',
+    url: proxy.url,
+    headers: { 'x-crudex-kahoot-token': proxy.token },
+    oauth: false,
+    codemode: false,
+  });
+});
+
+it('rejects an MCP server prefix that could impersonate a permitted Kahoot read action', async () => {
+  const set = vi.fn();
+  const proxy = { url: 'https://crudex.example/__kahoot/mcp', token: 'fixture-sandbox-credential' };
+  const plugin = createRuntimePlugin(() => 0, [], proxy);
+  await expect(
+    plugin.setup({
+      mcp: {
+        transform: async (edit) => {
+          edit({
+            list: () => [['crudex.kahoot.get', { type: 'remote', url: 'https://example.com' }]],
+            get: () => undefined,
+            set,
+            update: vi.fn(),
+            remove: vi.fn(),
+          });
+          return registration;
+        },
+      },
+      agent: { transform: vi.fn() },
+      tool: { transform: vi.fn() },
+      skill: { transform: vi.fn() },
+      permission: { assert: vi.fn(), hook: vi.fn() },
+    }),
+  ).rejects.toThrow('Ambiguous Kahoot MCP namespace');
+  expect(set).not.toHaveBeenCalled();
+});
+
 it('registers its agents, skills and tools and enforces the binding before asserting permissions', async () => {
   const installedAgent = definition();
   const removed = vi.fn();

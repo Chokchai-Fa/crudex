@@ -1,38 +1,9 @@
-export interface ClaimSnapshot {
-  claimId: string;
-  label: string;
-  date: string;
-  budgetCode: string;
-  purpose: string;
-  rows: { name: string; qty: number; unitPrice: number; amount: number }[];
-  total: number;
-  remainingAfter: number;
-  overBudget: boolean;
-}
+import { approvals, notifications, persistState, type ApprovalRecord } from '../state';
 
-export type ApprovalStatus = 'pending' | 'approved' | 'returned';
-
-export interface ApprovalRecord {
-  id: string;
-  ownerId: string;
-  submittedAt: number;
-  note: string;
-  claim: ClaimSnapshot;
-  status: ApprovalStatus;
-  reason?: string;
-  decidedAt?: number;
-}
-
-export interface Notification {
-  id: string;
-  to: string;
-  text: string;
-  createdAt: number;
-}
-
-/** The one box the secretary of the principal reads and ป้าพร writes. In-process until the gateway persists it. */
-export const approvals: ApprovalRecord[] = [];
-export const notifications: Notification[] = [];
+export { approvals, notifications };
+export type { ApprovalRecord, Notification } from '../state';
+export type ClaimSnapshot = ApprovalRecord['claim'];
+export type ApprovalStatus = ApprovalRecord['status'];
 
 export function addApproval(ownerId: string, claim: ClaimSnapshot, note: string, now = Date.now()) {
   const record: ApprovalRecord = {
@@ -44,6 +15,7 @@ export function addApproval(ownerId: string, claim: ClaimSnapshot, note: string,
     status: 'pending',
   };
   approvals.push(record);
+  persistState();
   return record;
 }
 
@@ -75,4 +47,5 @@ export function anomaliesOf(record: ApprovalRecord) {
 export function resetApprovals() {
   approvals.length = 0;
   notifications.length = 0;
+  persistState();
 }

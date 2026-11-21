@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { jaew } from '../src/agents/jaew';
+import { jum } from '../src/agents/jum';
 import { nun } from '../src/agents/nun';
 import { decide, permissionsFor } from '../src/permissions';
 
@@ -63,5 +64,18 @@ describe('jaew lesson preparation flow', () => {
     expect(jaew.instructions).toContain('แนวโน้มจากครั้งก่อน');
     expect(jaew.instructions).toContain('ต่ำกว่าเกณฑ์ซ้ำ');
     expect(jaew.instructions).toContain('จำนวนเด็กที่ต้องทบทวน (ไม่ใส่ชื่อเด็ก)');
+  });
+
+  it('sends a question count with every delegated set: the teacher\u2019s number, else 10', () => {
+    expect(jaew.instructions).toContain('ต้องใส่จำนวนข้อเป็นตัวเลขใน prompt เสมอ');
+    expect(jaew.instructions).toContain('ถ้าครูไม่ระบุให้ใช้ 10 ข้อ');
+    expect(jaew.instructions).toContain('ห้ามเดาน้อยกว่า 10 เอง');
+    expect(jum.instructions).toContain('ห้ามใช้ 1 หรือจำนวนน้อยกว่านั้นโดยครูไม่ได้ขอ');
+  });
+
+  it('pastes the chat-only worksheet that check_assessment renders', () => {
+    expect(jum.instructions).toContain('worksheet.text');
+    expect(jum.instructions).toContain('worksheet.answers');
+    expect(jum.instructions).toContain('ห้ามเรียงตัวเลือกใหม่');
   });
 });

@@ -3,7 +3,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { HTTPException } from 'hono/http-exception';
 import { logger } from 'hono/logger';
 import { requestId } from 'hono/request-id';
-import type { ErrorResponse } from '@repo/shared';
+import { schoolKahootCallbackPath, type ErrorResponse } from '@repo/shared';
 import { AppError } from './lib/errors';
 import { depsMiddleware } from './middleware/deps';
 import { memoryRoutes } from './routes/memory.routes';
@@ -13,6 +13,7 @@ import { agentDirectoryRoutes } from './routes/agents.routes';
 import { approvalRoutes } from './routes/approvals.routes';
 import { classroomRoutes } from './routes/classroom.routes';
 import { healthRoutes } from './routes/health.routes';
+import { kahootRoutes } from './routes/kahoot.routes';
 import { notesRoutes } from './routes/notes.routes';
 import type { AppEnv } from './types/app';
 
@@ -45,12 +46,14 @@ export function handleError(err: Error, c: Context<AppEnv>) {
   );
 }
 
+const logRequest = logger();
+
 // One chain, so `AppType` carries the full route schema for the RPC client. Add routers with
 // `.route()` before `.notFound()`.
 const app = new Hono<AppEnv>()
   .basePath('/api')
   .use(requestId())
-  .use(logger())
+  .use((c, next) => (c.req.path === schoolKahootCallbackPath ? next() : logRequest(c, next)))
   .use(depsMiddleware)
   .route('/', memoryRoutes)
   .route('/', meRoutes)
@@ -59,6 +62,7 @@ const app = new Hono<AppEnv>()
   .route('/', approvalRoutes)
   .route('/', agentDirectoryRoutes)
   .route('/health', healthRoutes)
+  .route('/integrations/kahoot', kahootRoutes)
   .route('/notes', notesRoutes)
   .notFound((c) =>
     c.json<ErrorResponse>({ error: { code: 'not_found', message: 'Route not found' } }, 404),

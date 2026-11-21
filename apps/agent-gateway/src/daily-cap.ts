@@ -14,6 +14,14 @@ export function bangkokDay(now: number) {
   return bangkokDate.format(now);
 }
 
+export function dailyRunLimit(
+  now: number,
+  configuredLimit: number,
+  overrides?: Record<string, number>,
+) {
+  return overrides?.[bangkokDay(now)] ?? configuredLimit;
+}
+
 export function countToday(usage: DailyUsage | undefined, now: number) {
   return usage?.day === bangkokDay(now) ? usage.runs : 0;
 }

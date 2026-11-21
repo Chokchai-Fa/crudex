@@ -1,5 +1,25 @@
 import { z } from 'zod';
+import { schoolRoleSchema } from './identity.schema';
 import { agentIdSchema } from './runs.schema';
+
+export const schoolKahootAccountSchema = z.strictObject({
+  schoolId: z.uuid(),
+  ownerId: z.uuid(),
+  role: schoolRoleSchema,
+});
+export type SchoolKahootAccount = z.infer<typeof schoolKahootAccountSchema>;
+
+export const schoolKahootCallbackPath = '/api/integrations/kahoot/callback';
+
+export type KahootStatus =
+  { connected: false } | { connected: true; connectedAt: number; expiresAt: number };
+
+export interface SchoolKahootRpc {
+  kahootConnect(account: SchoolKahootAccount, redirectUri: string): Promise<{ url: string }>;
+  kahootCallback(state: string, code: string | null): Promise<{ ok: boolean }>;
+  kahootStatus(account: SchoolKahootAccount): Promise<KahootStatus>;
+  kahootDisconnect(account: SchoolKahootAccount): Promise<KahootStatus>;
+}
 
 export const schoolScopeSchema = z.strictObject({
   schoolId: z.uuid(),

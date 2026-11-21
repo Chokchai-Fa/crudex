@@ -4,7 +4,8 @@ import type { Host } from './harness';
 
 export type RunEvent =
   | { type: 'session'; sessionId: string }
-  | { type: 'delta'; text: string }
+  | { type: 'delta'; messageId: string; text: string }
+  | { type: 'progress'; messageId: string }
   | { type: 'principal_brief'; briefId: string; text: string }
   | {
       type: 'tool';
@@ -106,8 +107,19 @@ export function createTurnRunner(host: Host) {
       let summaryStarted = false;
       let rootDone = false;
       let rootText = '';
+      let endedRootMessage: string | undefined;
+      let rootMessageWithText: string | undefined;
+      let toolContinuationMessage: string | undefined;
+      const progressMessages = new Set<string>();
       let toolSteps = 0;
       let outputCharacters = 0;
+
+      function markProgress(messageId: string | undefined): RunEvent | undefined {
+        if (!messageId || progressMessages.has(messageId)) return;
+        progressMessages.add(messageId);
+        return { type: 'progress', messageId };
+      }
+
       for await (const event of host.event.subscribe(opts)) {
         if (event.type === 'server.connected') {
           promptSent = true;
@@ -147,6 +159,8 @@ export function createTurnRunner(host: Host) {
 
         switch (event.type) {
           case 'session.tool.called':
+            if (root && event.data.executed === false)
+              toolContinuationMessage = event.data.assistantMessageID;
             if (
               root &&
               turn.agent.id === 'jaew' &&
@@ -187,13 +201,55 @@ export function createTurnRunner(host: Host) {
                 summaryStarted = true;
                 rootDone = false;
               }
-              rootText += event.data.delta;
-              yield { type: 'delta', text: event.data.delta };
+              const { assistantMessageID: messageId, delta } = event.data;
+              let text = delta;
+              if (text && rootMessageWithText !== messageId) {
+                const progress = markProgress(rootMessageWithText);
+                if (progress) yield progress;
+                rootMessageWithText = messageId;
+              }
+              if (endedRootMessage && text) {
+                const boundary = rootText.slice(-2) + text.slice(0, 2);
+                if (!boundary.includes('\n\n')) {
+                  text = (rootText.endsWith('\n') || text.startsWith('\n') ? '\n' : '\n\n') + text;
+                }
+                endedRootMessage = undefined;
+              }
+              rootText += text;
+              yield { type: 'delta', messageId, text };
             }
             break;
           case 'session.text.ended':
+            if (root && event.data.text) endedRootMessage = event.data.assistantMessageID;
             if (child) child.text += event.data.text + '\n';
             break;
+          case 'session.step.started':
+            if (root && rootMessageWithText !== event.data.assistantMessageID) {
+              const progress = markProgress(rootMessageWithText);
+              if (progress) yield progress;
+            }
+            break;
+          case 'session.step.streamed':
+          case 'session.step.ended': {
+            if (!root) break;
+            const { assistantMessageID: messageId } = event.data;
+            if (
+              event.type === 'session.step.ended' &&
+              event.data.finish === 'length' &&
+              endedRootMessage === messageId
+            )
+              endedRootMessage = undefined;
+            // OpenCode publishes step.ended after its tools finish.
+            const continues =
+              event.type === 'session.step.streamed'
+                ? toolContinuationMessage === messageId
+                : event.data.finish === 'tool-calls';
+            if (continues && rootMessageWithText === messageId) {
+              const progress = markProgress(messageId);
+              if (progress) yield progress;
+            }
+            break;
+          }
           case 'session.tool.input.started':
             calls.set(source + '/' + event.data.id, event.data.name);
             yield { type: 'tool', name: event.data.name, id: event.data.id, status: 'started' };
@@ -241,8 +297,14 @@ export function createTurnRunner(host: Host) {
                     ) {
                       if (typeof output.bridgeElapsedMs === 'number')
                         bridgeElapsedMs = output.bridgeElapsedMs;
+                      const messageId =
+                        'worksheet:' +
+                        (typeof output.formUrl === 'string' && output.formUrl
+                          ? output.formUrl
+                          : renderedWorksheets.size);
                       renderedWorksheets.add(output.formUrl);
-                      yield { type: 'delta', text: '\n\n' + output.worksheet + '\n\n' };
+                      endedRootMessage = undefined;
+                      yield { type: 'delta', messageId, text: '\n\n' + output.worksheet + '\n\n' };
                     }
                   }
                 }
@@ -283,9 +345,14 @@ export function createTurnRunner(host: Host) {
         }
         if (!rootDone) continue;
         const results = [...delegated].map((id) => children.get(id));
-        if (results.some((result) => result?.completed === undefined)) continue;
-        if (results.every((result) => result?.completed) && scoreReports.size && !summaryStarted)
+        if (
+          results.some((result) => result?.completed === undefined) ||
+          (results.every((result) => result?.completed) && scoreReports.size && !summaryStarted)
+        ) {
+          const progress = markProgress(rootMessageWithText);
+          if (progress) yield progress;
           continue;
+        }
         for (const id of delegated) {
           const result = children.get(id);
           if (!result?.completed) {
@@ -294,13 +361,15 @@ export function createTurnRunner(host: Host) {
           }
           if (scoreReports.has(id)) continue;
           const reply = result.text.trim();
-          if (reply && !rootText.includes(reply)) yield { type: 'delta', text: '\n\n' + reply };
+          const messageId = 'reply:' + id;
+          if (reply && !rootText.includes(reply))
+            yield { type: 'delta', messageId, text: '\n\n' + reply };
           if (
             result.formUrl &&
             !rootText.includes(result.formUrl) &&
             !reply.includes(result.formUrl)
           ) {
-            yield { type: 'delta', text: '\n' + result.formUrl };
+            yield { type: 'delta', messageId, text: '\n' + result.formUrl };
           }
         }
         finished = true;

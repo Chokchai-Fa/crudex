@@ -93,6 +93,17 @@ describe('get_scores room scope', () => {
     ).rejects.toMatchObject({ code: 'class_not_taught' });
   });
 
+  it('a teacher account from a real login sees the demo roster', async () => {
+    const ownerId = 'teacher-5a75086c-0ab7-4b8d-841a-475f3fa239aa';
+    expect(await getScores({ classLabel: 'ม.2/1' }, ctx({ ownerId }))).toMatchObject({
+      hasData: true,
+      classId: 'class-m2-1',
+    });
+    await expect(
+      getScores({ classLabel: untaughtDemoClass.label }, ctx({ ownerId })),
+    ).rejects.toMatchObject({ code: 'class_not_taught' });
+  });
+
   it('a session room outside the teacher’s list is refused', async () => {
     await expect(getScores({}, ctx({ classId: untaughtDemoClass.id }))).rejects.toMatchObject({
       code: 'class_not_taught',

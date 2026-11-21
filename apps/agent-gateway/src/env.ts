@@ -10,6 +10,7 @@ export const envSchema = z.object({
   VERCEL_PROJECT_ID: z.string().min(1),
   RUNTIME_REVISION: z.string().min(1).default('local'),
   DAILY_RUN_LIMIT: z.coerce.number().int().positive().default(60),
+  DAILY_RUN_LIMIT_OVERRIDES: z.record(z.iso.date(), z.number().int().positive()).optional(),
   IDLE_STOP_MINUTES: z.coerce.number().int().positive().default(10),
 });
 
