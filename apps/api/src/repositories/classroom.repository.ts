@@ -9,6 +9,7 @@ import {
   guardianStudents,
   schoolMemberships,
 } from '../db/schema';
+import { summarizeScores } from './score-history';
 import { ConflictError, ForbiddenError } from '../lib/errors';
 
 export async function insertAssessment(
@@ -77,6 +78,26 @@ export async function recordSubmission(
     );
   if (!previous) throw new ConflictError('This quiz has already been submitted');
   return previous;
+}
+export async function classScoreHistory(db: Db, schoolId: string, classId: string) {
+  // Assign class-local identifiers before joining submissions so a pupil keeps one alias across dates.
+  const result = await db.execute<
+    Parameters<typeof summarizeScores>[2][number] & { label: string }
+  >(sql`
+    with roster as (
+      select m.id, 's-' || to_char(row_number() over(order by a.display_name, m.id), 'FM000000') as alias
+      from class_assignments x join school_memberships m on m.id=x.membership_id and m.school_id=x.school_id
+      join school_accounts a on a.id=m.owner_id
+      where x.school_id=${schoolId} and x.class_id=${classId} and m.role='student'
+        and (m.expires_at is null or m.expires_at>now())
+    )
+    select w.id as "assessmentId", w.content, to_char(w.created_at at time zone 'Asia/Bangkok','YYYY-MM-DD') as date,
+      r.alias as "studentId", c.name as label, s.score, s.answers
+    from assessments w join school_classes c on c.id=w.class_id and c.school_id=w.school_id
+    join quiz_submissions s on s.assessment_id=w.id join roster r on r.id=s.student_id
+    where w.school_id=${schoolId} and w.class_id=${classId}
+    order by w.created_at,w.id,r.alias`);
+  return summarizeScores(classId, result.rows[0]?.label ?? '', result.rows);
 }
 export async function classGradebook(db: Db, schoolId: string, classId: string) {
   const [works, students] = await Promise.all([
