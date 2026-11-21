@@ -86,7 +86,7 @@ export function presentRun(
         break;
     }
   }
-  const answer = publicRunText(events, final)
+  const answer = publicRunText(events)
     .split(/\r?\n/)
     .filter(
       (line) =>
@@ -108,7 +108,7 @@ export function presentRun(
       const delegate =
         activityKind === 'handoff' && agents?.find((a) => a.id === activeTool.agentId);
       activity = delegate ? 'กำลังประสานงานกับ' + delegate.name : toolLabels.get(activeTool.name)!;
-    } else if (answer || publicRunText(events, true).trim()) {
+    } else if (answer) {
       activityKind = 'writing';
       activity = 'กำลังเรียบเรียงคำตอบ';
     } else {

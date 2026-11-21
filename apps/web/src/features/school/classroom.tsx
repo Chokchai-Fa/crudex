@@ -119,7 +119,7 @@ export function RunDetails({
   return (
     <div className="space-y-2">
       {answer && <SchoolAnswer text={answer} />}
-      {!error && ActivityIcon && (
+      {!error && ActivityIcon && activityKind !== 'writing' && (
         <p
           className="school-run-activity"
           data-kind={activityKind}
