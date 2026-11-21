@@ -171,12 +171,7 @@ function ChatRoom({
   const input = useRef<HTMLTextAreaElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLOListElement>(null);
-  const following = useRef(!handoff);
-  useLayoutEffect(() => {
-    if (!handoff) return;
-    following.current = false;
-    if (viewport.current) viewport.current.scrollTop = 0;
-  }, [handoff]);
+  const following = useRef(true);
   const runs = (history.data?.runs ?? []).filter((r) => r.classId === room.id).reverse();
   // Keep the teacher's bubble mounted when an optimistic message becomes a saved run.
   const messages: { key: string; prompt: string; run?: (typeof runs)[number] }[] = runs.map(
@@ -345,15 +340,13 @@ function ChatRoom({
               สมุดคะแนน · {room.name}
             </Button>
           </div>
-          {agent === 'jeng' && handoff && (
-            <KahootHandoff id={handoff} roomId={room.id} membershipId={actor.membershipId} />
-          )}
           {grades && <SchoolGradebook classId={room.id} membershipId={actor.membershipId} />}
           {history.isPending ? (
             <p role="status" className="chat-empty">
               กำลังอ่านประวัติ…
             </p>
           ) : (
+            !handoff &&
             !runs.length &&
             !pending &&
             !history.error && (
@@ -398,6 +391,7 @@ function ChatRoom({
                           status={run.status}
                           agentId={run.agentId}
                           roomId={room.id}
+                          prompt={teacherMessage(run.prompt)}
                           onFormUrl={formHandler(run.id)}
                           agents={directory.data?.agents}
                           onFollowUp={
@@ -426,6 +420,11 @@ function ChatRoom({
                 )}
               </li>
             ))}
+            {agent === 'jeng' && handoff && (
+              <li>
+                <KahootHandoff id={handoff} roomId={room.id} membershipId={actor.membershipId} />
+              </li>
+            )}
           </ol>
         </div>
         <form
