@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 command -v gh >/dev/null || { echo "gh CLI not found" >&2; exit 1; }
-gh auth status >/dev/null 2>&1 || { echo "Run 'gh auth login' first" >&2; exit 1; }
+gh auth status --hostname "${GH_HOST:-github.com}" >/dev/null 2>&1 || { echo "Run 'gh auth login' first" >&2; exit 1; }
 
 if [[ -z "$repo" ]]; then
   repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || {
