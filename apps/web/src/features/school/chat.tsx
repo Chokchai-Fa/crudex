@@ -140,6 +140,12 @@ function ChatRoom({
   const content = useRef<HTMLOListElement>(null);
   const following = useRef(true);
   const runs = (history.data?.runs ?? []).filter((r) => r.classId === room.id).reverse();
+  // Keep the teacher's bubble mounted when an optimistic message becomes a saved run.
+  const messages: { key: string; prompt: string; run?: (typeof runs)[number] }[] = runs.map(
+    (run) => ({ key: run.clientRequestId ?? run.id, prompt: run.prompt, run }),
+  );
+  if (pending && !messages.some(({ key }) => key === pending.request.clientRequestId))
+    messages.push({ key: pending.request.clientRequestId, prompt: pending.text });
   const currentTask =
     runs.findLast(
       (r) => r.agentId === agent && (r.status === 'running' || r.status === 'queued'),
@@ -335,45 +341,42 @@ function ChatRoom({
             )
           )}
           <ol ref={content} className="space-y-4 py-3">
-            {runs.map((run) => (
-              <li key={run.id} className="space-y-2">
-                <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
-                  {teacherMessage(run.prompt)}
+            {messages.map(({ key, prompt, run }) => (
+              <li key={key} className="space-y-2">
+                <p className="m-msg me teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
+                  {teacherMessage(prompt)}
                 </p>
-                <div className="flex items-start gap-2">
-                  <AssistantIcon id={run.agentId} />
-                  <div className="chat-response min-w-0 px-4 py-3">
-                    <RunDetails
-                      id={run.id}
-                      membershipId={actor.membershipId}
-                      status={run.status}
-                      agents={directory.data?.agents}
-                      hasArtifacts={run.worksheetIds.length > 0}
-                      onRetry={() => void send(run.prompt, `retry:${run.id}`)}
-                      retryDisabled={sending || localGatewayUnconfirmed}
-                    />
-                  </div>
-                </div>
-                {run.worksheetIds.map((id) => (
-                  <ChatArtifacts
-                    key={id}
-                    id={id}
-                    roomId={room.id}
-                    membershipId={actor.membershipId}
-                    open={sheet === id}
-                    toggle={() => setSheet(sheet === id ? '' : id)}
-                  />
-                ))}
+                {run && (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <AssistantIcon id={run.agentId} />
+                      <div className="m-msg chat-response min-w-0 px-4 py-3">
+                        <RunDetails
+                          id={run.id}
+                          membershipId={actor.membershipId}
+                          status={run.status}
+                          agentId={run.agentId}
+                          agents={directory.data?.agents}
+                          hasArtifacts={run.worksheetIds.length > 0}
+                          onRetry={() => void send(run.prompt, `retry:${run.id}`)}
+                          retryDisabled={sending || localGatewayUnconfirmed}
+                        />
+                      </div>
+                    </div>
+                    {run.worksheetIds.map((id) => (
+                      <ChatArtifacts
+                        key={id}
+                        id={id}
+                        roomId={room.id}
+                        membershipId={actor.membershipId}
+                        open={sheet === id}
+                        toggle={() => setSheet(sheet === id ? '' : id)}
+                      />
+                    ))}
+                  </>
+                )}
               </li>
             ))}
-            {pending &&
-              !runs.some((run) => run.clientRequestId === pending.request.clientRequestId) && (
-                <li>
-                  <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
-                    {teacherMessage(pending.text)}
-                  </p>
-                </li>
-              )}
           </ol>
         </div>
         <form

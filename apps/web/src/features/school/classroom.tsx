@@ -2,13 +2,14 @@ import { Link } from '@tanstack/react-router';
 import { Clock3, Ellipsis, LoaderCircle, MessageCircle, PencilLine, Workflow } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
-import type { SchoolActor } from '@repo/shared';
+import type { AgentId, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { SchoolAnswer } from './answer';
 import { useRunEvents } from './api/run-events';
 import { useRunMemory } from './api/run-memory';
 import { presentRun, type AgentNames } from './run-presentation';
+import { failureLine } from './presets';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
 
@@ -88,6 +89,7 @@ export function RunDetails({
   membershipId,
   status,
   agents,
+  agentId,
   hasArtifacts,
   onRetry,
   retryDisabled,
@@ -96,6 +98,7 @@ export function RunDetails({
   membershipId: string;
   status: keyof typeof statusLabels;
   agents?: AgentNames;
+  agentId?: AgentId;
   hasArtifacts?: boolean;
   /** Sends the same request again; shown only after a failed or interrupted reply. */
   onRetry?: () => void;
@@ -129,7 +132,7 @@ export function RunDetails({
       )}
       {failed ? (
         <div className="run-failed" role="status">
-          <p>{notice}</p>
+          <p>{notice === 'ผู้ช่วยทำงานนี้ไม่สำเร็จ' ? failureLine(agentId) : notice}</p>
           {onRetry && (
             <Button size="sm" disabled={retryDisabled} onClick={onRetry}>
               ส่งอีกครั้ง

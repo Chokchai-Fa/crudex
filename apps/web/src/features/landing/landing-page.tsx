@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 import { BrandLogo } from '@/components/brand-logo';
+import { initMotion } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 /**
@@ -24,7 +25,7 @@ const team: { id: AgentId; name: string; role: string; short: string }[] = [
   },
   {
     id: 'jum',
-    name: 'น้องจ๋ำ',
+    name: 'น้องจ๋า',
     role: 'ใบงาน PDF, ข้อสอบ และ Google Form ตามตัวชี้วัด สพฐ.',
     short: 'ใบงาน PDF ข้อสอบ และ Google Form',
   },
@@ -86,7 +87,7 @@ function Cta({
     <Link
       to="/school"
       className={cn(
-        'inline-flex items-center justify-center rounded-full font-semibold transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6BFF]',
+        'm-press inline-flex items-center justify-center rounded-full font-semibold transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F6BFF]',
         tone === 'dark' && 'bg-[#152238] text-white',
         tone === 'soft' && cn('bg-[#F2F5FB]', ink),
         tone === 'yellow' && cn('bg-[#FFD43B]', ink),
@@ -111,7 +112,7 @@ function SoftButton({
     <a
       href={href}
       className={cn(
-        'inline-flex items-center justify-center rounded-full bg-[#F2F5FB] font-semibold hover:opacity-90',
+        'm-press inline-flex items-center justify-center rounded-full bg-[#F2F5FB] font-semibold hover:opacity-90',
         ink,
         className,
       )}
@@ -145,7 +146,7 @@ function ChatSample({ compact = false }: { compact?: boolean }) {
             compact ? 'px-3.5 py-2.5 text-[15px]/5.75' : 'px-4 py-3 text-[15px]/5.75',
           )}
         >
-          ได้เลยค่ะครู! น้องจ๋ำทำใบงานกับฟอร์ม พี่เจ๋งทำเกม ส่งกลับมาในแชตนี้
+          ได้เลยค่ะครู! น้องจ๋าทำใบงานกับฟอร์ม พี่เจ๋งทำเกม ส่งกลับมาในแชตนี้
         </div>
       </div>
       <div className={cn('flex flex-col gap-2.5', compact ? 'pl-7' : 'pl-8')}>
@@ -285,15 +286,33 @@ function Sky({ mobile = false }: { mobile?: boolean }) {
     <>
       {mobile ? (
         <>
-          <div className="absolute -right-12 -top-12 size-34 rounded-full bg-[#FFD43B] [box-shadow:#FFD43BB3_0px_0px_50px]" />
-          <div className="absolute -left-8 top-40 h-14 w-40 rounded-[60px] bg-[#FFFFFFD9]" />
+          <div
+            data-parallax="0.18"
+            className="absolute -right-12 -top-12 size-34 rounded-full bg-[#FFD43B] [box-shadow:#FFD43BB3_0px_0px_50px]"
+          />
+          <div
+            data-parallax="0.26"
+            className="absolute -left-8 top-40 h-14 w-40 rounded-[60px] bg-[#FFFFFFD9]"
+          />
         </>
       ) : (
         <>
-          <div className="absolute -left-10 top-95 h-22.5 w-65 rounded-[60px] bg-[#FFFFFFD9]" />
-          <div className="absolute left-10 top-20 h-22.5 w-37.5 rounded-[60px] bg-[#FFFFFFD9]" />
-          <div className="absolute -right-7.5 top-82.5 h-20 w-60 rounded-[50px] bg-[#FFFFFFBF]" />
-          <div className="absolute right-22.5 -top-15 size-37.5 rounded-[75px] bg-[#FFD43B] [box-shadow:#FFD43BB3_0px_0px_60px]" />
+          <div
+            data-parallax="0.22"
+            className="absolute -left-10 top-95 h-22.5 w-65 rounded-[60px] bg-[#FFFFFFD9]"
+          />
+          <div
+            data-parallax="0.3"
+            className="absolute left-10 top-20 h-22.5 w-37.5 rounded-[60px] bg-[#FFFFFFD9]"
+          />
+          <div
+            data-parallax="0.18"
+            className="absolute -right-7.5 top-82.5 h-20 w-60 rounded-[50px] bg-[#FFFFFFBF]"
+          />
+          <div
+            data-parallax="0.26"
+            className="absolute right-22.5 -top-15 size-37.5 rounded-[75px] bg-[#FFD43B] [box-shadow:#FFD43BB3_0px_0px_60px]"
+          />
         </>
       )}
       <div
@@ -313,10 +332,11 @@ function Sky({ mobile = false }: { mobile?: boolean }) {
 /* ---------- page ---------- */
 
 export function LandingPage() {
+  useEffect(() => initMotion(), []);
   return (
     <div className="flex flex-col items-center overflow-x-clip bg-white font-sans antialiased [font-synthesis:none]">
       {/* nav */}
-      <header className="flex h-16 w-full max-w-300 shrink-0 items-center gap-2.5 px-5 md:h-22 md:gap-7 md:px-0">
+      <header className="m-nav sticky top-0 z-20 flex h-16 w-full max-w-300 shrink-0 bg-white items-center gap-2.5 px-5 md:h-22 md:gap-7 md:px-0">
         <div className="flex grow basis-0 items-center">
           <span className="md:hidden">
             <BrandLogo size={21} />
@@ -337,7 +357,7 @@ export function LandingPage() {
       </header>
 
       {/* hero */}
-      <section className="flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-9 pb-8 text-center md:gap-6.5 md:px-0 md:pt-18 md:pb-14">
+      <section className="m-hero flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-9 pb-8 text-center md:gap-6.5 md:px-0 md:pt-18 md:pb-14">
         <div className="inline-flex items-center gap-2 rounded-full bg-[#F2F5FB] px-3 py-1.25 md:px-4 md:py-1.75">
           <span className={cn('text-[13px]/4 md:text-[15px]/4.5', body)}>
             สำหรับครูและผู้บริหารโรงเรียน
@@ -384,11 +404,11 @@ export function LandingPage() {
             'linear-gradient(in oklab 180deg, #6FB6FF 0%, #A9D6FF 60%, #DDF0FF 100%)',
         }}
       >
-        <div className="md:hidden">
+        <div className="md:hidden" data-reveal="scale">
           <Sky mobile />
           <PhoneMock />
         </div>
-        <div className="hidden w-full justify-center px-10 md:flex">
+        <div className="hidden w-full justify-center px-10 md:flex" data-reveal="scale">
           <Sky />
           <BrowserMock />
         </div>
@@ -396,14 +416,18 @@ export function LandingPage() {
 
       {/* statement */}
       <section className="flex w-full max-w-280 flex-wrap items-center gap-x-3.5 gap-y-1.5 px-5 pt-14 pb-10 md:px-0 md:pt-35 md:pb-30">
-        <h2 className={cn('text-[32px]/10.5 font-bold tracking-[-0.03em] md:text-6xl/19', ink)}>
-          พิมพ์บอกบอท
+        <h2
+          data-scrub-words
+          className={cn('text-[32px]/10.5 font-bold tracking-[-0.03em] md:text-6xl/19', ink)}
+        >
+          <span className="w">พิมพ์บอกบอท</span>
           <span className="mx-3.5 hidden translate-y-1.5 gap-3.5 md:inline-flex">
             <Mascot id="jum" size={52} />
             <Mascot id="nun" size={52} />
           </span>
-          ว่าอยากได้อะไร
-          <br className="hidden md:inline" /> มันทำงานให้เองจนเสร็จ
+          <span className="w">ว่าอยากได้อะไร</span>
+          <br className="hidden md:inline" /> <span className="w">มันทำงานให้เอง</span>{' '}
+          <span className="w">จนเสร็จ</span>
           <span className="mx-3.5 hidden h-13 w-16 translate-y-2 items-center justify-center rounded-xl bg-[#E3ECFF] md:inline-flex">
             <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true">
               <rect
@@ -429,7 +453,9 @@ export function LandingPage() {
             </svg>
           </span>
           <br className="hidden md:inline" />{' '}
-          <span className="text-[#9AA7C2]">และจำได้ว่าครูชอบแบบไหน</span>
+          <span className="text-[#9AA7C2]">
+            <span className="w">และจำได้ว่า</span> <span className="w">ครูชอบแบบไหน</span>
+          </span>
           <span className="mx-3.5 hidden h-13 w-16 translate-y-2 items-center justify-center rounded-xl bg-[#FFF8D6] md:inline-flex">
             <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -471,9 +497,12 @@ export function LandingPage() {
           <p className={cn('hidden pb-5 text-xl/6 md:block', body)}>
             เริ่มจากน้องแจ๋วตัวเดียว น้องแจ๋วจะแบ่งงานให้น้อง ๆ ในทีมเอง
           </p>
-          <ul className="mt-3 grid gap-5 md:mt-0 md:grid-cols-2 md:gap-x-10 md:gap-y-7">
+          <ul
+            data-reveal-stagger
+            className="mt-3 grid gap-5 md:mt-0 md:grid-cols-2 md:gap-x-10 md:gap-y-7"
+          >
             {team.map((a) => (
-              <li key={a.id} className="flex gap-3 md:gap-4">
+              <li key={a.id} data-reveal="pop" className="m-lift flex gap-3 rounded-2xl md:gap-4">
                 <Mascot id={a.id} size={36} className="md:hidden" />
                 <Mascot id={a.id} size={44} className="hidden md:block" />
                 <div className="flex flex-col gap-1">
@@ -496,7 +525,7 @@ export function LandingPage() {
         <h2 className={cn('text-[32px]/10.5 font-bold tracking-[-0.03em] md:text-5xl/14.5', ink)}>
           สั่งในแชต ทีมทำต่อให้จนจบ
         </h2>
-        <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+        <div data-reveal-stagger className="flex flex-col gap-4 md:flex-row md:gap-6">
           <HowCard
             title="สรุปเช้าให้ ผอ."
             text="รุ่งเช้าสรุปภาพรวมโรงเรียนไม่เกิน 7 บรรทัด ระดับห้อง ไม่มีคะแนนรายคน"
@@ -543,7 +572,10 @@ export function LandingPage() {
       </section>
 
       {/* closing CTA */}
-      <section className="flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-16 pb-12 text-center md:gap-6 md:px-0 md:pt-30 md:pb-25">
+      <section
+        data-reveal="scale"
+        className="flex w-full max-w-300 flex-col items-center gap-4.5 px-5 pt-16 pb-12 text-center md:gap-6 md:px-0 md:pt-30 md:pb-25"
+      >
         <div className="hidden gap-2.5 md:flex">
           {(['jaew', 'jum', 'jeng', 'porn', 'nun'] as const).map((id) => (
             <Mascot key={id} id={id} size={56} />
@@ -584,7 +616,10 @@ export function LandingPage() {
 
 function HowCard({ title, text, children }: { title: string; text: string; children: ReactNode }) {
   return (
-    <div className="flex grow basis-0 flex-col gap-4 rounded-[28px] bg-[#F6F9FF] p-6 md:p-7">
+    <div
+      data-reveal
+      className="m-lift flex grow basis-0 flex-col gap-4 rounded-[28px] bg-[#F6F9FF] p-6 md:p-7"
+    >
       <h3 className={cn('text-[22px]/7 font-bold', ink)}>{title}</h3>
       <p className={cn('text-base/6.25', body)}>{text}</p>
       <div className="mt-auto flex flex-col gap-2.5 rounded-2xl bg-white p-3.5 [box-shadow:#1522380D_0px_2px_10px]">

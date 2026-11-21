@@ -98,3 +98,10 @@ export function isBackgroundRequest(prompt: string) {
     /(?:ใบงาน|แบบฝึก|ข้อสอบ|แบบทดสอบ|สไลด์|เอกสาร|รายงาน|แผนการสอน|แบบฟอร์ม|เกม|worksheet|quiz|slides?|presentation|report|lesson plan|document|pdf|kahoot)/iu;
   return create.test(request) && artifact.test(request);
 }
+
+/** Friendly failed-reply line in each assistant's voice. */
+export function failureLine(agent: AgentId | undefined) {
+  if (agent === 'jeng' || agent === 'lekha_por') return 'ขอโทษครับ ระบบสะดุด ลองส่งอีกครั้งนะครับ';
+  if (agent === 'porn') return 'ขอโทษจ้ะ ระบบสะดุด ลองส่งอีกครั้งนะจ๊ะ';
+  return 'ขอโทษค่ะ ระบบสะดุด ลองส่งอีกครั้งนะคะ';
+}

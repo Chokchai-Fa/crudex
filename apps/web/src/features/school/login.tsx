@@ -64,7 +64,7 @@ export function GuestRolePicker() {
       </div>
       <div className="role-cards">
         {guestRoles.map(({ role, label, icon, detail, scope, action }) => (
-          <article key={role} className="role-card" data-role={role}>
+          <article key={role} className="role-card m-lift m-press" data-role={role}>
             <img src={icon} alt="" width="72" height="72" />
             <h2 className="text-2xl font-bold">{label}</h2>
             <p className="text-base text-muted-foreground">{detail}</p>

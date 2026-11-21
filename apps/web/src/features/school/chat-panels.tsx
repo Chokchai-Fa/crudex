@@ -4,7 +4,7 @@ import { statusLabels } from './classroom';
 import { Link } from '@tanstack/react-router';
 import { Clock3, AudioLines } from 'lucide-react';
 import type { AgentId, RunStatus, SchoolActor } from '@repo/shared';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import secretary from '@/assets/mascots/secretary.svg?raw';
 import paper from '@/assets/mascots/paper.svg?raw';
 import notebook from '@/assets/mascots/notebook.svg?raw';
@@ -44,12 +44,14 @@ export function AssistantIcon({ id, size = 40 }: { id: AgentId; size?: number })
 }
 function TeamRow({
   assistant: { id, name },
+  index,
   activity,
   selected,
   disabled,
   onAgent,
 }: {
   assistant: { id: AgentId; name: string };
+  index: number;
   activity?: TeamActivity;
   selected: boolean;
   disabled: boolean;
@@ -60,6 +62,7 @@ function TeamRow({
       disabled={disabled}
       aria-pressed={selected}
       data-activity={activity}
+      style={{ '--i': index } as CSSProperties}
       className={'team-row w-full text-start ' + (selected ? 'current' : '')}
       onClick={() => onAgent(id)}
     >
@@ -101,6 +104,16 @@ export function SchoolTeam({
   const directory = useSchoolAgents(actor.membershipId);
   const activity = useTeamActivity(actor.membershipId, roomId, agent, directory.data?.agents ?? []);
   const logout = useSchoolLogout();
+  // The agent list slides in once per browser session, not on every chat switch.
+  const [listIntro] = useState(() => {
+    try {
+      if (sessionStorage.getItem('crudex.agent-list-intro')) return false;
+      sessionStorage.setItem('crudex.agent-list-intro', '1');
+    } catch {
+      // Storage unavailable: play it.
+    }
+    return true;
+  });
   return (
     <nav id="school-team" className="school-team team-nav" aria-label="ห้องและผู้ช่วย">
       <Link to="/school">
@@ -122,12 +135,13 @@ export function SchoolTeam({
           ))}
         </div>
       </fieldset>
-      <div>
+      <div className={listIntro ? 'm-list' : undefined}>
         {directory.error && <p role="alert">{directory.error.message}</p>}
-        {directory.data?.agents.map((assistant) => (
+        {directory.data?.agents.map((assistant, index) => (
           <TeamRow
             key={assistant.id}
             assistant={assistant}
+            index={index}
             activity={activity.get(assistant.id)}
             selected={agent === assistant.id}
             disabled={disabled}
