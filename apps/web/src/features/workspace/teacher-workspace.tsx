@@ -1,17 +1,18 @@
 import { Link } from '@tanstack/react-router';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Clock3, Menu, Send } from 'lucide-react';
+import { ArrowUp, Clock3, Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { RoomNavigation } from './room-navigation';
+import { TeamIcon, TeacherTeam, TeamStatus } from './teacher-team';
+import { classroomResults } from './demo-gradebook';
+import { flushSync } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 
 import { chatKey, readConversation, replyTo } from './demo-chat';
 import { Worksheet } from './worksheet';
 import './chat-activity.css';
 
-import { rooms } from './fraction-set';
+import { exercises, rooms } from './fraction-set';
 import { QuizCard } from './quiz-card';
 import { FormCard } from './form-card';
 
@@ -50,6 +51,8 @@ export function TeacherWorkspace() {
     ),
   );
   const [activeTurn, setActiveTurn] = useState('');
+  const [quizStep, setQuizStep] = useState(-1);
+  const [quizOpen, setQuizOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
   const following = useRef(true);
@@ -114,29 +117,73 @@ export function TeacherWorkspace() {
     setActiveTurn('');
     setMenuOpen(false);
     setRoom(value);
+    setQuizStep(-1);
+    setQuizOpen(false);
     setPreviewRoom('');
     setDraft(pending[value] ? '' : (sessionStorage.getItem(draftKey(value)) ?? ''));
   }
 
+  const quickPrompts = [
+    request
+      ? ['อธิบายข้อ 7', 'ช่วยอธิบายข้อ 7']
+      : ['ทำใบงาน', 'ช่วยทำใบงานเศษส่วน ป.5 จำนวน 10 ข้อ พร้อมฟอร์มและควิซ'],
+    ['ดูคะแนน', 'ใครต้องติว'],
+    ['ร่างรายงาน', 'เปิดร่างรายงานผู้ปกครอง'],
+  ] as const;
+  const students = classroomResults(room);
+  const submitted = students.filter((s) => s.score !== null).length;
+  const support = students.filter((s) => s.score !== null && s.score < 5).length;
+  useLayoutEffect(() => {
+    const input = draftInput.current;
+    if (!input) return;
+    const resize = () => {
+      input.style.height = 'auto';
+      input.style.height = input.scrollHeight + 'px';
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [draft]);
   const latestWorksheet = turns.map((turn) => turn.kind).lastIndexOf('worksheet');
   const artifacts = request && (
     <div id="room-artifacts" className="chat-artifacts space-y-3">
       {formFailed && (
         <p role="status">ใบงานพร้อม · ฟอร์มจำลองยังไม่พร้อม ลองใหม่ที่การ์ดฟอร์มได้ค่ะ</p>
       )}
-      <div className="grid gap-3 xl:grid-cols-3">
-        <article className="space-y-3 rounded-2xl border p-4">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <img src="/agents/jum.svg" alt="" width="32" height="32" />
-            ใบงาน A4 · {room}
-          </h2>
-          <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
-          <Button
-            aria-expanded={previewRoom === room}
-            onClick={() => setPreviewRoom(previewRoom === room ? '' : room)}
-          >
-            {previewRoom === room ? 'ปิดตัวอย่าง' : 'ตรวจใบงาน'} · {room}
-          </Button>
+      <div className="artifact-byline">
+        <TeamIcon name="paper" size={27} />
+        <span>น้องกระดาษ · สื่อของห้อง {room}</span>
+      </div>
+      <div className="output-grid">
+        <article className="output-card sheet-output">
+          <div className="mini-page" aria-hidden="true">
+            <b>ใบงาน เศษส่วน ป.5</b>
+            <small>ชื่อ………… เลขที่……</small>
+            {exercises.slice(0, 3).map(([q], i) => (
+              <span key={q}>
+                {i + 1}) {q} = ___
+              </span>
+            ))}
+          </div>
+          <h2>ใบงาน A4</h2>
+          <div className="card-actions">
+            <Button
+              onClick={() => {
+                flushSync(() => setPreviewRoom(room));
+                window.print();
+              }}
+            >
+              พิมพ์
+            </Button>
+            <Button
+              variant="outline"
+              aria-label={(previewRoom === room ? 'ปิดตัวอย่าง' : 'ตรวจใบงาน') + ' · ' + room}
+              aria-expanded={previewRoom === room}
+              onClick={() => setPreviewRoom(previewRoom === room ? '' : room)}
+            >
+              {previewRoom === room ? 'ปิด' : 'ดูทั้งหมด'}
+            </Button>
+          </div>
         </article>
         <FormCard
           key={room}
@@ -144,9 +191,55 @@ export function TeacherWorkspace() {
           failed={formFailed}
           onFailureChange={(failed) => updateFormFailure(room, failed)}
         />
-        <QuizCard key={'quiz-' + room} room={room} />
+        <article className="output-card quiz-output">
+          <div className="mini-page" aria-hidden="true">
+            <b>ควิซสด · เศษส่วน</b>
+            <div className="preview-choices swatches">
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
+          </div>
+          <h2>ควิซสด</h2>
+          <div className="card-actions">
+            <Button
+              aria-expanded={quizOpen}
+              onClick={() => {
+                if (quizStep < 0) setQuizStep(0);
+                setQuizOpen(!quizOpen);
+              }}
+            >
+              {quizOpen ? 'ย่อควิซ' : quizStep < 0 ? 'เริ่มควิซ' : 'เปิดควิซ'}
+            </Button>
+          </div>
+        </article>
       </div>
+      {quizOpen && <QuizCard key={room} room={room} step={quizStep} setStep={setQuizStep} />}
       {previewRoom === room && <Worksheet room={room} />}
+      <div className="score-line">
+        <TeamIcon name="notebook" size={27} />
+        <section className="score-summary">
+          <h2>
+            คะแนนเข้าแล้ว {submitted}/{students.length} คน
+          </h2>
+          <div className="score-tiles">
+            {[
+              [submitted - support, 'ผ่านแล้ว'],
+              [support, 'ต้องติว'],
+              [students.length - submitted, 'ยังไม่ส่ง'],
+            ].map(([n, label]) => (
+              <div key={label}>
+                <b>{n}</b>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+          <Link to="/gradebook" search={{ room }}>
+            ดูรายชื่อในสมุดคะแนน →
+          </Link>
+        </section>
+      </div>
     </div>
   );
 
@@ -159,7 +252,13 @@ export function TeacherWorkspace() {
           ' row-start-1 max-h-[30dvh] overflow-y-auto overscroll-contain lg:col-start-1 lg:block lg:max-h-full print:hidden'
         }
       >
-        <RoomNavigation room={room} onRoomChange={switchRoom} />
+        <TeacherTeam
+          room={room}
+          changeRoom={switchRoom}
+          submitted={submitted}
+          hasSet={!!request}
+          working={!!pendingPrompt}
+        />
       </div>
       <div className="row-start-2 grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-card lg:col-start-2 lg:row-start-1 print:block">
         <header className="flex items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-5">
@@ -175,15 +274,19 @@ export function TeacherWorkspace() {
             <Menu aria-hidden="true" />
           </Button>
           <img
-            src="/agents/jaew.svg"
+            src="/team/secretary.svg"
             alt=""
             width="48"
             height="48"
             className="size-9 object-contain sm:size-12"
           />
           <div>
-            <h1 className="text-lg font-semibold sm:text-2xl">น้องแจ๋ว · เลขาครู</h1>
-            <p className="text-sm text-muted-foreground">ห้อง {room} · บทสนทนาตัวอย่าง</p>
+            <h1 className="text-lg font-semibold sm:text-2xl">เลขาครู</h1>
+            <p className="text-sm text-muted-foreground">
+              <span className="availability-dot" />{' '}
+              {pendingPrompt ? 'กำลังเตรียมคำตอบ' : 'ว่าง คุยได้เลย'} · {room}
+              {!menuOpen && <span className="lg:hidden"> · บัญชีตัวอย่าง</span>}
+            </p>
           </div>
           <div className="ms-auto shrink-0">
             <ThemeToggle />
@@ -214,21 +317,18 @@ export function TeacherWorkspace() {
                   key={turnKey}
                   className={turnKey === activeTurn ? 'chat-turn-active space-y-2' : 'space-y-2'}
                 >
-                  <p className="ms-auto w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-accent p-3 text-accent-foreground">
+                  <p className="teacher-bubble ms-auto w-fit whitespace-pre-wrap break-words">
                     {prompt}
                   </p>
                   <div className="flex items-start gap-2">
                     <img
-                      src="/agents/jaew.svg"
-                      alt=""
+                      src="/team/secretary.svg"
+                      alt="เลขาครู"
                       width="32"
                       height="32"
                       className="shrink-0"
                     />
                     <div className="min-w-0 space-y-1">
-                      <p className="text-sm font-semibold">
-                        น้องแจ๋ว <span className="font-normal text-muted-foreground">· จำลอง</span>
-                      </p>
                       <div
                         key={turn ? 'ready' : 'working'}
                         className="chat-response w-fit rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5"
@@ -238,7 +338,7 @@ export function TeacherWorkspace() {
                         ) : (
                           <p className="flex items-center gap-2">
                             <Clock3 aria-hidden="true" className="size-4 shrink-0 text-primary" />
-                            กำลังเตรียมคำตอบตัวอย่าง…
+                            กำลังเตรียมคำตอบ…
                           </p>
                         )}
                       </div>
@@ -248,7 +348,7 @@ export function TeacherWorkspace() {
                   {turn?.steps && turn.steps.length > 0 && (
                     <details className="text-sm text-muted-foreground">
                       <summary className="w-fit cursor-pointer py-2 font-medium">
-                        รายละเอียดการทำงานจำลอง
+                        รายละเอียดการทำงาน
                       </summary>
                       <ol className="list-decimal space-y-1 ps-6">
                         {turn.steps.map((step) => (
@@ -286,81 +386,59 @@ export function TeacherWorkspace() {
             })}
           </ol>
         </div>
-        <div className="relative space-y-1.5 border-t px-3 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-3">
+        <div className="chat-compose">
           <p role="status" className="sr-only">
-            {pendingPrompt
-              ? 'น้องแจ๋วกำลังเตรียมคำตอบตัวอย่าง'
-              : turns.length
-                ? 'น้องแจ๋วตอบแล้ว'
-                : ''}
+            {pendingPrompt ? 'เลขาครูกำลังเตรียมคำตอบ' : turns.length ? 'เลขาครูตอบแล้ว' : ''}
           </p>
           <Label htmlFor="draft" className="sr-only">
-            คุยกับน้องแจ๋ว · ห้อง {room}
+            คุยกับเลขาครู · ห้อง {room}
           </Label>
-          <Textarea
-            id="draft"
-            ref={draftInput}
-            rows={2}
-            className="min-h-11 max-h-[14dvh] resize-none rounded-xl text-base"
-            placeholder={
-              request ? 'ถามต่อเกี่ยวกับใบงาน เช่น อธิบายข้อ 3' : 'วันนี้อยากให้ช่วยเตรียมอะไรคะ?'
-            }
-            value={draft}
-            onChange={(event) => edit(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault();
-                sendMessage();
-              }
-            }}
-          />
-          <p className="text-muted-foreground text-sm">
-            แชตจำลอง · ใช้ใบงานเศษส่วน ป.5 ชุดตัวอย่างและข้อมูลของห้องนี้
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={!draft.trim() || !!pending[room]} onClick={sendMessage}>
-              <Send aria-hidden="true" />
-              ส่งข้อความ
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                edit(
-                  request
-                    ? 'ช่วยอธิบายข้อ 3 ของใบงานเดิม'
-                    : 'เตรียมใบงานเศษส่วน ป.5 จำนวน 10 ข้อ และฟอร์มสำหรับห้อง ' + room,
-                );
-                draftInput.current?.focus();
+          <div className="prompt-chips">
+            {quickPrompts.map(([label, prompt]) => (
+              <button
+                key={label}
+                onClick={() => {
+                  edit(prompt);
+                  draftInput.current?.focus({ preventScroll: true });
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="compose-capsule">
+            <textarea
+              id="draft"
+              ref={draftInput}
+              rows={1}
+              placeholder="พิมพ์คุยกับเลขาครู…"
+              value={draft}
+              onChange={(e) => edit(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  sendMessage();
+                }
               }}
+            />
+            <button
+              className="submit-arrow"
+              aria-label="ส่งข้อความ"
+              disabled={!draft.trim() || !!pendingPrompt}
+              onClick={sendMessage}
             >
-              ใช้คำสั่งตัวอย่าง
-            </Button>
+              <ArrowUp size={22} aria-hidden="true" />
+            </button>
           </div>
         </div>
       </div>
-      <aside className="hidden space-y-2 overflow-y-auto border-s bg-card p-5 lg:col-start-3 lg:row-start-1 lg:block print:hidden">
-        <h2 className="font-semibold">สถานะงาน · {room}</h2>
-        {request && !pending[room] ? (
-          <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-muted-foreground">ใบงาน A4</dt>
-              <dd>พร้อมตรวจ</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">ฟอร์มจำลอง</dt>
-              <dd>{formFailed ? 'เตรียมไม่สำเร็จ · ลองใหม่ได้' : 'พร้อมเปิด'}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">ควิซจำลอง</dt>
-              <dd>พร้อมเปิดโจทย์</dd>
-            </div>
-          </dl>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {pending[room] ? 'กำลังตอบคำขอ' : 'ยังไม่ได้สร้างใบงานในห้องนี้'}
-          </p>
-        )}
-      </aside>
+      <TeamStatus
+        room={room}
+        hasSet={!!request}
+        working={!!pendingPrompt}
+        failed={formFailed}
+        step={quizStep}
+      />
     </main>
   );
 }

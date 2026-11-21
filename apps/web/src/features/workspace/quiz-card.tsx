@@ -9,8 +9,15 @@ const choiceColors = [
   'bg-rose-100 text-rose-950 dark:bg-rose-900 dark:text-rose-50',
 ];
 
-export function QuizCard({ room }: { room: string }) {
-  const [step, setStep] = useState(-1);
+export function QuizCard({
+  room,
+  step,
+  setStep,
+}: {
+  room: string;
+  step: number;
+  setStep: (step: number) => void;
+}) {
   const [revealed, setRevealed] = useState(false);
   const [selected, setSelected] = useState('');
   const question = exercises[step];
@@ -21,7 +28,7 @@ export function QuizCard({ room }: { room: string }) {
   }
   return (
     <article className="space-y-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
-      <h2 className="font-semibold">ควิซสดจำลอง · {room}</h2>
+      <h2 className="font-semibold">ควิซสด · {room}</h2>
       <p className="text-sm">ครูเปิดโจทย์ทีละข้อบนหน้าจอนี้</p>
       {question ? (
         <>
@@ -60,7 +67,7 @@ export function QuizCard({ room }: { room: string }) {
         <>
           {step === exercises.length && <p role="status">จบควิซครบ {exercises.length} ข้อแล้ว</p>}
           <Button variant="outline" onClick={() => move(0)}>
-            {step < 0 ? 'เริ่มควิซจำลอง' : 'เริ่มควิซอีกครั้ง'}
+            {step < 0 ? 'เริ่มควิซ' : 'เริ่มควิซอีกครั้ง'}
           </Button>
         </>
       )}

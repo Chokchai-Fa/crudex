@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { Copy } from 'lucide-react';
+import { exercises, answerChoices } from './fraction-set';
 import { Button } from '@/components/ui/button';
 
 type FormCardProps = {
@@ -35,9 +37,32 @@ export function FormCard({ room, failed, onFailureChange }: FormCardProps) {
   }
 
   return (
-    <article className="min-w-0 space-y-3 rounded-2xl border p-4">
-      <h2 className="font-semibold">ฟอร์มจำลอง · {room}</h2>
-      <p className="text-sm">บวกและลบเศษส่วน · 10 ข้อ</p>
+    <article className="output-card form-output">
+      <div className="mini-page form-page" aria-hidden="true">
+        <b>แบบทดสอบ เศษส่วน</b>
+        <span>ข้อ 1: {exercises[0][0]} = ?</span>
+        <small>○ {answerChoices(exercises[0][1], 0, 4).slice(0, 2).join('　○ ')}</small>
+      </div>
+      <div className="form-title">
+        <h2>ฟอร์ม</h2>
+        {!failed && (
+          <details className="form-options">
+            <summary aria-label="ทดสอบสถานะฟอร์ม" title="ทดสอบสถานะฟอร์ม">
+              ⋯
+            </summary>
+            <Button
+              variant="outline"
+              onClick={() => {
+                restoreFocus.current = true;
+                onFailureChange(true);
+                setMessage('');
+              }}
+            >
+              จำลองฟอร์มล้มเหลว
+            </Button>
+          </details>
+        )}
+      </div>
       {failed ? (
         <>
           <p role="status">จำลองการเตรียมฟอร์มไม่สำเร็จ</p>
@@ -55,17 +80,23 @@ export function FormCard({ room, failed, onFailureChange }: FormCardProps) {
         </>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2">
+          <div className="card-actions">
             <Button asChild variant="outline">
               <a ref={formLink} href={url} target="_blank" rel="noreferrer">
                 เปิดฟอร์ม
               </a>
             </Button>
-            <Button variant="outline" onClick={copyLink}>
-              คัดลอกลิงก์
+            <Button
+              variant="outline"
+              title="คัดลอกลิงก์"
+              aria-label="คัดลอกลิงก์"
+              onClick={copyLink}
+            >
+              <Copy aria-hidden="true" size={15} />
+              <span className="sr-only xl:not-sr-only">คัดลอกลิงก์</span>
             </Button>
           </div>
-          <p role="status" className="text-sm">
+          <p role="status" className="text-sm empty:hidden">
             {message}
           </p>
           {message.startsWith('เลือก') && (
@@ -77,19 +108,6 @@ export function FormCard({ room, failed, onFailureChange }: FormCardProps) {
               className="w-full rounded border p-2"
             />
           )}
-          <details className="text-sm">
-            <summary className="min-h-11 cursor-pointer py-3">ทดสอบสถานะเดโม</summary>
-            <Button
-              variant="outline"
-              onClick={() => {
-                restoreFocus.current = true;
-                onFailureChange(true);
-                setMessage('');
-              }}
-            >
-              จำลองฟอร์มล้มเหลว
-            </Button>
-          </details>
         </>
       )}
     </article>
