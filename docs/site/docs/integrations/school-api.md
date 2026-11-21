@@ -44,15 +44,24 @@ A tool event includes the call ID, name and status. A completed run ends with `d
 
 Open the teacher copy at `GET /api/assessments/{id}`. Its `formUrl` is an application navigation path. Extract the play token to call `GET /api/play/{token}`. The quiz response contains student-safe questions and choices. A student assigned to that class posts `{"answers":{"q1":"<choice-id>"}}` to the same endpoint using the IDs it returned. Submit once for each student and worksheet. An identical retry returns the original grade; different answers after submission produce 409. The teacher’s `GET /api/classes/{id}/gradebook` returns the class roster, total earned and possible points across submissions, and worksheet links. Missing scores are null.
 
+## Connect a teacher's Kahoot account
+
+Show signed-in teachers a plain link on the application origin, such as `<a href="/api/integrations/kahoot/connect">เชื่อมบัญชี Kahoot</a>`. Open the link as a top-level navigation so the school session cookie goes with the request. After Kahoot sign-in, the browser returns to `/?kahoot=connected` or `/?kahoot=failed`.
+
+- `GET /api/integrations/kahoot/status` returns `connected` and, when connected, `connectedAt` and `expiresAt` in Unix milliseconds.
+- `POST /api/integrations/kahoot/disconnect` is a same-origin request that revokes the grant and returns the updated status.
+
+Each teacher connects their own account for each school. The gateway stores the grant across sandbox restarts and keeps the OAuth tokens server-side. Only พี่เจ๋ง can use the integration to create a new draft from a set that passed `check_assessment` and to retrieve the Kahoot or its editor link.
+
 ## Other school workflows
 
-| Workflow | Caller and contract |
-| --- | --- |
-| Teacher memory | List a run’s proposals, then explicitly approve a proposal using its ID. Approved memories can be listed and deleted by their owner. A model’s suggestion alone cannot authorize storage. |
+| Workflow                    | Caller and contract                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Teacher memory              | List a run’s proposals, then explicitly approve a proposal using its ID. Approved memories can be listed and deleted by their owner. A model’s suggestion alone cannot authorize storage.                                                                                                                                                                    |
 | Routines and family reports | An assigned teacher creates a daily class routine with a Bangkok-local hour and minute. The scheduler checks due work every five minutes. Pause or resume with `PATCH /routines/{id}`. `GET /reports` returns teacher-visible drafts; guardians can read sent reports only for their currently linked children. The school backend currently creates drafts. |
-| Principal brief | `GET /briefs/morning?date=YYYY-MM-DD` returns school-scoped class and student counts, submissions, weighted average percent and report count. The optional date selects the Bangkok day for submissions and reports. Classes and students reflect current membership. The average is null when there are no marks. |
-| Budget approvals | The teacher submits an idempotent request with date, budget code, purpose, items, quantities and integer prices in satang. Teachers read their own claims, principals read school claims. Only a signed-in principal can approve or return a pending claim. A return requires a reason. Each decision produces one notification per channel. |
-| Runtime tool callbacks | Endpoints under `/internal/runs/{id}/tools/` require the credential of an active run attempt and enforce its scope. They are server-to-server operations. The browser uses the school routes above. |
+| Principal brief             | `GET /briefs/morning?date=YYYY-MM-DD` returns school-scoped class and student counts, submissions, weighted average percent and report count. The optional date selects the Bangkok day for submissions and reports. Classes and students reflect current membership. The average is null when there are no marks.                                           |
+| Budget approvals            | The teacher submits an idempotent request with date, budget code, purpose, items, quantities and integer prices in satang. Teachers read their own claims, principals read school claims. Only a signed-in principal can approve or return a pending claim. A return requires a reason. Each decision produces one notification per channel.                 |
+| Runtime tool callbacks      | Endpoints under `/internal/runs/{id}/tools/` require the credential of an active run attempt and enforce its scope. They are server-to-server operations. The browser uses the school routes above.                                                                                                                                                          |
 
 All paths in this table are relative to `/api`. Times in JSON are ISO 8601 unless a field explicitly says milliseconds. Error responses use `{"error":{"code":"…","message":"…"}}` for application errors. Handle 400 for invalid input, 401 for a missing/expired session, 403 for insufficient permission, 404 for an unavailable resource, 409 for conflicting retries and 429 for exhausted run quota. After HTTP 202, execution failures arrive on the run stream. The legacy public notes and health routes are also listed in the specification.
 

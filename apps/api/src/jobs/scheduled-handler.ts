@@ -9,10 +9,10 @@ import type { Deps } from '../types/deps';
  * consumer: build deps, call a service. Errors are rethrown so the run shows as failed in the
  * Cloudflare dashboard. `makeDeps` is injectable for tests.
  */
-export function createScheduledHandler(makeDeps: (env: Env) => Deps) {
+export function createScheduledHandler<Bindings>(makeDeps: (env: Bindings) => Deps) {
   return async function handleScheduled(
     controller: ScheduledController,
-    env: Env,
+    env: Bindings,
     _ctx: ExecutionContext,
   ) {
     try {

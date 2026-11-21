@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { KahootConnection } from '../src/kahoot-connection';
+import { kahootConnection } from './support/kahoot';
+import type { KahootConnection } from '../src/kahoot-connection';
 
 vi.mock('cloudflare:workers', () => ({
   DurableObject: class {
@@ -17,20 +18,6 @@ const tokens = {
   expires_in: 120,
 };
 const timestamp = 1_800_000_000_000;
-
-function connection() {
-  const values = new Map<string, unknown>();
-  return new KahootConnection(
-    {
-      storage: {
-        get: async (key: string) => structuredClone(values.get(key)),
-        put: async (key: string, value: unknown) => values.set(key, structuredClone(value)),
-        delete: async (key: string) => values.delete(key),
-      },
-    } as unknown as DurableObjectState,
-    {} as Env,
-  );
-}
 
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
@@ -50,12 +37,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function authorize(kahoot: KahootConnection, redirectOrigin = origin) {
-  return new URL(await kahoot.beginAuthorization(redirectOrigin));
+async function authorize(kahoot: KahootConnection, redirectUri = origin + '/kahoot/callback') {
+  return new URL(await kahoot.beginAuthorization(redirectUri));
 }
 
 async function connected() {
-  const kahoot = connection();
+  const kahoot = kahootConnection();
   const url = await authorize(kahoot);
   expect(await kahoot.callback('fixture-code', url.searchParams.get('state')!)).toBe(true);
   return kahoot;
@@ -74,7 +61,7 @@ function post(body: unknown, headers?: HeadersInit) {
 }
 
 it('registers once and exchanges a code with S256 PKCE and a single-use state', async () => {
-  const kahoot = connection();
+  const kahoot = kahootConnection();
   const [first, second] = await Promise.all([authorize(kahoot), authorize(kahoot)]);
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const [registerUrl, registration] = fetchMock.mock.calls[0]!;
@@ -132,7 +119,7 @@ it('registers once and exchanges a code with S256 PKCE and a single-use state', 
 });
 
 it('limits pending attempts to eight and consumes expired and cancelled states', async () => {
-  const kahoot = connection();
+  const kahoot = kahootConnection();
   const attempts = await Promise.all(Array.from({ length: 9 }, () => authorize(kahoot)));
   const state = (i: number) => attempts[i]!.searchParams.get('state')!;
   expect(await kahoot.callback('fixture-code', state(0))).toBe(false);
@@ -207,9 +194,9 @@ it('registers again for a new redirect URI and revokes the original grant with i
   const kahoot = await connected();
   const nextOrigin = 'https://another.example';
   fetchMock.mockResolvedValueOnce(Response.json({ client_id: 'next-client' }));
-  expect((await authorize(kahoot, nextOrigin)).searchParams.get('redirect_uri')).toBe(
-    nextOrigin + '/kahoot/callback',
-  );
+  expect(
+    (await authorize(kahoot, nextOrigin + '/kahoot/callback')).searchParams.get('redirect_uri'),
+  ).toBe(nextOrigin + '/kahoot/callback');
   expect(String(fetchMock.mock.calls[2]?.[0])).toBe(issuer + '/register');
   fetchMock.mockClear().mockResolvedValue(new Response(null));
   await kahoot.disconnect();
@@ -219,10 +206,10 @@ it('registers again for a new redirect URI and revokes the original grant with i
 });
 
 it('keeps pending attempts bound to their client when the redirect URI changes', async () => {
-  const kahoot = connection();
+  const kahoot = kahootConnection();
   const first = await authorize(kahoot);
   fetchMock.mockResolvedValueOnce(Response.json({ client_id: 'next-client' }));
-  const second = await authorize(kahoot, 'https://another.example');
+  const second = await authorize(kahoot, 'https://another.example/kahoot/callback');
   const firstState = first.searchParams.get('state')!;
   const secondState = second.searchParams.get('state')!;
 
@@ -338,7 +325,7 @@ it('retries a rejected buffered MCP request once with the refreshed token', asyn
 });
 
 it('forwards bodyless GET and DELETE requests and reports a disconnected account', async () => {
-  const kahoot = connection();
+  const kahoot = kahootConnection();
   const request = (method: string) => new Request(origin + '/__kahoot/mcp', { method });
   const response = await kahoot.mcp(request('GET'));
   expect(response.status).toBe(401);

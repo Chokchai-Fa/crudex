@@ -31,8 +31,11 @@ export async function runJob(deps: Deps, job: JobMessage): Promise<void> {
  * acks or retries with backoff. Handlers must be idempotent: Cloudflare redelivers on retry.
  * `makeDeps` and `run` are injectable so the retry rules can be tested with fakes.
  */
-export function createQueueHandler(makeDeps: (env: Env) => Deps, run: JobRunner = runJob) {
-  return async function handleQueue(batch: MessageBatch, env: Env, _ctx: ExecutionContext) {
+export function createQueueHandler<Bindings>(
+  makeDeps: (env: Bindings) => Deps,
+  run: JobRunner = runJob,
+) {
+  return async function handleQueue(batch: MessageBatch, env: Bindings, _ctx: ExecutionContext) {
     const deps = makeDeps(env);
     for (const message of batch.messages) {
       const parsed = jobMessageSchema.safeParse(message.body);

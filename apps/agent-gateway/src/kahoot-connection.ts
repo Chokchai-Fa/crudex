@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { z } from 'zod';
+import type { KahootStatus } from '../../../packages/shared/src/school-dispatch.schema';
 import {
   forwardKahootMcp,
   isKahootMcpRequest,
@@ -7,6 +8,7 @@ import {
   kahootResource,
   readKahootMcpBody,
 } from './kahoot-mcp';
+import { kahootState, parseKahootState } from './kahoot-state';
 import { randomToken } from './sandbox';
 
 const issuer = 'https://mcp.kahoot.it';
@@ -106,10 +108,11 @@ export class KahootConnection extends DurableObject<Env> {
     return result;
   }
 
-  async beginAuthorization(origin: string) {
+  async beginAuthorization(redirectUri: string) {
+    const name = this.ctx.id.name;
+    if (!name) throw new Error('Kahoot connection must be named');
     return this.#serialize(async () => {
       const storage = this.ctx.storage;
-      const redirectUri = origin + '/kahoot/callback';
       let client = await storage.get<Client>('client');
       if (client?.redirectUri !== redirectUri) {
         const response = await oauthFetch(
@@ -139,7 +142,7 @@ export class KahootConnection extends DurableObject<Env> {
         await storage.put('client', client);
       }
 
-      const state = randomToken();
+      const nonce = randomToken();
       const codeVerifier = randomToken();
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
       const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
@@ -154,7 +157,7 @@ export class KahootConnection extends DurableObject<Env> {
         .slice(-7);
       await storage.put('pending', {
         ...Object.fromEntries(recent),
-        [state]: { ...client, codeVerifier, createdAt: now },
+        [nonce]: { ...client, codeVerifier, createdAt: now },
       });
 
       const url = new URL('/authorize', issuer);
@@ -163,7 +166,7 @@ export class KahootConnection extends DurableObject<Env> {
         client_id: client.clientId,
         redirect_uri: redirectUri,
         scope,
-        state,
+        state: kahootState(name, nonce),
         code_challenge: challenge,
         code_challenge_method: 'S256',
         resource: kahootResource,
@@ -173,14 +176,16 @@ export class KahootConnection extends DurableObject<Env> {
   }
 
   async callback(code: string | null, state: string) {
-    if (!/^[0-9a-f]{64}$/.test(state)) return false;
+    const parsed = parseKahootState(state);
+    if (!parsed || parsed.name !== this.ctx.id.name) return false;
+    const { nonce } = parsed;
 
     return this.#serialize(async () => {
       const storage = this.ctx.storage;
       const pending = await storage.get<Record<string, PendingAuthorization>>('pending');
-      const attempt = pending?.[state];
+      const attempt = pending?.[nonce];
       if (!attempt || !pending) return false;
-      delete pending[state];
+      delete pending[nonce];
       await storage.put('pending', pending);
 
       const { codeVerifier, createdAt, ...client } = attempt;
@@ -192,12 +197,12 @@ export class KahootConnection extends DurableObject<Env> {
         code_verifier: codeVerifier,
       });
       if (result.kind !== 'success') return false;
-      await storage.put<Grant>('grant', { id: state, client, tokens: issuedTokens(result.value) });
+      await storage.put<Grant>('grant', { id: nonce, client, tokens: issuedTokens(result.value) });
       return true;
     });
   }
 
-  async status() {
+  async status(): Promise<KahootStatus> {
     const grant = await this.ctx.storage.get<Grant>('grant');
     if (!grant || (!grant.tokens.refreshToken && grant.tokens.expiresAt <= Date.now()))
       return { connected: false };

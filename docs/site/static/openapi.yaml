@@ -208,6 +208,103 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/errorResponse'
+  /integrations/kahoot/connect:
+    get:
+      summary: Start connecting a teacher's Kahoot account
+      operationId: getKahootConnect
+      description: Use a top-level navigation on the application origin with a teacher session.
+      tags:
+        - integrations
+      responses:
+        '303':
+          description: Continue to Kahoot sign-in.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /integrations/kahoot/callback:
+    get:
+      summary: Complete Kahoot authorization
+      operationId: getKahootCallback
+      description: Kahoot sends the browser here. The single-use state identifies the authorization attempt.
+      tags:
+        - integrations
+      security: []
+      parameters:
+        - in: query
+          name: state
+          schema:
+            type: string
+        - in: query
+          name: code
+          schema:
+            type: string
+        - in: query
+          name: error
+          schema:
+            type: string
+      responses:
+        '303':
+          description: Return to the school app with the connection result.
+          headers:
+            Location:
+              schema:
+                type: string
+                enum: ['/?kahoot=connected', '/?kahoot=failed']
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Referrer-Policy:
+              schema:
+                type: string
+                const: no-referrer
+  /integrations/kahoot/status:
+    get:
+      summary: Read the signed-in teacher's Kahoot connection status
+      operationId: getKahootStatus
+      tags:
+        - integrations
+      responses:
+        '200':
+          description: Connection status for this teacher and school.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/kahootStatus'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
+  /integrations/kahoot/disconnect:
+    post:
+      summary: Disconnect the signed-in teacher's Kahoot account
+      operationId: postKahootDisconnect
+      description: Send from the application origin with a teacher session.
+      tags:
+        - integrations
+      responses:
+        '200':
+          description: Connection status after disconnecting.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/kahootStatus'
+        default:
+          description: Request failed. See status and error code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/errorResponse'
   /agents:
     get:
       summary: List agents available to this membership
@@ -1206,6 +1303,18 @@ components:
       scheme: bearer
       description: Secret for an active leased run attempt. Server-to-server only.
   schemas:
+    kahootStatus:
+      type: object
+      required: [connected]
+      properties:
+        connected:
+          type: boolean
+        connectedAt:
+          type: integer
+          description: Unix milliseconds when the grant was connected.
+        expiresAt:
+          type: integer
+          description: Unix milliseconds when the current access grant expires.
     credential:
       type: object
       properties:

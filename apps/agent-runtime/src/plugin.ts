@@ -2,7 +2,7 @@ import { Agent, Location, Model, Skill, type Plugin } from '@opencode/plugin';
 import { schoolTool, type SchoolScope } from './school';
 import { agents } from './agents';
 import { jeng } from './agents/jeng';
-import type { KahootMcpConfig } from './kahoot-config';
+import { kahootMcpServer, type KahootMcpConfig } from './kahoot-config';
 import { KahootDrafts, kahootTool } from './kahoot-draft';
 import { decide, permissionsFor } from './permissions';
 import { tools } from './tools';
@@ -74,13 +74,13 @@ export function createRuntimePlugin(
           for (const [server] of editor.list()) {
             const prefix = server.replace(/[^a-zA-Z0-9_-]/g, '_') + '_';
             if (
-              server !== 'crudex_kahoot' &&
+              server !== kahootMcpServer &&
               jeng.mcpTools.some((action) => action.startsWith(prefix))
             ) {
               throw new Error('Ambiguous Kahoot MCP namespace');
             }
           }
-          editor.set('crudex_kahoot', {
+          editor.set(kahootMcpServer, {
             type: 'remote',
             url: kahoot.url,
             headers: { 'x-crudex-kahoot-token': kahoot.token },
@@ -89,11 +89,19 @@ export function createRuntimePlugin(
           });
         });
       }
-      await ctx.permission.hook('evaluate', (evaluation) => {
+      await ctx.permission.hook('evaluate', async (evaluation) => {
         const rules = rulesByAgent.get(evaluation.agent ?? '');
         evaluation.effect = decide(rules ?? [], evaluation.action, evaluation.resources);
+        if (evaluation.effect !== 'allow' || !evaluation.action.startsWith(kahootMcpServer + '_'))
+          return;
+        if (resolveScope) {
+          const scope = await resolveScope(evaluation.sessionID).catch(() => undefined);
+          if (scope?.role !== 'teacher') {
+            evaluation.effect = 'deny';
+            return;
+          }
+        }
         if (
-          evaluation.effect === 'allow' &&
           evaluation.action === kahootTool &&
           !drafts.consume(evaluation.sessionID, evaluation.metadata?.input)
         ) {
@@ -170,7 +178,11 @@ export function createRuntimePlugin(
                 result &&
                 typeof result === 'object'
               ) {
-                const kahootDraft = drafts.check(call.sessionID, input);
+                const kahootDraft = drafts.check(
+                  call.sessionID,
+                  input,
+                  'ok' in result && result.ok === true,
+                );
                 return { content: JSON.stringify({ ...result, kahootDraft }) };
               }
               return { content: JSON.stringify(result) };

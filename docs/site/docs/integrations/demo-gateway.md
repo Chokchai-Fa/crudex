@@ -26,7 +26,7 @@ Call the gateway from the same origin or route requests through a reverse proxy 
 
 ## Connect a Kahoot account (button for พี่เจ๋ง)
 
-Render `<a href="/kahoot/connect">เชื่อมบัญชี Kahoot</a>` for a signed-in user. After the user signs in at Kahoot, the gateway stores the OAuth tokens on the server only (a Durable Object), so they survive sandbox restarts and never reach the browser or the sandbox. Poll `GET /api/kahoot/status` to switch the button to “เชื่อมแล้ว”, and call `POST /api/kahoot/disconnect` for “ยกเลิกการเชื่อม”. The connected account is shared by the demo. Only พี่เจ๋ง can use it, and only to create a new draft from questions that passed `check_assessment` and to read its editor link. The connector is on only when the repository variable `KAHOOT_MCP_ENABLED` is `true` at deploy.
+Render `<a href="/kahoot/connect">เชื่อมบัญชี Kahoot</a>` for a signed-in user. After the user signs in at Kahoot, the gateway stores the OAuth tokens on the server only (a Durable Object), so they survive sandbox restarts and never reach the browser or the sandbox. Poll `GET /api/kahoot/status` to switch the button to “เชื่อมแล้ว”, and call `POST /api/kahoot/disconnect` for “ยกเลิกการเชื่อม”. The demo has one shared grant, separate from each school teacher's grant. Only พี่เจ๋ง can use it, and only to create a new draft from questions that passed `check_assessment` and to read its editor link. The connector is on only when the repository variable `KAHOOT_MCP_ENABLED` is `true` at deploy. [School API guide](school-api.md#connect-a-teachers-kahoot-account)
 
 ## Read the chat stream
 

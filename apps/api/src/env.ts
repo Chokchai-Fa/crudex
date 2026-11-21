@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import type { SchoolGateway } from './types/deps';
+
+export type AppBindings = Omit<Env, 'SCHOOL_GATEWAY'> & { SCHOOL_GATEWAY: SchoolGateway };
 
 /** Validated runtime config. Every secret/var the app reads must be listed here. */
 const configSchema = z.object({
@@ -11,7 +14,7 @@ const configSchema = z.object({
 
 export type Config = z.infer<typeof configSchema>;
 
-export function parseConfig(env: Env): Config {
+export function parseConfig(env: AppBindings): Config {
   const result = configSchema.safeParse(env);
   if (!result.success) {
     // Names only — never log values (they include secrets).

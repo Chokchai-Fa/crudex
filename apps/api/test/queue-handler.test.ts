@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { createQueueHandler, MAX_ATTEMPTS } from '../src/jobs/queue-handler';
 import worker from '../src/index';
-import { makeFakeDeps } from './support/fake-deps';
+import { makeFakeDeps, makeFakeSchoolGateway } from './support/fake-deps';
 
 const QUEUE = 'crudex-jobs';
 
@@ -29,7 +29,7 @@ it('acks valid and invalid (poison) messages', async () => {
     { id: 'invalid', timestamp: new Date(), attempts: 1, body: { type: 'unknown' } },
   ]);
   const ctx = createExecutionContext();
-  await worker.queue(batch, env, ctx);
+  await worker.queue(batch, { ...env, SCHOOL_GATEWAY: makeFakeSchoolGateway() }, ctx);
   const result = await getQueueResult(batch, ctx);
   expect(result.explicitAcks.sort()).toEqual(['invalid', 'valid']);
   expect(result.retryMessages).toEqual([]);

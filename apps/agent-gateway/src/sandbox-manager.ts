@@ -4,6 +4,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { consumeRun, countToday, dailyRunLimit, type DailyUsage } from './daily-cap';
 import { envSchema, type AgentConfig } from './env';
 import { isKahootMcpRequest, kahootTokenHeader } from './kahoot-mcp';
+import { kahootInstanceName } from './kahoot-state';
 import { restoreRuntimeState, saveRuntimeState } from './runtime-state';
 import {
   archivePath,
@@ -139,7 +140,7 @@ export class SandboxManager extends DurableObject<Env> {
     ) {
       return new Response(null, { status: 401 });
     }
-    return this.env.KAHOOT.getByName('kahoot').mcp(request);
+    return this.env.KAHOOT.getByName(kahootInstanceName(sandbox.owner)).mcp(request);
   }
 
   private async proxy(
@@ -238,7 +239,7 @@ export class SandboxManager extends DurableObject<Env> {
       !('url' in current) ||
       current.owner !== owner ||
       current.revision !== config.RUNTIME_REVISION ||
-      Boolean(current.kahootToken) !== (config.KAHOOT_MCP_ENABLED === 'true' && !owner) ||
+      Boolean(current.kahootToken) !== (config.KAHOOT_MCP_ENABLED === 'true') ||
       Date.now() >= current.startedAt + rotateAfter
     ) {
       await this.beginTransition(() => this.replace(origin, config, owner));
@@ -291,8 +292,7 @@ export class SandboxManager extends DurableObject<Env> {
     try {
       const bootToken = randomToken();
       const token = randomToken();
-      const kahootToken =
-        config.KAHOOT_MCP_ENABLED === 'true' && !owner ? randomToken() : undefined;
+      const kahootToken = config.KAHOOT_MCP_ENABLED === 'true' ? randomToken() : undefined;
       await this.ctx.storage.setAlarm(Date.now() + retryAlarmAfter);
       await this.ctx.storage.put({ sandbox: record, 'boot-token': bootToken });
       const url = await bootSandbox(sandbox, config, origin, bootToken, token, owner, kahootToken);

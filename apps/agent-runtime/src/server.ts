@@ -35,7 +35,9 @@ if (!config.success) {
 const { UPSTREAM_TOKEN, DATA_DIR, PORT, HOST } = config.data;
 const expectedToken = Buffer.from(UPSTREAM_TOKEN);
 loadState();
-const { host, directory, toolCalls, scopes } = await createHarness(resolve(DATA_DIR));
+const { host, directory, toolCalls, scopes, prepareSchoolKahoot } = await createHarness(
+  resolve(DATA_DIR),
+);
 const runTurn = createTurnRunner(host);
 const sessions = new Map<string, string>();
 const inFlight = new Set<string>();
@@ -180,7 +182,10 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     signal: abort.signal,
     school: Boolean(scope),
   });
+  const needsKahoot =
+    scope?.role === 'teacher' && (agent.id === 'jeng' || agent.subagents.includes('jeng'));
   async function* encode() {
+    if (needsKahoot) await prepareSchoolKahoot();
     for await (const event of events) {
       if (key && scope && event.type === 'session') {
         currentSession = event.sessionId;

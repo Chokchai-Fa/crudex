@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { dispatchRun, replay, startRun } from '../src/services/runs.service';
 import * as repo from '../src/repositories/runs.repository';
 import { loadSchoolActor } from '../src/services/identity.service';
-import { makeFakeDeps } from './support/fake-deps';
+import { makeFakeDeps, makeFakeSchoolGateway } from './support/fake-deps';
 import type { SchoolActor } from '@repo/shared';
 vi.mock('../src/repositories/runs.repository');
 vi.mock('../src/services/identity.service');
@@ -43,7 +43,7 @@ function consumer(body: string, status = 200) {
     deps: {
       ...d,
       config: { ...d.config, APP_URL: 'https://app.example.com' },
-      agentGateway: { fetch } as unknown as Fetcher,
+      agentGateway: makeFakeSchoolGateway(fetch),
     },
     fetch,
   };
