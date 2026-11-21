@@ -120,6 +120,24 @@ async function* readStream(body: ReadableStream<Uint8Array>): AsyncGenerator<Run
     reader.releaseLock();
   }
 }
+const historyTurns = 6;
+const historyChars = 600;
+const clip = (t: string) => (t.length > historyChars ? t.slice(0, historyChars) + '…' : t);
+/** The gateway keeps no reliable session, so each turn carries the recent conversation with it. */
+async function withHistory(
+  deps: Deps,
+  run: Parameters<typeof repo.recentTurns>[1] & { prompt: string },
+) {
+  const turns = await repo.recentTurns(deps.db, run, historyTurns);
+  const room = run.classId
+    ? (await loadSchoolActor(deps, run)).classes.find((c) => c.id === run.classId)?.name
+    : undefined;
+  if (!turns.length && !room) return run.prompt;
+  const lines = ['บทสนทนาก่อนหน้า (ใช้เป็นบริบท ไม่ต้องถามซ้ำสิ่งที่ครูบอกแล้ว):'];
+  if (room) lines.push(`ห้องที่เลือก: ${room}`);
+  for (const t of turns) lines.push(`ครู: ${clip(t.prompt)}`, `ผู้ช่วย: ${clip(t.reply.trim())}`);
+  return `${lines.join('\n')}\n\nข้อความใหม่จากครู:\n${run.prompt}`;
+}
 export async function dispatchRun(deps: Deps, id: string) {
   const attempt = crypto.randomUUID(),
     token = crypto.randomUUID() + crypto.randomUUID();
@@ -138,6 +156,8 @@ export async function dispatchRun(deps: Deps, id: string) {
     if (!deps.agentGateway) throw new Error('Gateway unavailable');
     const gateway = new URL(deps.config.APP_URL);
     gateway.hostname = gateway.hostname.replace(/^[^.]+/, 'crudex-agent');
+    // History is context only; a failed lookup must not block the turn.
+    const text = await withHistory(deps, run).catch(() => run.prompt);
     const previous = await repo.previousStatus(deps.db, run);
     const freshSession =
       previous === 'failed' || previous === 'interrupted' || previous === 'cancelled';
@@ -146,7 +166,7 @@ export async function dispatchRun(deps: Deps, id: string) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         agentId: run.agentId,
-        text: run.prompt,
+        text,
         scope: {
           schoolId: run.schoolId,
           ownerId: run.ownerId,

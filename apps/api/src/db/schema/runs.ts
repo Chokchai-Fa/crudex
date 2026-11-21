@@ -59,7 +59,7 @@ export const runQuota = pgTable(
     day: date().primaryKey(),
     used: integer().notNull(),
   },
-  (t) => [check('school_daily_run_limit', sql`${t.used} <= 60`)],
+  (t) => [check('school_daily_run_limit', sql`${t.used} <= 300`)],
 );
 
 export const runMemory = pgTable(
@@ -89,6 +89,6 @@ export const ownerRunQuota = pgTable(
   },
   (t) => [
     uniqueIndex('owner_run_quota_day').on(t.day, t.ownerId),
-    check('owner_daily_run_limit', sql`${t.used}<=20`),
+    check('owner_daily_run_limit', sql`${t.used}<=100`),
   ],
 );

@@ -35,6 +35,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(loadSchoolActor).mockResolvedValue(a);
   vi.mocked(repo.claim).mockResolvedValue(r);
+  vi.mocked(repo.recentTurns).mockResolvedValue([]);
 });
 function consumer(body: string, status = 200) {
   const d = makeFakeDeps().deps;
@@ -116,4 +117,27 @@ it('maps gateway capacity exhaustion and provider errors to terminal events', as
     type: 'error',
     code: 'timeout',
   });
+});
+it('sends the recent turns of the same room with the new prompt so the agent does not ask again', async () => {
+  vi.mocked(repo.recentTurns).mockResolvedValue([
+    { prompt: 'กำลังจะสอน ป.4/1 เตรียมสอนให้หน่อย', reply: 'เตรียมแผนเศษส่วน ป.4/1 แล้วค่ะ' },
+  ]);
+  const { deps, fetch } = consumer(
+    'data: ' + JSON.stringify({ type: 'done', elapsedMs: 1 }) + '\n\n',
+  );
+  await dispatchRun(deps, r.id);
+  const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+  const text = JSON.parse(String(init.body)).text as string;
+  expect(text).toContain('ครู: กำลังจะสอน ป.4/1 เตรียมสอนให้หน่อย');
+  expect(text).toContain('ผู้ช่วย: เตรียมแผนเศษส่วน ป.4/1 แล้วค่ะ');
+  expect(text.endsWith('ข้อความใหม่จากครู:\nworksheet')).toBe(true);
+});
+it('sends only the prompt when the history lookup fails', async () => {
+  vi.mocked(repo.recentTurns).mockRejectedValue(new Error('db'));
+  const { deps, fetch } = consumer(
+    'data: ' + JSON.stringify({ type: 'done', elapsedMs: 1 }) + '\n\n',
+  );
+  await dispatchRun(deps, r.id);
+  const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+  expect(JSON.parse(String(init.body)).text).toBe('worksheet');
 });
