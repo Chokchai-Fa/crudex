@@ -56,4 +56,11 @@ describe('jaew lesson preparation flow', () => {
   it('is bound to the lesson-prep skill and still has no other skill', () => {
     expect(jaew.skills).toEqual(['lesson-prep']);
   });
+
+  it('uses the score history for a trend and for repeat below-threshold students, without computing it itself', () => {
+    expect(nun.instructions).toContain('repeatedlyBelowThreshold');
+    expect(nun.instructions).toContain('ห้ามคำนวณเอง');
+    expect(jaew.instructions).toContain('แนวโน้มจากครั้งก่อน');
+    expect(jaew.instructions).toContain('ต่ำกว่าเกณฑ์ซ้ำ');
+  });
 });
