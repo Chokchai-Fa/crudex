@@ -26,6 +26,7 @@ import { teacherMessage, referencesWorksheet, withWorksheet } from './worksheet-
 import { isBackgroundRequest, presetsFor } from './presets';
 import '../workspace/chat-activity.css';
 import './compose-activity.css';
+import { KahootHandoff } from './kahoot-handoff';
 import { LatestMessageButton } from './latest-message-button';
 
 type SendSource = 'draft' | 'preset' | `retry:${string}`;
@@ -33,7 +34,15 @@ type Attempt = { source: SendSource; text: string; request: CreateRun };
 
 const activityKey = 'crudex.teacher.activity-panel';
 
-export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
+export function SchoolChat({
+  initialRoom,
+  agent = 'jaew',
+  handoff,
+}: {
+  initialRoom?: string;
+  agent?: AgentId;
+  handoff?: string;
+}) {
   const session = useSchoolSession();
   if (session.error) return <p role="alert">{session.error.message}</p>;
   if (session.isPending) return <p role="status">กำลังตรวจสอบบัญชี…</p>;
@@ -45,13 +54,22 @@ export function SchoolChat({ initialRoom }: { initialRoom?: string }) {
         บัญชีนี้ไม่มีสิทธิ์เข้าแชตครู · <Link to="/school">กลับพื้นที่โรงเรียน</Link>
       </p>
     );
-  return <ClassSelector key={actor.membershipId} actor={actor} initialRoom={initialRoom} />;
+  return <ClassSelector actor={actor} initialRoom={initialRoom} agent={agent} handoff={handoff} />;
 }
 
-function ClassSelector({ actor, initialRoom }: { actor: SchoolActor; initialRoom?: string }) {
+function ClassSelector({
+  actor,
+  initialRoom,
+  agent,
+  handoff,
+}: {
+  actor: SchoolActor;
+  initialRoom?: string;
+  agent: AgentId;
+  handoff?: string;
+}) {
   const navigate = useNavigate();
   const room = actor.classes.find((c) => c.id === initialRoom) ?? actor.classes[0];
-  const [agent, setAgent] = useState<AgentId>('jaew');
   if (!room)
     return (
       <p>
@@ -60,12 +78,13 @@ function ClassSelector({ actor, initialRoom }: { actor: SchoolActor; initialRoom
     );
   return (
     <ChatRoom
-      key={room.id + agent}
+      key={actor.membershipId + room.id + agent}
       agent={agent}
-      onAgent={setAgent}
+      handoff={handoff}
+      onAgent={(agentId) => void navigate({ to: '/teacher', search: { roomId: room.id, agentId } })}
       actor={actor}
       room={room}
-      onRoom={(roomId) => void navigate({ to: '/teacher', search: { roomId } })}
+      onRoom={(roomId) => void navigate({ to: '/teacher', search: { roomId, agentId: agent } })}
     />
   );
 }
@@ -76,10 +95,12 @@ function ChatRoom({
   onRoom,
   agent,
   onAgent,
+  handoff,
 }: {
   actor: SchoolActor;
   agent: AgentId;
   onAgent: (id: AgentId) => void;
+  handoff?: string;
   room: SchoolActor['classes'][number];
   onRoom: (id: string) => void;
 }) {
@@ -150,7 +171,12 @@ function ChatRoom({
   const input = useRef<HTMLTextAreaElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLOListElement>(null);
-  const following = useRef(true);
+  const following = useRef(!handoff);
+  useLayoutEffect(() => {
+    if (!handoff) return;
+    following.current = false;
+    if (viewport.current) viewport.current.scrollTop = 0;
+  }, [handoff]);
   const runs = (history.data?.runs ?? []).filter((r) => r.classId === room.id).reverse();
   // Keep the teacher's bubble mounted when an optimistic message becomes a saved run.
   const messages: { key: string; prompt: string; run?: (typeof runs)[number] }[] = runs.map(
@@ -319,6 +345,9 @@ function ChatRoom({
               สมุดคะแนน · {room.name}
             </Button>
           </div>
+          {agent === 'jeng' && handoff && (
+            <KahootHandoff id={handoff} roomId={room.id} membershipId={actor.membershipId} />
+          )}
           {grades && <SchoolGradebook classId={room.id} membershipId={actor.membershipId} />}
           {history.isPending ? (
             <p role="status" className="chat-empty">
@@ -368,6 +397,7 @@ function ChatRoom({
                           membershipId={actor.membershipId}
                           status={run.status}
                           agentId={run.agentId}
+                          roomId={room.id}
                           onFormUrl={formHandler(run.id)}
                           agents={directory.data?.agents}
                           onFollowUp={

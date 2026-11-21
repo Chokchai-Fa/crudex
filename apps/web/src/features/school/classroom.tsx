@@ -11,6 +11,7 @@ import { useRunMemory } from './api/run-memory';
 import { presentRun, type AgentNames } from './run-presentation';
 import { parseFollowUps } from './follow-ups';
 import { failureLine } from './presets';
+import { kahootHandoff } from './kahoot-handoff-result';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
 
@@ -91,6 +92,7 @@ export function RunDetails({
   status,
   agents,
   agentId,
+  roomId,
   onFormUrl,
   onFollowUp,
   hasArtifacts,
@@ -102,6 +104,7 @@ export function RunDetails({
   status: keyof typeof statusLabels;
   agents?: AgentNames;
   agentId?: AgentId;
+  roomId?: string;
   /** Reports a Google Form link found in this reply, for the form card. */
   onFormUrl?: (url: string) => void;
   /** Sends a "ลองถามต่อ" suggestion; passed only for the latest reply. */
@@ -129,11 +132,21 @@ export function RunDetails({
   }, [googleForm, onFormUrl]);
   const ActivityIcon = activityKind && activityIcons[activityKind];
   const emptyReply = hasArtifacts ? 'ใบงานพร้อมแล้ว' : 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ';
+  const delegatedKahoot = agentId === 'jaew' && final && kahootHandoff(events, body);
   const streaming = activityKind === 'writing' && !error;
 
   return (
     <div className="space-y-2">
       {body && <SchoolAnswer text={body} />}
+      {roomId && delegatedKahoot && (
+        <Link
+          to="/teacher"
+          search={{ roomId, agentId: 'jeng', handoff: id }}
+          className="inline-flex py-2 text-sm font-medium text-primary underline underline-offset-2"
+        >
+          ดูงาน Kahoot ในแชตพี่เจ๋ง
+        </Link>
+      )}
       {streaming && (
         <span className="typing-dots streaming-dots" role="status" aria-label="กำลังพิมพ์">
           <i />
