@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-import { dispatchRun, replay, startRun } from '../src/services/runs.service';
+import { dispatchRun, replay, reserveRun, startRun } from '../src/services/runs.service';
 import * as repo from '../src/repositories/runs.repository';
 import { loadSchoolActor } from '../src/services/identity.service';
 import { makeFakeDeps, makeFakeSchoolGateway } from './support/fake-deps';
@@ -140,4 +140,21 @@ it('sends only the prompt when the history lookup fails', async () => {
   await dispatchRun(deps, r.id);
   const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
   expect(JSON.parse(String(init.body)).text).toBe('worksheet');
+});
+
+it('reserves interactive turns without enqueueing; background requests enqueue once', async () => {
+  const { deps, enqueue } = makeFakeDeps();
+  const input = { prompt: r.prompt, clientRequestId: r.requestId };
+  vi.mocked(repo.accept).mockImplementation(async (_db, _actor, _role, _agent, _input, id) => ({
+    ...r,
+    id: id!,
+  }));
+  const direct = await reserveRun(deps, a, 'jum', input);
+  expect(direct.created).toBe(true);
+  expect(enqueue).not.toHaveBeenCalled();
+  const job = await startRun(deps, a, 'jum', { ...input, clientRequestId: crypto.randomUUID() });
+  expect(enqueue).toHaveBeenCalledExactlyOnceWith({ type: 'dispatch-run', runId: job.id });
+  vi.mocked(repo.accept).mockResolvedValue({ ...r, id: direct.run.id });
+  expect((await reserveRun(deps, a, 'jum', input)).created).toBe(false);
+  expect(enqueue).toHaveBeenCalledTimes(1);
 });

@@ -23,7 +23,7 @@ type Run = Awaited<ReturnType<typeof repo.accept>>;
 function dto({ id, agentId, classId, prompt, status, createdAt }: Run) {
   return { id, agentId, classId, prompt, status, createdAt: createdAt.toISOString() };
 }
-export async function startRun(deps: Deps, a: SchoolActor, agent: AgentId, input: CreateRun) {
+export async function reserveRun(deps: Deps, a: SchoolActor, agent: AgentId, input: CreateRun) {
   authorize(a, agent, input.classId);
   const id = crypto.randomUUID();
   const run = await repo
@@ -41,9 +41,13 @@ export async function startRun(deps: Deps, a: SchoolActor, agent: AgentId, input
     run.classId !== (input.classId ?? null)
   )
     throw new ConflictError('Request ID already used');
-  if (run.id === id && run.status === 'queued')
+  return { run: dto(run), created: run.id === id };
+}
+export async function startRun(deps: Deps, a: SchoolActor, agent: AgentId, input: CreateRun) {
+  const { run, created } = await reserveRun(deps, a, agent, input);
+  if (created && run.status === 'queued')
     await deps.queue.enqueue({ type: 'dispatch-run', runId: run.id }).catch(() => undefined);
-  return dto(run);
+  return run;
 }
 export async function ownedRun(deps: Deps, a: SchoolActor, id: string) {
   const run = await repo.owned(deps.db, a, id);
@@ -138,7 +142,11 @@ async function withHistory(
   for (const t of turns) lines.push(`ครู: ${clip(t.prompt)}`, `ผู้ช่วย: ${clip(t.reply.trim())}`);
   return `${lines.join('\n')}\n\nข้อความใหม่จากครู:\n${run.prompt}`;
 }
-export async function dispatchRun(deps: Deps, id: string) {
+export async function dispatchRun(
+  deps: Deps,
+  id: string,
+  publish?: (event: RunEvent) => Promise<void>,
+) {
   const attempt = crypto.randomUUID(),
     token = crypto.randomUUID() + crypto.randomUUID();
   const run = await repo.claim(deps.db, id, attempt, await digest(token));
@@ -152,6 +160,7 @@ export async function dispatchRun(deps: Deps, id: string) {
     lastFlush = Date.now();
   }
   try {
+    await publish?.({ type: 'status', status: 'running' });
     authorize(await loadSchoolActor(deps, run), run.agentId, run.classId);
     if (!deps.agentGateway) throw new Error('Gateway unavailable');
     const gateway = new URL(deps.config.APP_URL);
@@ -191,14 +200,17 @@ export async function dispatchRun(deps: Deps, id: string) {
         type: 'error',
         code,
       });
+      await publish?.({ type: 'error', code });
       return;
     }
     for await (const e of readStream(res.body)) {
       if (e.type === 'done' || e.type === 'error') {
         await flush();
         await repo.finish(deps.db, id, attempt, e.type === 'done' ? 'succeeded' : 'failed', e);
+        await publish?.(e);
         return;
       }
+      await publish?.(e);
       const previous = buffered.at(-1);
       if (
         previous?.type === 'delta' &&
@@ -218,6 +230,7 @@ export async function dispatchRun(deps: Deps, id: string) {
   }
   await flush();
   await repo.finish(deps.db, id, attempt, 'interrupted', { type: 'error', code: 'interrupted' });
+  await publish?.({ type: 'error', code: 'interrupted' });
 }
 
 export async function cancelRun(deps: Deps, a: SchoolActor, id: string) {

@@ -21,7 +21,7 @@ import {
   useSchoolAgents,
 } from './api/school';
 import { teacherMessage, referencesWorksheet, withWorksheet } from './worksheet-context';
-import { ackFor, presetsFor } from './presets';
+import { ackFor, isBackgroundRequest, presetsFor } from './presets';
 import '../workspace/chat-activity.css';
 
 const activityKey = 'crudex.teacher.activity-panel';
@@ -170,6 +170,9 @@ function ChatRoom({
     setPending({ prompt: teacherMessage(prompt), ack });
     try {
       const run = await create.mutateAsync({
+        background:
+          presets.find((p) => p.text === teacherMessage(prompt))?.background ??
+          isBackgroundRequest(teacherMessage(prompt)),
         prompt,
         classId: room.id,
         clientRequestId: crypto.randomUUID(),
@@ -208,7 +211,11 @@ function ChatRoom({
         }
         retry.current = { prompt: message, classId: room.id, clientRequestId: crypto.randomUUID() };
       }
-      const run = await create.mutateAsync(retry.current);
+      const run = await create.mutateAsync({
+        ...retry.current,
+        background:
+          presets.find((p) => p.text === prompt)?.background ?? isBackgroundRequest(prompt),
+      });
       acks.current.set(run.id, ack);
       if (preset === undefined) editDraft('');
       retry.current = null;
