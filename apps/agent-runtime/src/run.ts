@@ -4,6 +4,7 @@ import type { Host } from './harness';
 export type RunEvent =
   | { type: 'session'; sessionId: string }
   | { type: 'delta'; text: string }
+  | { type: 'principal_brief'; briefId: string; text: string }
   | {
       type: 'tool';
       name: string;
@@ -145,6 +146,18 @@ export function createTurnRunner(host: Host) {
                 const childId = event.data.metadata?.sessionID;
                 if (root && name === 'subagent' && typeof childId === 'string')
                   delegated.add(childId);
+                if (root && turn.agent.id === 'rungchao' && name === 'publish_brief') {
+                  for (const part of event.data.content) {
+                    if (part.type !== 'text') continue;
+                    const receipt = JSON.parse(part.text);
+                    if (typeof receipt.briefId === 'string' && typeof receipt.text === 'string')
+                      yield {
+                        type: 'principal_brief',
+                        briefId: receipt.briefId,
+                        text: receipt.text,
+                      };
+                  }
+                }
                 if (name === 'fraction_addition_form') {
                   for (const part of event.data.content) {
                     if (part.type !== 'text') continue;

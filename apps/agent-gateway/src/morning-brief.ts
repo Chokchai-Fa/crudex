@@ -24,7 +24,13 @@ export function readBrief(stream: string) {
     if (!frame.startsWith('data: ')) continue;
     const event = JSON.parse(frame.slice(6));
     if (done || event.type === 'error') throw new Error('brief_incomplete');
-    if (event.type === 'delta' && typeof event.text === 'string') text += event.text;
+    if (
+      event.type === 'principal_brief' &&
+      typeof event.briefId === 'string' &&
+      typeof event.text === 'string'
+    ) {
+      text = event.text;
+    }
     if (event.type === 'done') done = true;
   }
   const lines = text.trim().split(/\r\n|[\r\n\u2028\u2029]/);

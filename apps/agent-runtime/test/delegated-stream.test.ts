@@ -1,5 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { jaew } from '../src/agents/jaew';
+import { rungchao } from '../src/agents/rungchao';
 import type { Host } from '../src/harness';
 import { createTurnRunner } from '../src/run';
 
@@ -55,5 +56,48 @@ it.each([true, false])(
     expect(answer).toContain('ใบงานพร้อมแล้ว');
     expect(answer).toContain(formUrl);
     expect(host.session.prompt).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each([rungchao, jaew])(
+  'emits published briefs only for the principal root session ($id)',
+  async (agent) => {
+    const receipt = { briefId: 'brief-example', text: 'งบระดับโรงเรียนใช้ไป 20%' };
+    const host = {
+      session: {
+        create: async () => ({ id: 'root' }),
+        get: async () => ({ parentID: 'root' }),
+        prompt: vi.fn(),
+      },
+      event: {
+        async *subscribe() {
+          yield { type: 'server.connected', data: {} };
+          for (const source of ['child', 'root']) {
+            yield event('session.tool.input.started', source, {
+              name: 'publish_brief',
+              id: 'publish',
+            });
+            yield event('session.tool.success', source, {
+              id: 'publish',
+              content: [{ type: 'text', text: JSON.stringify(receipt) }],
+            });
+          }
+          yield event('session.text.delta', 'root', { delta: 'ส่งสรุปแล้วครับ' });
+          yield event('session.execution.succeeded', 'root');
+        },
+      },
+    };
+    const artifacts = [];
+    for await (const item of createTurnRunner(host as unknown as Host)({
+      agent,
+      directory: '.',
+      text: 'สรุปเช้า',
+      signal: new AbortController().signal,
+    })) {
+      if (item.type === 'principal_brief') artifacts.push(item);
+    }
+    expect(artifacts).toEqual(
+      agent.id === 'rungchao' ? [{ type: 'principal_brief', ...receipt }] : [],
+    );
   },
 );
