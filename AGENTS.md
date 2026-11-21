@@ -11,10 +11,15 @@ declared in Terraform under `infra/` and deployed by GitHub Actions. It was crea
 `app-template`; the one example feature, **notes**, goes through every layer — copy its shape,
 then delete it.
 
+The `agent-design` harness uses a separate `crudex-agent` Worker. OpenCode runs on Node 24 in
+a Vercel Hobby Sandbox, with the Worker handling authentication, quota and SSE proxying.
+
 ## Layout
 ```
 apps/web        Vite + React 19, TanStack Router + Query, Tailwind v4 + shadcn/ui
 apps/api        Hono on Workers: routes → services → repositories, Drizzle + Neon HTTP, Upstash REST, Queues consumer
+apps/agent-runtime  Node 24 + OpenCode in Vercel Sandbox
+apps/agent-gateway  crudex-agent Worker + sandbox lifecycle Durable Object
 packages/shared zod schemas = the API contract, used by both apps
 infra/          Terraform (Neon, Upstash, Queue, KV, Vercel project); state in HCP Terraform
 .github/        ci, deploy, drift (weekly), destroy (manual)

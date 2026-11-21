@@ -71,6 +71,20 @@ Do **not** use:
 └── CLAUDE.md
 ```
 
+## Agent harness
+
+The agent harness has a separate `crudex-agent` Worker in `apps/agent-gateway`.
+One SQLite-backed Durable Object tracks the daily Bangkok run cap and sandbox
+lifecycle. The Worker serves the passcode-gated test page and proxies SSE to
+`apps/agent-runtime`, which runs OpenCode on Node 24 in a Vercel Hobby Sandbox.
+The runtime stores sessions in the sandbox's local SQLite database.
+
+The `deploy-agent.yml` workflow runs on agent changes pushed to `agent-design` or by
+manual dispatch. It reuses the Vercel project and runs two smoke turns after
+deploy. Its GitHub secrets are `CLOUDFLARE_API_TOKEN`, `VERCEL_TOKEN`, `AGENT_PASSCODE`
+and `AGENT_OPENAI_API_KEY`. See [the runtime README](apps/agent-runtime/README.md)
+for local checks and extension steps.
+
 ## Tooling
 
 - **pnpm** workspaces + **Turborepo**. Node.js 22 pinned in `.nvmrc` (wrangler 4 needs ≥ 22).
