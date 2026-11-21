@@ -59,7 +59,7 @@ export function FormCard({ room }: { room: string }) {
             />
           )}
           <details className="text-sm">
-            <summary className="cursor-pointer">ทดสอบสถานะเดโม</summary>
+            <summary className="min-h-11 cursor-pointer py-3">ทดสอบสถานะเดโม</summary>
             <Button
               variant="outline"
               onClick={() => {

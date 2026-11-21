@@ -77,6 +77,7 @@ export function TeacherWorkspace() {
         <Textarea
           id="draft"
           rows={4}
+          className="md:text-base"
           placeholder="อยากเตรียมอะไรให้ห้องนี้?"
           value={draft}
           onChange={(event) => edit(event.target.value)}
@@ -90,7 +91,7 @@ export function TeacherWorkspace() {
               เดโมใช้ชุดเศษส่วน ป.5 จำนวน 10 ข้อเสมอ แม้เปลี่ยนห้องหรือแก้คำสั่ง
             </p>
             <Button disabled={!draft.trim() || pending[room]} onClick={prepareWorksheet}>
-              สร้างใบงานตัวอย่าง
+              สร้างใบงานและฟอร์มตัวอย่าง
             </Button>
           </>
         )}
