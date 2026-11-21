@@ -624,6 +624,46 @@ check(
   JSON.stringify(tool(ev)?.state),
 );
 
+console.log('# lesson preparation line (jaew -> nun with a room, then ask before doing)');
+ev = run(['--agent', 'jaew', 'CALL skill {"id":"lesson-prep"}']);
+check(
+  'jaew loads the lesson-prep skill',
+  tool(ev)?.state?.status === 'completed' && (tool(ev)?.state?.output ?? '').includes('เตรียมสอน'),
+  JSON.stringify(tool(ev)?.state).slice(0, 200),
+);
+ev = run(['--agent', 'nun', 'CALL get_scores {"classLabel":"ม.2/1"}']);
+const m21 = JSON.parse((tool(ev)?.state?.output ?? '{}').split('\n')[0]);
+check(
+  'nun reads ม.2/1 with numbers computed by code',
+  m21.label === 'ม.2/1' && m21.n === 8 && m21.mean === 3.5 && m21.belowThreshold?.length === 2,
+  JSON.stringify(m21).slice(0, 200),
+);
+ev = run(['--agent', 'nun', 'CALL get_scores {"classLabel":"ม.2/2"}']);
+check(
+  'a taught room with no past scores says so and carries no numbers',
+  (tool(ev)?.state?.output ?? '').includes('"hasData":false') &&
+    !(tool(ev)?.state?.output ?? '').includes('"mean"'),
+  JSON.stringify(tool(ev)?.state).slice(0, 200),
+);
+ev = run(['--agent', 'nun', 'CALL get_scores {"classLabel":"ม.6/9"}']);
+check(
+  'a room the teacher does not teach is refused and the teacher’s rooms are listed',
+  tool(ev)?.state?.status === 'error' && /ป\.5\/2/.test(JSON.stringify(tool(ev)?.state)),
+  JSON.stringify(tool(ev)?.state).slice(0, 200),
+);
+d = await delegate('nun', 'CALL get_scores {"classLabel":"ม.2/1"}');
+check(
+  'the nun child session started by jaew reads the requested room',
+  JSON.stringify(d.msgs).includes('\\"mean\\":3.5') && JSON.stringify(d.msgs).includes('ม.2/1'),
+  JSON.stringify(d.msgs).slice(0, 300),
+);
+ev = run(['--agent', 'jaew', 'FORCE get_scores {"classLabel":"ม.2/1"}']);
+check(
+  'jaew cannot read scores itself',
+  tool(ev)?.state?.status === 'error',
+  JSON.stringify(tool(ev)?.state),
+);
+
 console.log(
   results.every(Boolean)
     ? `\nall ${results.length} passed`
