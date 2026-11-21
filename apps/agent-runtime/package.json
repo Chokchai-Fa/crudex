@@ -1,0 +1,26 @@
+{
+  "name": "agent-runtime",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/bundle.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.3.2",
+    "@opencode/sdk": "2.3.2",
+    "@silvia-odwyer/photon-node": "0.3.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.12.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11",
+    "yaml": "2.9.1"
+  }
+}

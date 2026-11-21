@@ -1,0 +1,9 @@
+{
+  "extends": "@repo/config/tsconfig/base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "ESNext.Disposable"],
+    "types": ["node"],
+    "paths": { "virtual:crudex-skills": ["./src/embedded-skills.d.ts"] }
+  },
+  "include": ["src", "test"]
+}
