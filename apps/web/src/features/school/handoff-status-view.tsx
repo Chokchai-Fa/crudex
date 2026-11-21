@@ -1,33 +1,24 @@
 import { Link } from '@tanstack/react-router';
 import type { AgentId } from '@repo/shared';
-import { useCachedRunEvents } from './api/run-events';
 import { useRecipientHandoffs } from './api/handoffs';
-import { handoffStatusText, runHandoffs } from './handoff-status';
+import { handoffStatusText, jaewHandoffLine, type runHandoffs } from './handoff-status';
 import type { AgentNames } from './run-presentation';
 import { teacherMessage } from './worksheet-context';
 
 export function RunHandoffs({
-  id,
-  membershipId,
+  handoffs,
   agents,
 }: {
-  id: string;
-  membershipId: string;
+  handoffs: ReturnType<typeof runHandoffs>;
   agents: AgentNames;
 }) {
-  const { events } = useCachedRunEvents(membershipId, id);
-  const handoffs = runHandoffs(events);
   if (!handoffs.length) return null;
   return (
     <ul className="space-y-1 text-sm text-muted-foreground" aria-live="polite">
       {handoffs.map(({ handoffId, agentId, status }) => {
         const name = agents.find((agent) => agent.id === agentId)?.name;
         if (!name) return null;
-        return (
-          <li key={handoffId}>
-            {name}รับงานจากน้องแจ๋ว · {handoffStatusText[status]}
-          </li>
-        );
+        return <li key={handoffId}>{jaewHandoffLine(name, status)}</li>;
       })}
     </ul>
   );

@@ -11,6 +11,8 @@ import { useRunMemory } from './api/run-memory';
 import { presentRun, type AgentNames } from './run-presentation';
 import { parseFollowUps } from './follow-ups';
 import { failureLine } from './presets';
+import { runHandoffs } from './handoff-status';
+import { RunHandoffs } from './handoff-status-view';
 import { kahootHandoff, kahootOwnerSummary } from './kahoot-handoff-result';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
@@ -149,9 +151,14 @@ export function RunDetails({
       ? 'พี่เจ๋งทำงาน Kahoot ที่ส่งต่อเสร็จแล้วค่ะ เปิดดูรายละเอียดได้เลยค่ะ'
       : '';
   const streaming = activityKind === 'writing' && !error;
+  const handoffs = agentId === 'jaew' && agents ? runHandoffs(events) : [];
+  const showingDispatch = handoffs.some(
+    ({ agentId, status }) => status === 'started' && agents?.some((agent) => agent.id === agentId),
+  );
 
   return (
     <div className="space-y-2">
+      {agents && <RunHandoffs handoffs={handoffs} agents={agents} />}
       {body && <SchoolAnswer text={body} />}
       {handoffSummary && <p>{handoffSummary}</p>}
       {roomId && final && delegatedKahoot && (
@@ -179,17 +186,20 @@ export function RunDetails({
           ))}
         </div>
       )}
-      {!error && ActivityIcon && activityKind !== 'writing' && (
-        <p
-          className="school-run-activity"
-          data-kind={activityKind}
-          role="status"
-          aria-atomic="true"
-        >
-          <ActivityIcon aria-hidden="true" />
-          {activity}
-        </p>
-      )}
+      {!error &&
+        ActivityIcon &&
+        activityKind !== 'writing' &&
+        !(activityKind === 'handoff' && showingDispatch) && (
+          <p
+            className="school-run-activity"
+            data-kind={activityKind}
+            role="status"
+            aria-atomic="true"
+          >
+            <ActivityIcon aria-hidden="true" />
+            {activity}
+          </p>
+        )}
       {failed ? (
         <div className="run-failed" role="status">
           <p>{notice === 'ผู้ช่วยทำงานนี้ไม่สำเร็จ' ? failureLine(agentId) : notice}</p>
