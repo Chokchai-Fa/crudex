@@ -21,6 +21,7 @@
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
     "hono": "4.13.13",
+    "katex": "0.16.38",
     "lucide-react": "1.54.0",
     "radix-ui": "1.7.0",
     "react": "19.3.0",
