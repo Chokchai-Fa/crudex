@@ -129,10 +129,18 @@ export function RunDetails({
   }, [googleForm, onFormUrl]);
   const ActivityIcon = activityKind && activityIcons[activityKind];
   const emptyReply = hasArtifacts ? 'ใบงานพร้อมแล้ว' : 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ';
+  const streaming = activityKind === 'writing' && !error;
 
   return (
     <div className="space-y-2">
       {body && <SchoolAnswer text={body} />}
+      {streaming && (
+        <span className="typing-dots streaming-dots" role="status" aria-label="กำลังพิมพ์">
+          <i />
+          <i />
+          <i />
+        </span>
+      )}
       {onFollowUp && final && !failed && followUps.length > 0 && (
         <div className="follow-ups" aria-label="ลองถามต่อ">
           {followUps.map((item) => (
