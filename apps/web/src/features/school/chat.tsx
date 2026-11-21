@@ -133,6 +133,18 @@ function ChatRoom({
   const busy = useRef(false);
   const [pending, setPending] = useState<Attempt | null>(null);
   const sending = pending !== null;
+  // Google Form links found in each run's reply (the worksheet API only has the in-app /play link).
+  const [formUrls, setFormUrls] = useState<Record<string, string>>({});
+  const formHandlers = useRef(new Map<string, (url: string) => void>());
+  function formHandler(id: string) {
+    let handler = formHandlers.current.get(id);
+    if (!handler) {
+      handler = (url: string) =>
+        setFormUrls((prev) => (prev[id] === url ? prev : { ...prev, [id]: url }));
+      formHandlers.current.set(id, handler);
+    }
+    return handler;
+  }
   const presets = presetsFor(agent, room.name);
   const [sendError, setSendError] = useState('');
   const input = useRef<HTMLTextAreaElement>(null);
@@ -356,6 +368,7 @@ function ChatRoom({
                           membershipId={actor.membershipId}
                           status={run.status}
                           agentId={run.agentId}
+                          onFormUrl={formHandler(run.id)}
                           agents={directory.data?.agents}
                           hasArtifacts={run.worksheetIds.length > 0}
                           onRetry={() => void send(run.prompt, `retry:${run.id}`)}
@@ -370,6 +383,7 @@ function ChatRoom({
                         roomId={room.id}
                         membershipId={actor.membershipId}
                         open={sheet === id}
+                        googleFormUrl={formUrls[run.id]}
                         toggle={() => setSheet(sheet === id ? '' : id)}
                       />
                     ))}

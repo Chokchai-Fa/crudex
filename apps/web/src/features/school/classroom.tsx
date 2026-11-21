@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { Clock3, Ellipsis, LoaderCircle, MessageCircle, PencilLine, Workflow } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AgentId, SchoolActor } from '@repo/shared';
 import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
@@ -90,6 +90,7 @@ export function RunDetails({
   status,
   agents,
   agentId,
+  onFormUrl,
   hasArtifacts,
   onRetry,
   retryDisabled,
@@ -99,6 +100,8 @@ export function RunDetails({
   status: keyof typeof statusLabels;
   agents?: AgentNames;
   agentId?: AgentId;
+  /** Reports a Google Form link found in this reply, for the form card. */
+  onFormUrl?: (url: string) => void;
   hasArtifacts?: boolean;
   /** Sends the same request again; shown only after a failed or interrupted reply. */
   onRetry?: () => void;
@@ -113,6 +116,12 @@ export function RunDetails({
     agents,
   );
   const failed = phase === 'failed' || phase === 'interrupted';
+  const googleForm = /https:\/\/docs\.google\.com\/forms\/[^\s"'<>)\]\\]+/.exec(
+    JSON.stringify(events),
+  )?.[0];
+  useEffect(() => {
+    if (googleForm) onFormUrl?.(googleForm);
+  }, [googleForm, onFormUrl]);
   const ActivityIcon = activityKind && activityIcons[activityKind];
   const emptyReply = hasArtifacts ? 'ใบงานพร้อมแล้ว' : 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ';
 
