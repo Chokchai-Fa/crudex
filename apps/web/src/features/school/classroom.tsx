@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { MessageCircle } from 'lucide-react';
+import { LoaderCircle, MessageCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import type { SchoolActor } from '@repo/shared';
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import { SchoolAnswer } from './answer';
 import { useRunEvents } from './api/run-events';
+import { useRunMemory } from './api/run-memory';
+import { presentRun } from './run-presentation';
 
 import { useSchoolGradebook, useSchoolWorksheet } from './api/school';
 
@@ -18,7 +20,49 @@ export const statusLabels = {
   interrupted: 'งานถูกขัดจังหวะ',
   cancelled: 'ยกเลิกแล้ว',
 };
-const toolStatuses = { started: 'เริ่ม', success: 'เสร็จแล้ว', failed: 'ไม่สำเร็จ' };
+function MemoryReview({
+  id,
+  membershipId,
+  lastProposalId,
+}: {
+  id: string;
+  membershipId: string;
+  lastProposalId: string;
+}) {
+  const { proposals, approve } = useRunMemory(membershipId, id, lastProposalId);
+  if (proposals.isPending) return <p role="status">กำลังอ่านข้อเสนอความจำ…</p>;
+  if (proposals.isError)
+    return (
+      <p role="alert">
+        เปิดข้อเสนอความจำไม่สำเร็จ{' '}
+        <Button size="sm" variant="link" onClick={() => void proposals.refetch()}>
+          ลองอีกครั้ง
+        </Button>
+      </p>
+    );
+  const pending = proposals.data.proposals.filter((p) => !p.approved);
+  if (!pending.length)
+    return (
+      <p className="text-sm text-muted-foreground" role="status">
+        {proposals.data.proposals.length ? 'จดจำแล้ว' : 'ไม่มีความจำที่รอยืนยัน'}
+      </p>
+    );
+  return (
+    <>
+      {pending.map((p) => (
+        <section key={p.id} className="space-y-2 rounded-xl border bg-card p-3">
+          <p className="text-sm font-semibold">ให้ผู้ช่วยจำเรื่องนี้ไว้ไหม?</p>
+          <p>{p.text}</p>
+          <Button size="sm" disabled={approve.isPending} onClick={() => approve.mutate(p.id)}>
+            ยืนยันให้จำ
+          </Button>
+        </section>
+      ))}
+      {approve.isError && <p role="alert">ยืนยันการจดจำไม่สำเร็จ กรุณาลองอีกครั้ง</p>}
+    </>
+  );
+}
+
 export function RunDetails({
   id,
   membershipId,
@@ -29,76 +73,32 @@ export function RunDetails({
   status: keyof typeof statusLabels;
 }) {
   const active = status === 'queued' || status === 'running';
-  const { events, error, loading } = useRunEvents(membershipId, id, active);
-  const raw = events.flatMap((event) => (event.type === 'delta' ? [event.text] : [])).join('');
-  const metadata: string[] = [];
-  const text = raw
-    .split(/\r?\n/)
-    .filter((line) => {
-      if (
-        /^(?:ลิงก์:\s*\/play\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|mode:\s*school)$/i.test(
-          line.trim(),
-        )
-      ) {
-        metadata.push(line.trim());
-        return false;
-      }
-      return true;
-    })
-    .join('\n')
-    .trim();
-  const steps = events.flatMap((event) => {
-    switch (event.type) {
-      case 'delta':
-        return [];
-      case 'status':
-        return [statusLabels[event.status]];
-      case 'tool':
-        return [
-          (event.name === 'save_assessment' ? 'บันทึกใบงาน' : event.name) +
-            ' · ' +
-            toolStatuses[event.status],
-        ];
-      case 'done':
-        return ['งานเสร็จแล้ว'];
-      case 'error':
-        return ['งานสิ้นสุด · ' + event.code];
-      case 'approval':
-        return ['มีความจำที่รอครูยืนยัน'];
-    }
-  });
+  const { events, error, complete } = useRunEvents(membershipId, id, active);
+  const { answer, activity, notice, lastProposalId, final } = presentRun(status, events, complete);
+
   return (
     <div className="space-y-2">
-      {text ? (
-        <SchoolAnswer text={text} />
-      ) : (
-        <p role="status">
-          {loading
-            ? 'กำลังอ่านคำตอบ…'
-            : active
-              ? statusLabels[status]
-              : status === 'succeeded'
-                ? 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับที่บันทึกไว้'
-                : statusLabels[status]}
+      {answer && <SchoolAnswer text={answer} />}
+      {!error && activity && (
+        <p className="school-run-activity" role="status">
+          <LoaderCircle aria-hidden="true" />
+          {activity}
         </p>
       )}
-      {(steps.length > 0 || metadata.length > 0) && (
-        <details>
-          <summary className="cursor-pointer py-2 text-sm">รายละเอียดงาน</summary>
-          <ol className="list-decimal ps-5 text-sm">
-            {steps.map((step, index) => (
-              <li key={index}>{step}</li>
-            ))}
-          </ol>
-          {metadata.map((line, i) => (
-            <p className="break-all text-sm" key={i}>
-              {line}
-            </p>
-          ))}
-        </details>
+      {notice && (
+        <p role="status" className="text-sm font-medium">
+          {notice}
+        </p>
       )}
-
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">ยังโหลดคำตอบไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ</p>}
+      {!answer && !activity && !notice && !error && !lastProposalId && (
+        <p className="text-sm text-muted-foreground" role="status">
+          {final ? 'งานเสร็จแล้ว · ไม่มีข้อความตอบกลับ' : 'กำลังอ่านคำตอบ…'}
+        </p>
+      )}
+      {lastProposalId && (
+        <MemoryReview id={id} membershipId={membershipId} lastProposalId={lastProposalId} />
+      )}
     </div>
   );
 }

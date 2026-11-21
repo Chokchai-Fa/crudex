@@ -5,6 +5,7 @@ import {
   type CreateRun,
   type SchoolActor,
 } from '@repo/shared';
+import { z } from 'zod';
 import { ConflictError, ForbiddenError, NotFoundError, RateLimitError } from '../lib/errors';
 import * as repo from '../repositories/runs.repository';
 import type { Deps } from '../types/deps';
@@ -83,7 +84,11 @@ export async function recoverRuns(deps: Deps) {
   for (const row of await repo.pending(deps.db))
     await deps.queue.enqueue({ type: 'dispatch-run', runId: row.runId });
 }
-async function* readStream(body: ReadableStream<Uint8Array>) {
+const gatewayEventSchema = z.union([
+  runEventSchema,
+  z.object({ type: z.literal('progress'), messageId: z.string().min(1) }),
+]);
+async function* readStream(body: ReadableStream<Uint8Array>): AsyncGenerator<RunEvent> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -98,8 +103,15 @@ async function* readStream(body: ReadableStream<Uint8Array>) {
         buffer = buffer.slice(end + 2);
         if (!frame.startsWith('data: ')) continue;
         const value: unknown = JSON.parse(frame.slice(6));
-        const event = runEventSchema.safeParse(value);
-        if (event.success) yield event.data;
+        const parsed = gatewayEventSchema.safeParse(value);
+        if (!parsed.success) continue;
+        const event = parsed.data;
+        // An empty delta preserves the cursor and remains readable by older classroom clients.
+        if (event.type === 'progress') {
+          yield { type: 'delta', text: '', messageId: event.messageId, interim: true };
+        } else {
+          yield event;
+        }
       }
       if (buffer.length > 256_000) throw new Error('Invalid stream');
     }
@@ -168,8 +180,17 @@ export async function dispatchRun(deps: Deps, id: string) {
         return;
       }
       const previous = buffered.at(-1);
-      if (previous?.type === 'delta' && e.type === 'delta') previous.text += e.text;
-      else buffered.push(e);
+      if (
+        previous?.type === 'delta' &&
+        e.type === 'delta' &&
+        previous.messageId === e.messageId &&
+        !previous.interim &&
+        !e.interim
+      ) {
+        previous.text += e.text;
+      } else {
+        buffered.push(e);
+      }
       if (Date.now() - lastFlush >= 10_000 || buffered.length >= 64) await flush();
     }
   } catch {

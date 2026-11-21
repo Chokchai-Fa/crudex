@@ -24,7 +24,12 @@ export const runStatusSchema = z.enum([
 ]);
 export const runEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('status'), status: runStatusSchema }),
-  z.object({ type: z.literal('delta'), text: z.string() }),
+  z.object({
+    type: z.literal('delta'),
+    text: z.string(),
+    messageId: z.string().min(1).optional(),
+    interim: z.literal(true).optional(),
+  }),
   z.object({ type: z.literal('approval'), kind: z.literal('memory'), proposalId: z.uuid() }),
   z.object({ type: z.literal('done'), elapsedMs: z.number() }),
   z.object({ type: z.literal('error'), code: z.string().max(128) }),

@@ -62,6 +62,26 @@ it('skips a repeated queue message and interrupts an acknowledged stream without
     code: 'interrupted',
   });
 });
+it('preserves message boundaries and reclassifies interim replies without adding a wire event kind', async () => {
+  const frames = [
+    { type: 'delta', text: 'รอ', messageId: 'draft' },
+    { type: 'delta', text: 'สักครู่', messageId: 'draft' },
+    { type: 'delta', text: 'ข้อ 1', messageId: 'answer' },
+    { type: 'progress', messageId: 'draft' },
+    { type: 'delta', text: ' ได้ 4', messageId: 'answer' },
+    { type: 'done', elapsedMs: 100 },
+  ];
+  const { deps } = consumer(
+    frames.map((event) => 'data: ' + JSON.stringify(event) + '\n\n').join(''),
+  );
+  await dispatchRun(deps, r.id);
+  expect(repo.append).toHaveBeenCalledWith(deps.db, r.id, expect.any(String), [
+    { type: 'delta', text: 'รอสักครู่', messageId: 'draft' },
+    { type: 'delta', text: 'ข้อ 1', messageId: 'answer' },
+    { type: 'delta', text: '', messageId: 'draft', interim: true },
+    { type: 'delta', text: ' ได้ 4', messageId: 'answer' },
+  ]);
+});
 it('denies a different class and principal agent before reservation and rejects request ID conflicts', async () => {
   const { deps } = consumer('');
   const input = { prompt: r.prompt, clientRequestId: r.requestId };

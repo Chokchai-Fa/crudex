@@ -62,8 +62,9 @@
   accent-color: var(--primary);
   flex: none;
 }
-.school-flow :focus-visible,
-.teacher-chat :focus-visible {
+/* Shared controls provide their own ring; the composer indicates text focus on its capsule. */
+:where(.school-flow, .teacher-chat)
+  :focus-visible:not(:where([data-slot], .compose-capsule textarea)) {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
@@ -272,17 +273,18 @@
 }
 .school-quick-prompts button {
   flex: none;
-  min-height: 40px;
+  min-height: 44px;
   padding: 4px 12px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 999px;
-  background: var(--card);
+  background: var(--muted);
   color: var(--foreground);
   font-size: 0.875rem;
   cursor: pointer;
 }
 .school-quick-prompts button:hover {
-  border-color: var(--primary);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 .school-quick-prompts button:disabled {
   opacity: 0.55;
@@ -294,7 +296,6 @@
     padding-bottom: 3px;
   }
   .school-quick-prompts button {
-    min-height: 40px;
     padding-inline: 10px;
     font-size: 0.8125rem;
   }
@@ -414,9 +415,7 @@
     border-color 200ms,
     box-shadow 200ms;
 }
-.role-card[data-role='teacher'],
-.role-card:hover,
-.role-card:focus-within {
+.role-card:hover {
   border-color: var(--primary);
   box-shadow: var(--elev-selected);
 }
@@ -607,4 +606,30 @@
 }
 .watch-topic > b {
   color: var(--sample-foreground);
+}
+
+.school-run-activity {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.school-run-activity svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .school-run-activity svg {
+    animation: school-run-turn 1.4s linear infinite;
+  }
+}
+
+@keyframes school-run-turn {
+  to {
+    transform: rotate(1turn);
+  }
 }

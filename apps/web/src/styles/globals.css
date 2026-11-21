@@ -171,6 +171,8 @@
 [data-slot='button'][data-variant='outline'] {
   border-width: 1.5px;
   border-color: var(--input);
+}
+[data-slot='button'][data-variant='outline']:not(:focus-visible) {
   box-shadow: none;
 }
 

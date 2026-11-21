@@ -197,13 +197,7 @@ function ChatRoom({
           <AssistantIcon id={agent} />
           <div className="min-w-0">
             <h1 className="text-xl font-bold">{agentName}</h1>
-            <p className="chat-presence">
-              <span className="availability-dot" aria-hidden="true" />
-              {room.name} ·{' '}
-              {currentTask?.status === 'running' || currentTask?.status === 'queued'
-                ? statusLabels[currentTask.status]
-                : 'ว่าง คุยได้เลย'}
-            </p>
+            <p className="chat-presence">{room.name}</p>
           </div>
           <div className="ms-auto">
             <ThemeToggle />
