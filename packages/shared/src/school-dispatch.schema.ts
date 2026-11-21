@@ -27,6 +27,7 @@ export const schoolScopeSchema = z.strictObject({
   classId: z.uuid().nullable(),
   role: z.enum(['teacher', 'principal']),
   freshSession: z.boolean(),
+  kahootConnected: z.boolean().optional(),
   agentId: agentIdSchema,
   runId: z.uuid(),
   attemptId: z.uuid(),
@@ -55,5 +56,6 @@ export function signedTurn(s: SchoolScope, text: string) {
     s.callbackOrigin,
     s.credential,
     text,
+    ...(s.kahootConnected === undefined ? [] : [s.kahootConnected]),
   ]);
 }
