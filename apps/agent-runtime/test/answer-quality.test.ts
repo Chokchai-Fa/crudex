@@ -28,7 +28,7 @@ describe('answer quality and next-question contract', () => {
 
   it('excludes the block from the published brief and from ask-gate confirmations', () => {
     expect(byId['rungchao']?.instructions).toContain(
-      'สรุปเช้าที่เผยแพร่ด้วย publish_brief ห้ามมีบล็อกนี้',
+      'สรุปเช้า (brief) ทุกกรณีห้ามมีบล็อกนี้ เพื่อให้ไม่เกิน 7 บรรทัด',
     );
     for (const id of ids) {
       expect(byId[id]?.instructions, id).toMatch(/ยกเว้น.*(กดยืนยัน)/);
