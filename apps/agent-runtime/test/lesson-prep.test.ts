@@ -23,11 +23,11 @@ describe('jaew lesson preparation flow', () => {
   it('asks before doing and offers the six choices with the exact labels', () => {
     for (const label of [
       '1) สื่อการสอน/สไลด์ — พี่เจ๋ง',
-      '2) ใบงาน/การบ้าน — น้องจ๋ำ',
-      '3) แบบทดสอบ Google Form — น้องจ๋ำ',
+      '2) ใบงาน/การบ้าน — น้องจ๋า',
+      '3) แบบทดสอบ Google Form — น้องจ๋า',
       '4) เกม Kahoot — พี่เจ๋ง',
       '5) กิจกรรมในคาบ — พี่เจ๋ง',
-      '6) ข้อสอบ — น้องจ๋ำ',
+      '6) ข้อสอบ — น้องจ๋า',
     ]) {
       expect(text, label).toContain(label);
     }

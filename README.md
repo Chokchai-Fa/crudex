@@ -1,6 +1,6 @@
 # Crudex
 
-Crudex is a Thai-language AI assistant for school staff. A teacher can ask Jaew (น้องแจ๋ว) for a fractions worksheet. Jaew delegates to Jum (น้องจ๋ำ), whose tools check the answer key before publication. Other assistants help with teaching media, administrative paperwork and student insights.
+Crudex is a Thai-language AI assistant for school staff. A teacher can ask Jaew (น้องแจ๋ว) for a fractions worksheet. Jaew delegates to Jum (น้องจ๋า), whose tools check the answer key before publication. Other assistants help with teaching media, administrative paperwork and student insights.
 
 [Read the Crudex documentation](https://chokchai-fa.github.io/crudex/) · [Write or preview documentation](skills/write-docusaurus-docs/SKILL.md)
 

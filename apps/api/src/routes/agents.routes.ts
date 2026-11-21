@@ -5,7 +5,7 @@ import type { AppEnv } from '../types/app';
 
 const directory: { id: AgentId; name: string; role: 'teacher' | 'principal' }[] = [
   { id: 'jaew', name: 'น้องแจ๋ว', role: 'teacher' },
-  { id: 'jum', name: 'น้องจ๋ำ', role: 'teacher' },
+  { id: 'jum', name: 'น้องจ๋า', role: 'teacher' },
   { id: 'jeng', name: 'พี่เจ๋ง', role: 'teacher' },
   { id: 'porn', name: 'ป้าพร', role: 'teacher' },
   { id: 'nun', name: 'น้องนุ่น', role: 'teacher' },
