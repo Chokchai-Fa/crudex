@@ -192,7 +192,11 @@ describe('published order', () => {
     });
     try {
       const r = await call('save_assessment', sample);
-      expect(r.questions[0]).toMatchObject({ id: 'q1', choices: ['a', 'b', 'c', 'd'], answer: 'ค' });
+      expect(r.questions[0]).toMatchObject({
+        id: 'q1',
+        choices: ['a', 'b', 'c', 'd'],
+        answer: 'ค',
+      });
     } finally {
       publisher.publish = real;
     }
@@ -201,7 +205,10 @@ describe('published order', () => {
 
 describe('curriculum_lookup queries', () => {
   it('matches any word and falls back to the grade instead of returning nothing', async () => {
-    const some = await call('curriculum_lookup', { grade: 'ป.5', query: 'เศษส่วน การบวก การลบเศษส่วนและจำนวนคละ' });
+    const some = await call('curriculum_lookup', {
+      grade: 'ป.5',
+      query: 'เศษส่วน การบวก การลบเศษส่วนและจำนวนคละ',
+    });
     expect(some.count).toBeGreaterThan(0);
     const none = await call('curriculum_lookup', { grade: 'ป.5', query: 'ไม่มีคำนี้แน่นอน' });
     expect(none.count).toBeGreaterThan(0);

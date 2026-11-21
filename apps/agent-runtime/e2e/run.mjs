@@ -50,7 +50,12 @@ const skills = readdirSync(join(pkg, 'skills'), { withFileTypes: true })
     const raw = readFileSync(join(pkg, 'skills', entry.name, 'SKILL.md'), 'utf8');
     const [, front, body] = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(raw);
     const field = (key) => new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(front)[1].trim();
-    return { id: entry.name, name: field('name'), description: field('description'), content: body.trim() };
+    return {
+      id: entry.name,
+      name: field('name'),
+      description: field('description'),
+      content: body.trim(),
+    };
   });
 writeFileSync(join(root, 'skills.json'), JSON.stringify(skills));
 
@@ -61,7 +66,10 @@ const bridgeCalls = {
     return this.all.length;
   },
   get all() {
-    return readFileSync(bridgeLog, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    return readFileSync(bridgeLog, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
   },
   0: undefined,
 };
@@ -83,7 +91,11 @@ const env = {
 };
 const spawned = [];
 const start = (cmd, args, extra = {}) => {
-  const child = spawn(cmd, args, { env: { ...env, ...extra }, cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(cmd, args, {
+    env: { ...env, ...extra },
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   for (const s of [child.stdout, child.stderr])
     s.on('data', (d) => debug && process.stderr.write(d));
   spawned.push(child);
@@ -265,7 +277,8 @@ ev = run(['--agent', 'jum', `CALL save_assessment ${JSON.stringify(broken)}`]);
 check(
   'jum save_assessment refuses a wrong key',
   tool(ev)?.state?.status === 'error' &&
-    !(tool(ev)?.state?.output ?? '').includes('docs.google.com') && bridgeCalls.length === 0,
+    !(tool(ev)?.state?.output ?? '').includes('docs.google.com') &&
+    bridgeCalls.length === 0,
   JSON.stringify(tool(ev)?.state).slice(0, 200),
 );
 ev = run(['--agent', 'jum', `CALL save_assessment ${JSON.stringify(sample)}`]);
@@ -285,11 +298,27 @@ console.log('# skills');
 const skillAsk = (agent, id) => run(['--agent', agent, `CALL skill ${JSON.stringify({ id })}`]);
 ev = skillAsk('jum', 'worksheet');
 const loaded = tool(ev)?.state?.output ?? '';
-check('jum can load its bound skill and receives the skill text', tool(ev)?.state?.status === 'completed' && loaded.includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 40)), JSON.stringify(tool(ev)?.state).slice(0, 300));
+check(
+  'jum can load its bound skill and receives the skill text',
+  tool(ev)?.state?.status === 'completed' &&
+    loaded.includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 40)),
+  JSON.stringify(tool(ev)?.state).slice(0, 300),
+);
 ev = skillAsk('nun', 'worksheet');
-check('nun cannot load a skill it is not bound to', tool(ev)?.state?.status === 'error' || !(tool(ev)?.state?.output ?? '').includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 40)), JSON.stringify(tool(ev)?.state).slice(0, 300));
+check(
+  'nun cannot load a skill it is not bound to',
+  tool(ev)?.state?.status === 'error' ||
+    !(tool(ev)?.state?.output ?? '').includes(
+      skills.find((x) => x.id === 'worksheet').content.slice(0, 40),
+    ),
+  JSON.stringify(tool(ev)?.state).slice(0, 300),
+);
 ev = skillAsk('jaew', 'worksheet');
-check('jaew has no skills', tool(ev)?.state?.status === 'error' || !(tool(ev)?.state?.output ?? '').includes('worksheet'), JSON.stringify(tool(ev)?.state).slice(0, 300));
+check(
+  'jaew has no skills',
+  tool(ev)?.state?.status === 'error' || !(tool(ev)?.state?.output ?? '').includes('worksheet'),
+  JSON.stringify(tool(ev)?.state).slice(0, 300),
+);
 
 console.log('# secretary delegates');
 const sessionsOf = async (agent) =>
@@ -342,7 +371,13 @@ check(
   JSON.stringify(d.msgs).slice(0, 200),
 );
 const childSkill = await delegate('jum', `CALL skill ${JSON.stringify({ id: 'worksheet' })}`);
-check('the jum child session loads the worksheet skill (bound skills reach delegated sessions)', JSON.stringify(childSkill.msgs).includes(skills.find((x) => x.id === 'worksheet').content.slice(0, 20)), JSON.stringify(childSkill.msgs).slice(0, 300));
+check(
+  'the jum child session loads the worksheet skill (bound skills reach delegated sessions)',
+  JSON.stringify(childSkill.msgs).includes(
+    skills.find((x) => x.id === 'worksheet').content.slice(0, 20),
+  ),
+  JSON.stringify(childSkill.msgs).slice(0, 300),
+);
 for (const worker of ['jeng', 'porn', 'nun']) {
   d = await delegate(worker, 'hello');
   check(`jaew can start ${worker}`, !!d.child, JSON.stringify(tool(d.ev)?.state));

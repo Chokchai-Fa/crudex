@@ -8,6 +8,12 @@ createServer((req, res) => {
   req.on('end', () => {
     appendFileSync(process.env.BRIDGE_LOG, body + '\n');
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, formId: 'form_e2e_1', url: 'https://docs.google.com/forms/d/form_e2e_1/viewform' }));
+    res.end(
+      JSON.stringify({
+        ok: true,
+        formId: 'form_e2e_1',
+        url: 'https://docs.google.com/forms/d/form_e2e_1/viewform',
+      }),
+    );
   });
 }).listen(4793, '127.0.0.1');

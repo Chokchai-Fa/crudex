@@ -61,7 +61,12 @@ export const publisher = {
       if (response.ok) {
         const result = formResponse.safeParse(await response.json());
         if (result.success)
-          return { mode: 'apps-script', formId: result.data.formId, url: result.data.url, questions };
+          return {
+            mode: 'apps-script',
+            formId: result.data.formId,
+            url: result.data.url,
+            questions,
+          };
       }
     } catch {
       // Fetch errors and bridge responses may contain the private deployment URL.
