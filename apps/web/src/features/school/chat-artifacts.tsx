@@ -27,7 +27,7 @@ export function ChatArtifacts({
   const token = formUrl.split('/').pop();
   const scored = grades.data?.students.filter((s) => s.score !== null).length;
   return (
-    <div className="chat-artifacts space-y-3">
+    <div className="m-done chat-artifacts space-y-3">
       <div className="grid gap-2 md:grid-cols-3">
         <article className="output-card worksheet-output">
           <div className="mini-page">
