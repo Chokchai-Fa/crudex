@@ -1,0 +1,98 @@
+/* crudex design tokens · สไตล์ S8.1 (ขาว + ฟ้า + เหลือง)
+ * ใช้ตรง ๆ หรือ map เข้า @theme ของ Tailwind v4 (ชื่อขึ้นต้น --color-*, --font-*, --text-*, --radius-*, --shadow-*, --spacing-*)
+ * ฟอนต์: @fontsource/anuphan (400/500/600/700), @fontsource/sarabun (ใบงานพิมพ์), @fontsource/fredoka (wordmark crudex เท่านั้น)
+ */
+:root {
+  /* ── สีหลัก ───────────────────────────── */
+  --color-primary: #2F6BFF;        /* ปุ่มหลัก ฟองแชตครู ลิงก์ */
+  --color-primary-hover: #1F56E0;
+  --color-primary-soft: #E3ECFF;   /* พื้นแถวที่เลือก ฟองแชตบอท */
+  --color-primary-softer: #EEF4FF; /* แถวใหม่ในตาราง แผงขวา */
+  --color-primary-border: #C9D8FF;
+
+  --color-accent: #FFD43B;         /* ปุ่มจำลอง/demo, ป้ายจำลอง, ปุ่ม + */
+  --color-accent-soft: #FFF8D6;    /* ป้ายข้อมูลตัวอย่าง, โหมดสำรอง, การ์ดควิซ */
+  --color-accent-text: #8A6D00;    /* ตัวหนังสือบนพื้นเหลืองอ่อน */
+
+  --color-success: #18B87A;
+  --color-success-soft: #E3F6EE;
+  --color-success-text: #0E8A5A;
+
+  --color-danger: #FF5C8A;         /* badge ยังไม่อ่าน */
+  --color-danger-soft: #FFF5F7;    /* แถวคะแนนต่ำกว่า 50% */
+  --color-danger-text: #B4234A;
+
+  /* quiz answer colors (ควิซสด) */
+  --color-quiz-1: #2F6BFF;
+  --color-quiz-2: #18B87A;
+  --color-quiz-3: #FFC21A;
+  --color-quiz-4: #FF6B8A;
+
+  /* ── ตัวหนังสือ / พื้น / เส้น ─────────── */
+  --color-ink: #152238;            /* หัวข้อ เนื้อหาหลัก */
+  --color-ink-2: #4A5675;          /* เนื้อความรอง */
+  --color-ink-3: #6B7A99;          /* คำอธิบาย เวลา (ห้ามเล็กกว่า 13px) */
+  --color-ink-4: #9AA7C2;          /* placeholder */
+  --color-bg: #FFFFFF;
+  --color-bg-sidebar: #F6F9FF;
+  --color-bg-muted: #F2F5FB;       /* ช่องพิมพ์ ชิปเวลา */
+  --color-border: #E3EAF6;
+  --color-border-strong: #DCE4F2;
+
+  /* ── ฟอนต์ ─────────────────────────────── */
+  --font-sans: "Anuphan", system-ui, sans-serif;
+  --font-print: "Sarabun", "Anuphan", serif;   /* ใบงาน A4 */
+  --font-logo: "Fredoka", "Anuphan", sans-serif;
+
+  /* ขนาดตัวอักษร (px) — ครูอ่าน: เนื้อความขั้นต่ำ 15, คำอธิบายขั้นต่ำ 13 */
+  --text-xs: 12px;    /* ป้าย badge เท่านั้น */
+  --text-sm: 13px;
+  --text-base: 15px;  /* ข้อความแชต */
+  --text-md: 17px;    /* ชื่อในรายชื่อ */
+  --text-lg: 20px;    /* หัวการ์ด */
+  --text-xl: 24px;    /* หัวหน้า */
+  --text-2xl: 32px;
+  --text-hero: 104px; /* landing */
+  --leading-body: 1.6;
+  --tracking-display: -0.03em;     /* หัวข้อใหญ่ landing */
+
+  /* ── ระยะห่าง (4px grid) ─────────────── */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+
+  /* layout */
+  --sidebar-width: 316px;
+  --rightpanel-width: 340px;
+  --header-height: 68px;
+
+  /* ── มุมโค้ง ───────────────────────────── */
+  --radius-sm: 6px;     /* badge */
+  --radius-md: 12px;    /* thumbnail, input เล็ก */
+  --radius-lg: 16px;    /* การ์ดเล็ก */
+  --radius-xl: 20px;    /* การ์ดผลงาน แถวรายชื่อ */
+  --radius-2xl: 28px;   /* ช่องพิมพ์ การ์ดใหญ่ */
+  --radius-bubble: 22px;
+  --radius-bubble-tail: 6px;
+  --radius-full: 999px; /* ปุ่มแคปซูลทุกปุ่ม */
+
+  /* ── เงา ───────────────────────────────── */
+  --shadow-xs: 0 1px 4px rgba(21, 34, 56, 0.08);   /* thumbnail */
+  --shadow-sm: 0 2px 10px rgba(21, 34, 56, 0.05);  /* การ์ด */
+  --shadow-md: 0 10px 30px rgba(47, 107, 255, 0.15); /* การ์ดที่เลือก */
+  --shadow-lg: 0 20px 60px rgba(21, 34, 56, 0.25); /* ภาพแอปบน landing */
+
+  /* ── motion ────────────────────────────── */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; }
+}
