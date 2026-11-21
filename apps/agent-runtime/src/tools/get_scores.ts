@@ -1,6 +1,7 @@
-import { assessment, questionTopics, results } from '../data/sample';
-import { identityOf } from './identity';
-import type { ToolDefinition } from './types';
+import { z } from 'zod';
+import { assessment, questionTopics, results, sampleClassId } from '../data/sample';
+import { classOf, ToolError } from './identity';
+import { validatedTool } from './validated';
 
 const threshold = assessment.maxScore * 0.5;
 
@@ -22,7 +23,7 @@ const students = results.map((row, i) => {
   };
 });
 
-export function summarize() {
+function summarize() {
   const byTopic = new Map<string, { wrong: number; total: number }>();
   for (const row of results) {
     [...row].forEach((c, q) => {
@@ -53,11 +54,14 @@ export function summarize() {
   };
 }
 
-export const getScores: ToolDefinition = {
+export const getScores = validatedTool(z.strictObject({}), {
   name: 'get_scores',
   description:
     'ดูคะแนนตัวอย่างของห้องที่ครูสอน (ห้องมาจาก session ไม่ต้องระบุ) คืนค่าเฉลี่ย รายชื่อต่ำกว่าเกณฑ์ (ต่ำกว่า 50% ของคะแนนเต็ม ระบบตั้ง) หัวข้อที่ผิดมากสุด และรายคน ตัวเลขทุกตัวคำนวณโดยระบบ',
-  input: { type: 'object', properties: {}, additionalProperties: false },
   gate: 'allow',
-  execute: (_input, context) => ({ classId: identityOf(context).classId, ...summarize() }),
-};
+  execute: (_input, context) => {
+    const classId = classOf(context);
+    if (classId !== sampleClassId) throw new ToolError('no_scores', 'ยังไม่มีคะแนนของห้องนี้');
+    return { classId, ...summarize() };
+  },
+});

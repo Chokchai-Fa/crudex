@@ -18,7 +18,9 @@ it('sends a checked quiz and returns the respondent link from Apps Script', asyn
   vi.stubEnv('SCHOOL_BOT_APPS_SCRIPT_URL', 'https://bridge.invalid');
   const request = vi.fn<typeof fetch>().mockResolvedValue(Response.json(form));
   vi.stubGlobal('fetch', request);
-  await expect(saveAssessment.execute(input, context)).resolves.toMatchObject({
+  const published = await saveAssessment.execute(input, context);
+  expect(published).toMatchObject({
+    maxScore: 3,
     formUrl: form.url,
     formId: form.formId,
     mode: 'apps-script',
@@ -30,6 +32,17 @@ it('sends a checked quiz and returns the respondent link from Apps Script', asyn
   expect(first.text).toBe(input.questions[0]!.text);
   expect(first.choices[first.answerIndex]).toBe('3/4');
   expect(first.points).toBe(1);
+  expect(published).toMatchObject({
+    questions: payload.questions.map(
+      (question: ReturnType<typeof formQuestions>[number], index: number) => ({
+        id: input.questions[index]?.id,
+        text: question.text,
+        choices: question.choices,
+        answer: 'กขคง'[question.answerIndex],
+        points: 1,
+      }),
+    ),
+  });
 });
 
 it('does not invent a form on an invalid response or missing configuration', async () => {

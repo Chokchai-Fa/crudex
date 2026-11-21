@@ -71,7 +71,28 @@ describe('teacher agents', () => {
     expect(byId['porn']?.instructions).toContain('ยืนยันทุกครั้ง');
   });
 
-  it('gates outgoing email with ask', () => {
-    expect(decide(permissionsFor(byId['porn'] as never), 'send_email', ['*'])).toBe('ask');
+  it('preserves the approval gates for memory, claims and email', () => {
+    const secretary = permissionsFor(jaew);
+    expect(decide(secretary, 'memory_save', ['*'])).toBe('allow');
+    const budget = permissionsFor(byId['porn']!);
+    expect(decide(budget, 'submit_for_approval', ['*'])).toBe('allow');
+    expect(decide(budget, 'send_email', ['*'])).toBe('ask');
+  });
+
+  it('directs agents to use checked counts, verified questions and genuine tool links', () => {
+    expect(byId['jum']?.instructions).toContain('ใช้ count และ topics จาก check_assessment');
+    expect(byId['jum']?.instructions).toContain('ยังไม่มีไฟล์ให้ดาวน์โหลด');
+    expect(byId['jeng']?.instructions).toContain('unverifiedCount เป็น 0');
+    expect(byId['porn']?.instructions).toContain('ส่ง claimId เดิม');
+    expect(byId['porn']?.instructions).toContain('ระบบไม่มีหน้าต่างให้กดยืนยัน');
+    expect(jaew.instructions).toContain('สถานะตัวอย่าง');
+  });
+});
+
+describe('jum main loop', () => {
+  it('calls make_file only when the teacher asks for a file', () => {
+    const text = byId['jum']?.instructions ?? '';
+    expect(text).toContain('ห้ามเรียก make_file ในวงจรปกติ');
+    expect(text.indexOf('save_assessment')).toBeLessThan(text.indexOf('make_file'));
   });
 });

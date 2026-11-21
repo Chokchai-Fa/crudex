@@ -61,12 +61,11 @@ export function saveMemory(ownerId: string, rawText: string, now = Date.now()) {
 }
 
 export function searchMemory(ownerId: string, query: string, limit = 5): MemoryItem[] {
-  const cap = Math.max(1, Math.min(10, Math.trunc(limit)));
   const terms = normalize(query).split(' ').filter(Boolean);
   return [...(store.get(ownerId)?.values() ?? [])]
     .filter((item) => terms.every((term) => normalize(item.text).includes(term)))
     .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, cap);
+    .slice(0, limit);
 }
 
 export function resetMemory() {

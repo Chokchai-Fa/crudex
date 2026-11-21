@@ -1,5 +1,6 @@
+import { z } from 'zod';
 import { ToolError } from './identity';
-import type { ToolDefinition } from './types';
+import { validatedTool } from './validated';
 
 interface Task {
   taskId: string;
@@ -24,20 +25,14 @@ const tasks: Task[] = [
   },
 ];
 
-export const taskStatus: ToolDefinition = {
+export const taskStatus = validatedTool(z.strictObject({ taskId: z.string().optional() }), {
   name: 'task_status',
   description: 'ถามความคืบหน้าของงานที่ส่งต่อให้ agent อื่น (ตัวจำลอง: คืนข้อมูลตัวอย่าง)',
-  input: {
-    type: 'object',
-    properties: { taskId: { type: 'string' } },
-    additionalProperties: false,
-  },
   gate: 'allow',
-  execute: (input) => {
-    const { taskId } = input as { taskId?: string };
+  execute: ({ taskId }) => {
     if (!taskId) return { mode: 'mock', tasks };
     const task = tasks.find((t) => t.taskId === taskId);
     if (!task) throw new ToolError('not_found', `ไม่พบงาน ${taskId}`);
     return { mode: 'mock', tasks: [task] };
   },
-};
+});
