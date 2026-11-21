@@ -2,15 +2,14 @@ import { isDeepStrictEqual } from 'node:util';
 import { assessmentSchema, runCheck } from './tools/check_assessment';
 
 export const kahootTool = 'crudex_kahoot_create_or_update_kahoot';
-export const kahootServer = 'https://mcp.kahoot.it/mcp';
 
 function prepareDraft(input: unknown) {
   const { assessment, result } = runCheck(assessmentSchema.parse(input));
   if (!result.ok || result.unverifiedCount || !result.count) return;
-  const questions = assessment.questions.map((question) => ({
+  const questions = assessment.questions.map((question, index) => ({
     type: 'quiz',
     question: question.text,
-    image_query: 'classroom mathematics',
+    image_query: `classroom mathematics question ${index + 1}`,
     time: 30000,
     choices: question.choices.map((choice) => ({
       answer: choice.text,

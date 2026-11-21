@@ -17,8 +17,16 @@ The demo uses sample school data and a shared passcode. Selecting the teacher or
 | `GET /api/status` | Returns the sandbox status, `runsToday`, and `limit`. Includes `runtimeRevision` when a sandbox exists. |
 | `GET /api/brief` | Returns `latest` and `nextRunAt` (milliseconds since the Unix epoch) and sets up the daily 07:00 Bangkok schedule. |
 | `POST /api/brief/run` | Generates a brief immediately. The `latest` object contains `text`, `generatedAt`, and `trigger`. |
+| `GET /kahoot/connect` | Opens Kahoot sign-in. Use a plain link (top-level navigation, not `fetch`) so the gateway session cookie is sent. Redirects to `/login` without a session. |
+| `GET /kahoot/callback` | Kahoot returns the user here. Shows a page saying whether the account was connected. |
+| `GET /api/kahoot/status` | Returns `connected`, and when connected `connectedAt` and `expiresAt` (Unix ms). Never returns tokens. |
+| `POST /api/kahoot/disconnect` | Revokes and deletes the stored Kahoot tokens. Returns the new status. |
 
 Call the gateway from the same origin or route requests through a reverse proxy in your frontend’s backend. Forward each user’s own session cookie. If the backend needs the passcode, keep it on the server and out of browser JavaScript.
+
+## Connect a Kahoot account (button for พี่เจ๋ง)
+
+Render `<a href="/kahoot/connect">เชื่อมบัญชี Kahoot</a>` for a signed-in user. After the user signs in at Kahoot, the gateway stores the OAuth tokens on the server only (a Durable Object), so they survive sandbox restarts and never reach the browser or the sandbox. Poll `GET /api/kahoot/status` to switch the button to “เชื่อมแล้ว”, and call `POST /api/kahoot/disconnect` for “ยกเลิกการเชื่อม”. The connected account is shared by the demo. Only พี่เจ๋ง can use it, and only to create a new draft from questions that passed `check_assessment` and to read its editor link. The connector is on only when the repository variable `KAHOOT_MCP_ENABLED` is `true` at deploy.
 
 ## Read the chat stream
 

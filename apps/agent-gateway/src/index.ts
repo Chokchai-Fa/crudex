@@ -6,8 +6,10 @@ import {
   sessionCookie,
   validPasscode,
 } from './gate';
+import { isKahootMcpRequest } from './kahoot-mcp';
 import { archivePath } from './sandbox';
 
+export { KahootConnection } from './kahoot-connection';
 export { MorningBrief } from './morning-brief';
 export { SandboxManager } from './sandbox-manager';
 
@@ -20,14 +22,14 @@ const securityHeaders = {
   'x-content-type-options': 'nosniff',
 };
 
-function loginPage(status = 200, message = '') {
+function gatewayPage(lang: 'en' | 'th', title: string, content: string, status: number) {
   return new Response(
     `<!doctype html>
-<html lang="en">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in · Crudex Agent</title>
+<title>${title}</title>
 <style>
 body { font: 1rem system-ui, sans-serif; background: #f5f7fa; color: #18263a; margin: 0; padding: 24px; }
 main { box-sizing: border-box; max-width: 400px; margin: 14vh auto 0; padding: 24px; background: white; border: 1px solid #d9e0ea; border-radius: 14px; }
@@ -40,19 +42,38 @@ p { color: #a22731; }
 </style>
 </head>
 <body><main>
+${content}
+</main></body></html>`,
+    {
+      status,
+      headers: {
+        ...securityHeaders,
+        'content-type': 'text/html; charset=utf-8',
+        'referrer-policy': 'no-referrer',
+      },
+    },
+  );
+}
+
+function loginPage(status = 200, message = '') {
+  return gatewayPage(
+    'en',
+    'Sign in · Crudex Agent',
+    `
 <h1>Sign in to Crudex Agent</h1>
 ${message ? `<p role="alert">${message}</p>` : ''}
 <form action="/login" method="post">
 <label for="passcode">Passcode</label>
 <input id="passcode" name="passcode" type="password" autocomplete="current-password" required maxlength="1024">
 <button type="submit">Sign in</button>
-</form>
-</main></body></html>`,
-    {
-      status,
-      headers: { ...securityHeaders, 'content-type': 'text/html; charset=utf-8' },
-    },
+</form>`,
+    status,
   );
+}
+
+function kahootPage(status: 200 | 400 | 502) {
+  const heading = status === 200 ? 'เชื่อมบัญชี Kahoot แล้ว' : 'เชื่อมบัญชี Kahoot ไม่สำเร็จ';
+  return gatewayPage('th', heading, `<h1>${heading}</h1><a href="/">กลับหน้าหลัก</a>`, status);
 }
 
 function redirect(location: string, cookie?: string) {
@@ -94,7 +115,19 @@ export default {
     const url = new URL(request.url);
     const route = request.method + ' ' + url.pathname;
     const sandbox = () => env.SANDBOX.getByName('main');
-    if (route === 'GET ' + archivePath) return sandbox().fetch(request);
+    const kahoot = () => env.KAHOOT.getByName('kahoot');
+    if (route === 'GET ' + archivePath || isKahootMcpRequest(url, request.method))
+      return sandbox().fetch(request);
+
+    if (route === 'GET /kahoot/callback') {
+      const state = url.searchParams.get('state');
+      const code = url.searchParams.has('error') ? null : url.searchParams.get('code');
+      try {
+        return kahootPage(state && (await kahoot().callback(code, state)) ? 200 : 400);
+      } catch {
+        return kahootPage(502);
+      }
+    }
 
     const passcode = passcodeSchema.safeParse(env.PASSCODE);
     if (!passcode.success) {
@@ -120,8 +153,26 @@ export default {
 
     const session = await readSession(request.headers.get('cookie'), passcode.data);
     if (!session) {
-      if (route === 'GET /') return redirect('/login');
+      if (route === 'GET /' || route === 'GET /kahoot/connect') return redirect('/login');
       return Response.json({ error: 'unauthorized' }, { status: 401 });
+    }
+
+    if (route === 'GET /kahoot/connect') {
+      try {
+        return redirect(await kahoot().beginAuthorization(url.origin), session.upgrade);
+      } catch {
+        return kahootPage(502);
+      }
+    }
+    if (route === 'GET /api/kahoot/status' || route === 'POST /api/kahoot/disconnect') {
+      const headers = new Headers({ 'cache-control': 'no-store' });
+      if (session.upgrade) headers.set('set-cookie', session.upgrade);
+      try {
+        if (request.method === 'POST') await kahoot().disconnect();
+        return Response.json(await kahoot().status(), { headers });
+      } catch {
+        return Response.json({ error: 'kahoot_unavailable' }, { status: 502, headers });
+      }
     }
 
     if (route === 'GET /') {

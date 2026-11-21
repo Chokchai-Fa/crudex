@@ -31,3 +31,11 @@ class_name = "MorningBrief"
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["MorningBrief"]
+
+[[durable_objects.bindings]]
+name = "KAHOOT"
+class_name = "KahootConnection"
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["KahootConnection"]

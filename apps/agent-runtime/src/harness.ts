@@ -4,6 +4,7 @@ import type { SchoolScope } from './school';
 import { OpenCode } from '@opencode/sdk';
 import { resolveToolOwner } from './demo-session';
 import skills from 'virtual:crudex-skills';
+import { readKahootConfig } from './kahoot-config';
 import { createRuntimePlugin } from './plugin';
 import { tools } from './tools';
 
@@ -30,7 +31,7 @@ export async function createHarness(dataDir: string) {
       return count;
     },
     skills,
-    !process.env.SCHOOL_OWNER && process.env.KAHOOT_MCP_ENABLED === 'true',
+    process.env.SCHOOL_OWNER ? undefined : readKahootConfig(process.env),
     (sessionId, agent, signal) =>
       resolveToolOwner((id) => host.session.get({ sessionID: id }, { signal }), sessionId, agent),
     process.env.SCHOOL_OWNER ? resolveScope : undefined,

@@ -1,5 +1,6 @@
 import type { Sandbox } from '@vercel/sandbox';
 import type { AgentConfig } from './env';
+import { kahootMcpPath } from './kahoot-mcp';
 
 export const archivePath = '/__sandbox/app.tgz';
 export const upstreamHeader = 'x-crudex-upstream-token';
@@ -62,6 +63,7 @@ export async function bootSandbox(
   bootToken: string,
   upstreamToken: string,
   owner?: string,
+  kahootToken?: string,
 ) {
   const setup = await sandbox.runCommand({
     cmd: 'node',
@@ -79,6 +81,10 @@ export async function bootSandbox(
     env: {
       OPENAI_API_KEY: config.OPENAI_API_KEY,
       KAHOOT_MCP_ENABLED: config.KAHOOT_MCP_ENABLED ?? 'false',
+      ...(kahootToken && {
+        KAHOOT_MCP_URL: origin + kahootMcpPath,
+        KAHOOT_MCP_TOKEN: kahootToken,
+      }),
       ...(config.SCHOOL_BOT_APPS_SCRIPT_URL && {
         SCHOOL_BOT_APPS_SCRIPT_URL: config.SCHOOL_BOT_APPS_SCRIPT_URL,
       }),

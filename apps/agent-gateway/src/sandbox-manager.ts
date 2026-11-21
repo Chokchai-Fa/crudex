@@ -3,6 +3,7 @@ import { dispatchSchema, signedTurn } from '../../../packages/shared/src/school-
 import { DurableObject } from 'cloudflare:workers';
 import { consumeRun, countToday, type DailyUsage } from './daily-cap';
 import { envSchema, type AgentConfig } from './env';
+import { isKahootMcpRequest, kahootTokenHeader } from './kahoot-mcp';
 import { restoreRuntimeState, saveRuntimeState } from './runtime-state';
 import {
   archivePath,
@@ -26,9 +27,11 @@ interface SandboxRecord {
 interface RunningSandbox extends SandboxRecord {
   url: string;
   token: string;
+  kahootToken?: string;
 }
 
 const retryAlarmAfter = 60_000;
+const encoder = new TextEncoder();
 
 export class SandboxManager extends DurableObject<Env> {
   private sandbox?: SandboxRecord | RunningSandbox;
@@ -47,6 +50,7 @@ export class SandboxManager extends DurableObject<Env> {
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === archivePath) return this.serveArchive(request);
+    if (isKahootMcpRequest(url, request.method)) return this.serveKahoot(request);
 
     const config = envSchema.parse(this.env);
     if (request.method === 'GET' && url.pathname === '/api/status') {
@@ -99,7 +103,6 @@ export class SandboxManager extends DurableObject<Env> {
   private async serveArchive(request: Request) {
     const token = request.headers.get(upstreamHeader);
     if (!token || !/^[a-f0-9]{64}$/.test(token)) return new Response(null, { status: 401 });
-    const encoder = new TextEncoder();
     const authorized = await this.ctx.storage.transaction(async (txn) => {
       const expected = await txn.get<string>('boot-token');
       if (
@@ -117,6 +120,23 @@ export class SandboxManager extends DurableObject<Env> {
       status: asset.status,
       headers: { 'content-type': 'application/gzip', 'cache-control': 'no-store' },
     });
+  }
+
+  private async serveKahoot(request: Request) {
+    const sandbox = this.sandbox;
+    const token = request.headers.get(kahootTokenHeader);
+    if (
+      !sandbox ||
+      !('url' in sandbox) ||
+      !sandbox.kahootToken ||
+      Date.now() >= sandbox.startedAt + sandboxTimeout ||
+      !token ||
+      !/^[a-f0-9]{64}$/.test(token) ||
+      !crypto.subtle.timingSafeEqual(encoder.encode(token), encoder.encode(sandbox.kahootToken))
+    ) {
+      return new Response(null, { status: 401 });
+    }
+    return this.env.KAHOOT.getByName('kahoot').mcp(request);
   }
 
   private async proxy(
@@ -215,6 +235,7 @@ export class SandboxManager extends DurableObject<Env> {
       !('url' in current) ||
       current.owner !== owner ||
       current.revision !== config.RUNTIME_REVISION ||
+      Boolean(current.kahootToken) !== (config.KAHOOT_MCP_ENABLED === 'true' && !owner) ||
       Date.now() >= current.startedAt + rotateAfter
     ) {
       await this.beginTransition(() => this.replace(origin, config, owner));
@@ -267,10 +288,12 @@ export class SandboxManager extends DurableObject<Env> {
     try {
       const bootToken = randomToken();
       const token = randomToken();
+      const kahootToken =
+        config.KAHOOT_MCP_ENABLED === 'true' && !owner ? randomToken() : undefined;
       await this.ctx.storage.setAlarm(Date.now() + retryAlarmAfter);
       await this.ctx.storage.put({ sandbox: record, 'boot-token': bootToken });
-      const url = await bootSandbox(sandbox, config, origin, bootToken, token, owner);
-      const running = { ...record, url, token, lastUsedAt: Date.now() };
+      const url = await bootSandbox(sandbox, config, origin, bootToken, token, owner, kahootToken);
+      const running = { ...record, url, token, kahootToken, lastUsedAt: Date.now() };
       // A bad or unreadable snapshot must not keep the sandbox from serving; it starts empty instead.
       await restoreRuntimeState(this.ctx.storage, running).catch((error: unknown) => {
         console.warn(

@@ -1,7 +1,9 @@
 import { Agent, Location, Model, Skill, type Plugin } from '@opencode/plugin';
 import { schoolTool, type SchoolScope } from './school';
 import { agents } from './agents';
-import { KahootDrafts, kahootTool, kahootServer } from './kahoot-draft';
+import { jeng } from './agents/jeng';
+import type { KahootMcpConfig } from './kahoot-config';
+import { KahootDrafts, kahootTool } from './kahoot-draft';
 import { decide, permissionsFor } from './permissions';
 import { tools } from './tools';
 
@@ -52,7 +54,7 @@ const schoolLocalTools = new Set([
 export function createRuntimePlugin(
   increment: (name: string) => number,
   skills: readonly EmbeddedSkill[],
-  kahootEnabled = false,
+  kahoot?: KahootMcpConfig,
   toolOwner?: (
     sessionId: string,
     agent: string,
@@ -61,24 +63,30 @@ export function createRuntimePlugin(
   resolveScope?: (sessionId: string) => Promise<SchoolScope>,
 ) {
   const drafts = new KahootDrafts();
-  const rulesByAgent = new Map(
-    agents.map((agent) => [agent.id, permissionsFor(agent, kahootEnabled)]),
-  );
+  const rulesByAgent = new Map(agents.map((agent) => [agent.id, permissionsFor(agent, kahoot)]));
   return {
     id: 'crudex-agent-runtime',
     async setup(ctx: RegistrationContext) {
-      if (kahootEnabled) {
+      if (kahoot) {
         if (!ctx.mcp) throw new Error('MCP registration unavailable');
         await ctx.mcp.transform((editor) => {
-          // OpenCode joins a normalized server name and tool name with an underscore.
-          // Reject ambiguous prefixes that could grant another server this action.
+          // OpenCode normalizes MCP names before joining them, so overlapping prefixes can impersonate a tool.
           for (const [server] of editor.list()) {
             const prefix = server.replace(/[^a-zA-Z0-9_-]/g, '_') + '_';
-            if (server !== 'crudex_kahoot' && kahootTool.startsWith(prefix)) {
+            if (
+              server !== 'crudex_kahoot' &&
+              jeng.mcpTools.some((action) => action.startsWith(prefix))
+            ) {
               throw new Error('Ambiguous Kahoot MCP namespace');
             }
           }
-          editor.set('crudex_kahoot', { type: 'remote', url: kahootServer, codemode: false });
+          editor.set('crudex_kahoot', {
+            type: 'remote',
+            url: kahoot.url,
+            headers: { 'x-crudex-kahoot-token': kahoot.token },
+            oauth: false,
+            codemode: false,
+          });
         });
       }
       await ctx.permission.hook('evaluate', (evaluation) => {
@@ -106,7 +114,7 @@ export function createRuntimePlugin(
                 '\nโหมดบัญชีโรงเรียน ใช้ข้อมูลจากเครื่องมือที่ผูกกับบัญชีเท่านั้น หากเครื่องมือไม่พร้อมให้บอกผู้ใช้ตามจริง ห้ามสร้างตัวเลข ลิงก์ หรือผลลัพธ์เอง'
               : definition.instructions;
             agent.model = Model.Ref.parse('openai/' + definition.model);
-            agent.permissions = permissionsFor(definition, kahootEnabled);
+            agent.permissions = permissionsFor(definition, kahoot);
           });
         }
       });
@@ -156,7 +164,7 @@ export function createRuntimePlugin(
                 signal: call.signal,
               });
               if (
-                kahootEnabled &&
+                kahoot &&
                 call.agent === 'jeng' &&
                 tool.name === 'check_assessment' &&
                 result &&
