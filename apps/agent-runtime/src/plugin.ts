@@ -5,6 +5,8 @@ import { jeng } from './agents/jeng';
 import { kahootMcpServer, type KahootMcpConfig } from './kahoot-config';
 import { KahootDrafts, kahootTool } from './kahoot-draft';
 import { decide, permissionsFor } from './permissions';
+import { activityActions } from './tools/teacher_activity';
+import { recordActivity } from './state';
 import { tools } from './tools';
 
 export interface EmbeddedSkill {
@@ -162,15 +164,20 @@ export function createRuntimePlugin(
                 const result = await schoolTool(scope, tool.name, input, call.signal);
                 return { content: JSON.stringify(result) };
               }
+              const identity = scope
+                ? { scope, ownerId: scope.ownerId, classId: scope.classId ?? undefined }
+                : await toolOwner?.(call.sessionID, call.agent, call.signal);
               const result = await tool.execute(input, {
-                ...(scope
-                  ? { scope, ownerId: scope.ownerId, classId: scope.classId ?? undefined }
-                  : await toolOwner?.(call.sessionID, call.agent, call.signal)),
+                ...identity,
                 count: increment(tool.name),
                 agent: call.agent,
                 sessionID: call.sessionID,
                 signal: call.signal,
               });
+              const action = Object.hasOwn(activityActions, tool.name)
+                ? activityActions[tool.name]
+                : undefined;
+              if (action && identity?.ownerId) recordActivity(identity.ownerId, action);
               if (
                 kahoot &&
                 call.agent === 'jeng' &&

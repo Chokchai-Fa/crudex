@@ -40,6 +40,7 @@ describe('principal brief data', () => {
     expect((await call('get_school_summary')).pendingApprovals).toBe(0);
     expect(empty.pendingApprovals).toBe(0);
     expect(JSON.stringify(empty.totals)).not.toContain('ส่งเอกสารเบิก');
+    expect(empty.mode).toBe('sample');
 
     addApproval('teacher-a', claim, '');
     addApproval('teacher-b', { ...claim, claimId: 'claim-2' }, '');
@@ -61,7 +62,7 @@ describe('principal brief data', () => {
       maxScore: teacherSide.maxScore,
       meanLabel: '3.5/6 คะแนน',
       scoreLabel: '28/48 คะแนน (8 คน คนละ 6 คะแนน) เฉลี่ย 3.5/6',
-      belowThreshold: false,
+      belowThreshold: true,
     });
     expect(JSON.stringify(summary)).not.toMatch(/นักเรียนตัวอย่าง|studentId/);
   });

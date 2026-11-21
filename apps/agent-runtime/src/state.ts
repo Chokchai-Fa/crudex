@@ -10,6 +10,7 @@ export type ApprovalRecord = RuntimeState['approvals'][number];
 export type Notification = RuntimeState['notifications'][number];
 export type PublishedBrief = RuntimeState['briefs'][number];
 export type InboxItem = RuntimeState['inbox'][number];
+export type ActivityEntry = RuntimeState['activity'][number];
 
 export const memory = new Map<string, Map<string, MemoryItem>>();
 export const approvals: ApprovalRecord[] = [];
@@ -17,6 +18,7 @@ export const notifications: Notification[] = [];
 export const briefs: PublishedBrief[] = [];
 /** The demo test mailbox written by send_email. */
 export const inbox: InboxItem[] = [];
+export const activity: ActivityEntry[] = [];
 
 export const normalizeMemory = (text: string) =>
   text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -31,6 +33,7 @@ function snapshot(): RuntimeState {
     notifications,
     briefs,
     inbox,
+    activity,
   };
 }
 
@@ -47,10 +50,12 @@ function replaceState(state: RuntimeState) {
   notifications.length = 0;
   briefs.length = 0;
   inbox.length = 0;
+  activity.length = 0;
   for (const item of state.approvals) approvals.push(item);
   for (const item of state.notifications) notifications.push(item);
   for (const item of state.briefs) briefs.push(item);
   for (const item of state.inbox) inbox.push(item);
+  for (const item of state.activity) activity.push(item);
 }
 
 function writeState(dataDir: string, state: RuntimeState) {
@@ -84,4 +89,13 @@ export function loadState() {
     throw error;
   }
   replaceState(runtimeStateSchema.parse(JSON.parse(json)));
+}
+
+const MAX_ACTIVITY = 500;
+
+/** Remember one piece of teacher work (no content, no student data). Oldest entries are dropped first. */
+export function recordActivity(ownerId: string, action: string, at = Date.now()) {
+  activity.push({ ownerId, action, at });
+  if (activity.length > MAX_ACTIVITY) activity.splice(0, activity.length - MAX_ACTIVITY);
+  persistState();
 }

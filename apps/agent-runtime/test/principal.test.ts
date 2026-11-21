@@ -115,8 +115,8 @@ describe('school data stays above the student level', () => {
       lowestClass: string;
       budget: { nearLimit: { code: string }[] };
     };
-    expect(r.classes.filter((c) => c.belowThreshold).map((c) => c.label)).toEqual(['ป.6/1']);
-    expect(r.lowestClass).toBe('ป.6/1');
+    expect(r.classes.filter((c) => c.belowThreshold).map((c) => c.label)).toEqual(['ม.2/1']);
+    expect(r.lowestClass).toBe('ม.2/1');
     expect(r.budget.nearLimit.map((a) => a.code)).toEqual(['A24', 'A07']);
   });
 });
