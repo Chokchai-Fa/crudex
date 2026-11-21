@@ -1,4 +1,5 @@
 import '@fontsource-variable/anuphan/wght.css';
+import '@fontsource/fredoka/700.css';
 import './styles/globals.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createRouter, RouterProvider } from '@tanstack/react-router';

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import type { AgentId, SchoolActor } from '@repo/shared';
 import { TeamIcon } from '../workspace/teacher-team';
+import { BrandLogo } from '@/components/brand-logo';
 import {
   useSchoolAgents,
   useSchoolMemories,
@@ -41,7 +42,8 @@ export function SchoolTeam({
   return (
     <nav id="school-team" className="school-team team-nav" aria-label="ห้องและผู้ช่วย">
       <Link to="/school">
-        <img src="/roles/brand.png" width="146" height="32" alt="Crudex · พื้นที่โรงเรียน" />
+        <BrandLogo size={30} />
+        <span className="sr-only">Crudex · พื้นที่โรงเรียน</span>
       </Link>
       <fieldset disabled={disabled}>
         <legend>ห้องเรียน</legend>
