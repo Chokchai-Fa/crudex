@@ -9,6 +9,8 @@ import { checkAssessmentTool } from './check_assessment';
 import { curriculumLookup } from './curriculum_lookup';
 import { fillClaimForm } from './fill_claim_form';
 import { getScores } from './get_scores';
+import { lessonVideoCreate } from './lesson_video_create';
+import { lessonVideoDraft } from './lesson_video_draft';
 import { makeFile } from './make_file';
 import { makeSheet } from './make_sheet';
 import { makeSlides } from './make_slides';
@@ -39,6 +41,8 @@ export const tools = [
   fractionAdditionForm,
   makeFile,
   searchProj14,
+  lessonVideoDraft,
+  lessonVideoCreate,
   makeSlides,
   makeSheet,
   schoolTheme,
