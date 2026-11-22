@@ -55,6 +55,19 @@ describe('teacher agents', () => {
     expect(t('jeng')).not.toContain('get_scores');
   });
 
+  it('offers the lesson video tools and skill only to jeng', () => {
+    for (const agent of teacherAgents) {
+      expect(agent.skills.includes('lesson-video')).toBe(agent.id === 'jeng');
+      const rules = permissionsFor(agent);
+      expect(decide(rules, 'lesson_video_draft', ['*'])).toBe(
+        agent.id === 'jeng' ? 'allow' : 'deny',
+      );
+      expect(decide(rules, 'lesson_video_create', ['*'])).toBe(
+        agent.id === 'jeng' ? 'ask' : 'deny',
+      );
+    }
+  });
+
   it('only the secretary can save memory', () => {
     expect(teacherAgents.filter((a) => a.tools.includes('memory_save')).map((a) => a.id)).toEqual([
       'jaew',
@@ -112,13 +125,14 @@ describe('jum main loop', () => {
 });
 
 describe('gates for anything that leaves the system or cannot be undone', () => {
-  it('asks a person for send_email, submit_for_approval and decide_approval only', () => {
+  it('requires confirmation for the designated tools', () => {
     const asked = tools
       .filter((t) => t.gate === 'ask')
       .map((t) => t.name)
       .sort();
     expect(asked).toEqual([
       'decide_approval',
+      'lesson_video_create',
       'restricted_probe',
       'send_email',
       'submit_for_approval',

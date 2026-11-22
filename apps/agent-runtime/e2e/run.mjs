@@ -205,6 +205,8 @@ const expected = {
     'school_theme',
     'check_assessment',
     'save_assessment',
+    'lesson_video_draft',
+    'lesson_video_create',
   ],
   porn: [
     'memory_search',
@@ -452,7 +454,12 @@ check(
 );
 
 console.log('# access matrix: ask gates, delegation and the principal team');
+for (const name of ['lesson_video_draft', 'lesson_video_create']) {
+  const denied = run(['--agent', 'nun', `CALL ${name} {}`]);
+  check(`nun is not offered ${name}`, text(denied).includes(`NOT_OFFERED ${name}`), text(denied));
+}
 const asked = [
+  ['jeng', 'lesson_video_create', '{"draftId":"draft-x","confirmed":true}'],
   ['porn', 'submit_for_approval', '{"claimId":"claim-x"}'],
   ['porn', 'send_email', '{"to":"a@b.c","subject":"s","body":"b"}'],
   ['lekha_por', 'decide_approval', '{"approvalId":"x","decision":"approve"}'],
